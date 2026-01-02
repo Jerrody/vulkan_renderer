@@ -1,12 +1,6 @@
 use bevy_ecs::resource::Resource;
 use vulkanalia::vk::*;
 
-#[derive(Clone, Copy)]
-pub struct TimelineSemaphore {
-    pub semaphore: Semaphore,
-    pub value: u64,
-}
-
 pub struct FrameData {
     pub command_pool: CommandPool,
     pub command_buffer: CommandBuffer,

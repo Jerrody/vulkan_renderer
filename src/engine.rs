@@ -5,7 +5,7 @@ mod utils;
 use std::sync::Arc;
 
 use bevy_ecs::{
-    schedule::{Schedule, ScheduleLabel},
+    schedule::{IntoScheduleConfigs, Schedule, ScheduleLabel},
     world::{self, World},
 };
 use vulkanalia::{Version, vk::*};
@@ -14,8 +14,9 @@ use vulkanalia_bootstrap::{
 };
 use winit::window::Window;
 
-use crate::engine::resources::{
-    FrameData, QueueData, RenderContextResource, VulkanContextResource,
+use crate::engine::{
+    resources::{FrameContext, FrameData, QueueData, RenderContextResource, VulkanContextResource},
+    systems::{prepare_frame, present, render},
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
@@ -35,10 +36,17 @@ impl Engine {
         let render_context_resource = Self::create_render_context(&world);
         world.insert_resource(render_context_resource);
 
+        let frame_context = FrameContext::default();
+        world.insert_resource(frame_context);
+
         world.register_system(systems::render);
 
         let mut schedule = Schedule::new(ScheduleLabelUpdate);
-        schedule.add_systems(systems::render);
+        schedule.add_systems((
+            prepare_frame::prepare_frame,
+            render::render,
+            present::present,
+        ));
 
         world.add_schedule(schedule);
 
