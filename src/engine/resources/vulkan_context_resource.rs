@@ -4,8 +4,8 @@ use bevy_ecs::resource::Resource;
 use vulkanalia::vk::Queue;
 
 pub struct QueueData {
-    index: usize,
-    queue: Queue,
+    pub index: usize,
+    pub queue: Queue,
 }
 
 impl QueueData {

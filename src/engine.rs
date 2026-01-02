@@ -1,19 +1,25 @@
 mod resources;
+mod systems;
+mod utils;
 
 use std::sync::Arc;
 
-use bevy_ecs::world::World;
+use bevy_ecs::{
+    schedule::{Schedule, ScheduleLabel},
+    world::{self, World},
+};
 use vulkanalia::{Version, vk::*};
 use vulkanalia_bootstrap::{
-    DeviceBuilder, InstanceBuilder, PhysicalDeviceSelector, PreferredDeviceType, Swapchain,
-    SwapchainBuilder,
+    DeviceBuilder, InstanceBuilder, PhysicalDeviceSelector, PreferredDeviceType, SwapchainBuilder,
 };
 use winit::window::Window;
 
 use crate::engine::resources::{
-    FrameData, QueueData, RenderContextResource, VulkanContextResource, render_context_resource,
-    vulkan_context_resource,
+    FrameData, QueueData, RenderContextResource, VulkanContextResource,
 };
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
+struct ScheduleLabelUpdate;
 
 pub struct Engine {
     world: World,
@@ -29,7 +35,18 @@ impl Engine {
         let render_context_resource = Self::create_render_context(&world);
         world.insert_resource(render_context_resource);
 
+        world.register_system(systems::render);
+
+        let mut schedule = Schedule::new(ScheduleLabelUpdate);
+        schedule.add_systems(systems::render);
+
+        world.add_schedule(schedule);
+
         Self { world }
+    }
+
+    pub fn update(&mut self) {
+        self.world.run_schedule(ScheduleLabelUpdate);
     }
 
     fn create_vulkan_context(window: Option<Arc<dyn Window>>) -> VulkanContextResource {
@@ -37,7 +54,7 @@ impl Engine {
             .app_name("Render")
             .engine_name("Engine Name")
             .app_version(Version::V1_4_0)
-            .request_validation_layers(true)
+            .request_validation_layers(false)
             .use_default_debug_messenger()
             .build()
             .unwrap();
@@ -89,7 +106,7 @@ impl Engine {
             .add_image_usage_flags(
                 ImageUsageFlags::COLOR_ATTACHMENT | ImageUsageFlags::TRANSFER_DST,
             )
-            .desired_present_mode(PresentModeKHR::FIFO_RELAXED)
+            .desired_present_mode(PresentModeKHR::FIFO)
             .desired_size(Extent2D {
                 width: window_size.width,
                 height: window_size.height,
@@ -137,39 +154,27 @@ impl Engine {
                     .unwrap()
                     .clone();
 
-                let mut semaphore_type_create_info = SemaphoreTypeCreateInfo::builder()
-                    .semaphore_type(SemaphoreType::TIMELINE)
-                    .build();
-                let test_semaphore = device
-                    .create_semaphore(
-                        &SemaphoreCreateInfo::builder()
-                            .push_next(&mut semaphore_type_create_info)
-                            .build(),
-                        None,
-                    )
-                    .unwrap();
-
-                let render_semaphore = device
-                    .create_semaphore(&SemaphoreCreateInfo::builder().build(), None)
-                    .unwrap();
-                let present_semaphore = device
-                    .create_semaphore(&SemaphoreCreateInfo::builder().build(), None)
-                    .unwrap();
-
-                let fence = device
+                let render_fence = device
                     .create_fence(
                         &FenceCreateInfo::builder().flags(FenceCreateFlags::SIGNALED),
                         None,
                     )
                     .unwrap();
 
+                let semaphore_create_info = SemaphoreCreateInfo::default();
+                let swapchain_semaphore = device
+                    .create_semaphore(&semaphore_create_info, None)
+                    .unwrap();
+                let render_semaphore = device
+                    .create_semaphore(&semaphore_create_info, None)
+                    .unwrap();
+
                 FrameData {
                     command_pool,
                     command_buffer,
-                    fence,
-                    test_semaphore,
+                    render_fence,
+                    swapchain_semaphore,
                     render_semaphore,
-                    present_semaphore,
                 }
             })
             .collect();
@@ -179,6 +184,7 @@ impl Engine {
             image_views,
             frame_overlap,
             frames_data,
+            frame_number: Default::default(),
         };
 
         render_context_resource
@@ -192,15 +198,18 @@ impl Drop for Engine {
 
         let device = &vulkan_context_resource.device;
 
+        unsafe {
+            device.device_wait_idle().unwrap();
+        }
+
         render_context_resource
             .frames_data
             .iter()
             .for_each(|frame_data| unsafe {
                 device.destroy_command_pool(frame_data.command_pool, None);
-                device.destroy_semaphore(frame_data.test_semaphore, None);
+                device.destroy_fence(frame_data.render_fence, None);
                 device.destroy_semaphore(frame_data.render_semaphore, None);
-                device.destroy_semaphore(frame_data.present_semaphore, None);
-                device.destroy_fence(frame_data.fence, None);
+                device.destroy_semaphore(frame_data.swapchain_semaphore, None);
             });
 
         vulkan_context_resource

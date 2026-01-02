@@ -58,6 +58,10 @@ impl ApplicationHandler for Application {
             winit::event::WindowEvent::RedrawRequested => {
                 let window = unsafe { self.window.as_ref().unwrap_unchecked() };
 
+                if let Some(engine) = &mut self.engine {
+                    engine.update();
+                }
+
                 window.request_redraw();
             }
             _ => {}
