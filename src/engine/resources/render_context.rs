@@ -1,5 +1,5 @@
 use bevy_ecs::resource::Resource;
-use vulkanalia::vk::*;
+use vulkanalia::vk::{CommandBuffer, CommandPool, Extent2D, Fence, Image, ImageView, Semaphore};
 
 pub struct FrameData {
     pub command_pool: CommandPool,
@@ -10,15 +10,16 @@ pub struct FrameData {
 }
 
 #[derive(Resource)]
-pub struct RenderContextResource {
+pub struct RendererContext {
     pub images: Vec<Image>,
     pub image_views: Vec<ImageView>,
     pub frame_overlap: usize,
     pub frames_data: Vec<FrameData>,
     pub frame_number: usize,
+    pub draw_extent: Extent2D,
 }
 
-impl RenderContextResource {
+impl RendererContext {
     pub fn get_current_frame_data(&self) -> &FrameData {
         &self.frames_data[self.frame_number % self.frame_overlap]
     }

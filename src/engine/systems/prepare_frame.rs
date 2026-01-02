@@ -1,11 +1,11 @@
 use bevy_ecs::system::{Res, ResMut};
 use vulkanalia::vk::{CommandBufferResetFlags, DeviceV1_0, KhrSwapchainExtensionDeviceCommands};
 
-use crate::engine::resources::{FrameContext, RenderContextResource, VulkanContextResource};
+use crate::engine::resources::{FrameContext, RendererContext, VulkanContextResource};
 
 pub fn prepare_frame(
     vulkan_ctx: Res<VulkanContextResource>,
-    render_ctx: Res<RenderContextResource>,
+    render_ctx: Res<RendererContext>,
     mut frame_ctx: ResMut<FrameContext>,
 ) {
     let device = &vulkan_ctx.device;

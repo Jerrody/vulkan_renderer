@@ -5,13 +5,13 @@ use vulkanalia::vk::{
 };
 
 use crate::engine::{
-    resources::{FrameContext, RenderContextResource, VulkanContextResource},
+    resources::{FrameContext, RendererContext, VulkanContextResource},
     utils::{command_buffer_submit_info, semaphore_submit_info, submit_info},
 };
 
 pub fn present(
     vulkan_ctx: Res<VulkanContextResource>,
-    mut render_ctx: ResMut<RenderContextResource>,
+    mut render_ctx: ResMut<RendererContext>,
     frame_ctx: Res<FrameContext>,
 ) {
     let device = &vulkan_ctx.device;

@@ -12,7 +12,7 @@ bevy_ecs = { version = "0.17.3", default-features = false, features = [
 ] }
 vulkanalia = "0.34.0"
 vulkanalia-bootstrap = { git = "https://github.com/Jerrody/vulkanalia-bootstrap" }
-vulkanalia-vma = "0.8.0"
+vma = { package = "vulkanalia-vma", version = "0.8.0" }
 
 [profile.dev]
 opt-level = 1

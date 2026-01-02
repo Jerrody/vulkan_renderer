@@ -5,9 +5,10 @@ mod utils;
 use std::sync::Arc;
 
 use bevy_ecs::{
-    schedule::{IntoScheduleConfigs, Schedule, ScheduleLabel},
+    schedule::{Schedule, ScheduleLabel},
     world::{self, World},
 };
+use vma::{Alloc, AllocationOptions, Allocator, AllocatorOptions, MemoryUsage};
 use vulkanalia::{Version, vk::*};
 use vulkanalia_bootstrap::{
     DeviceBuilder, InstanceBuilder, PhysicalDeviceSelector, PreferredDeviceType, SwapchainBuilder,
@@ -15,8 +16,12 @@ use vulkanalia_bootstrap::{
 use winit::window::Window;
 
 use crate::engine::{
-    resources::{FrameContext, FrameData, QueueData, RenderContextResource, VulkanContextResource},
+    resources::{
+        AllocatedImage, FrameContext, FrameData, QueueData, RendererContext, RendererResources,
+        VulkanContextResource,
+    },
     systems::{prepare_frame, present, render},
+    utils::{create_image_info, create_image_view_info},
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
@@ -29,12 +34,16 @@ pub struct Engine {
 impl Engine {
     pub fn new(window: Option<Arc<dyn Window>>) -> Self {
         let mut world = World::new();
+        let window = &window.unwrap();
 
-        let vulkan_context_resource = Self::create_vulkan_context(window);
+        let vulkan_context_resource = Self::create_vulkan_context(&window);
         world.insert_resource(vulkan_context_resource);
 
-        let render_context_resource = Self::create_render_context(&world);
-        world.insert_resource(render_context_resource);
+        let render_context = Self::create_renderer_context(&window, &world);
+        world.insert_resource(render_context);
+
+        let renderer_resources = Self::create_renderer_resources(&world);
+        world.insert_resource(renderer_resources);
 
         let frame_context = FrameContext::default();
         world.insert_resource(frame_context);
@@ -57,8 +66,8 @@ impl Engine {
         self.world.run_schedule(ScheduleLabelUpdate);
     }
 
-    fn create_vulkan_context(window: Option<Arc<dyn Window>>) -> VulkanContextResource {
-        let instance = InstanceBuilder::new(window.clone())
+    fn create_vulkan_context(window: &Arc<dyn Window>) -> VulkanContextResource {
+        let instance = InstanceBuilder::new(Some(window.clone()))
             .app_name("Render")
             .engine_name("Engine Name")
             .app_version(Version::V1_4_0)
@@ -99,7 +108,7 @@ impl Engine {
 
         let graphics_queue_data = QueueData::new(graphics_queue_index, graphics_queue);
 
-        let window_size = window.unwrap().surface_size();
+        let window_size = window.surface_size();
         let swapchain = SwapchainBuilder::new(instance.clone(), device.clone())
             .desired_format(
                 SurfaceFormat2KHR::builder()
@@ -122,9 +131,17 @@ impl Engine {
             .build()
             .unwrap();
 
+        let allocator_info = AllocatorOptions::new(
+            &instance.instance,
+            &device.device,
+            device.physical_device.physical_device,
+        );
+        let allocator = unsafe { Allocator::new(&allocator_info).unwrap() };
+
         let vulkan_context_resource = VulkanContextResource {
             instance,
             device,
+            allocator,
             graphics_queue_data,
             swapchain,
         };
@@ -132,7 +149,7 @@ impl Engine {
         vulkan_context_resource
     }
 
-    fn create_render_context(world: &World) -> RenderContextResource {
+    fn create_renderer_context(window: &Arc<dyn Window>, world: &World) -> RendererContext {
         let vulkan_context_resource = world.get_resource_ref::<VulkanContextResource>().unwrap();
         let swapchain = &vulkan_context_resource.swapchain;
 
@@ -187,27 +204,98 @@ impl Engine {
             })
             .collect();
 
-        let render_context_resource = RenderContextResource {
+        let surface_size = window.surface_size();
+        let draw_extent = Extent2D {
+            width: surface_size.width,
+            height: surface_size.height,
+        };
+        let render_context_resource = RendererContext {
             images,
             image_views,
             frame_overlap,
+            draw_extent,
             frames_data,
             frame_number: Default::default(),
         };
 
         render_context_resource
     }
+
+    pub fn create_renderer_resources(world: &World) -> RendererResources {
+        let vulkan_context = world.get_resource_ref::<VulkanContextResource>().unwrap();
+        let render_context = world.get_resource_ref::<RendererContext>().unwrap();
+
+        let draw_image_extent = Extent3D {
+            width: render_context.draw_extent.width,
+            height: render_context.draw_extent.height,
+            depth: 1,
+        };
+        let target_draw_image_format = Format::R16G16B16A16_SFLOAT;
+        let image_usage_flags = ImageUsageFlags::TRANSFER_SRC
+            | ImageUsageFlags::TRANSFER_DST
+            | ImageUsageFlags::STORAGE
+            | ImageUsageFlags::COLOR_ATTACHMENT;
+
+        let image_create_info = create_image_info(
+            target_draw_image_format,
+            image_usage_flags,
+            draw_image_extent,
+        );
+        let mut allocation_options = AllocationOptions::default();
+        allocation_options.usage = MemoryUsage::Auto;
+        allocation_options.required_flags = MemoryPropertyFlags::DEVICE_LOCAL;
+
+        let (allocated_draw_image, allocation) = unsafe {
+            vulkan_context
+                .allocator
+                .create_image(image_create_info, &allocation_options)
+                .unwrap()
+        };
+
+        let image_view_create_info = create_image_view_info(
+            target_draw_image_format,
+            allocated_draw_image,
+            ImageAspectFlags::COLOR,
+        );
+        let allocated_image_view = unsafe {
+            vulkan_context
+                .device
+                .create_image_view(&image_view_create_info, None)
+                .unwrap()
+        };
+
+        let draw_image = AllocatedImage {
+            image: allocated_draw_image,
+            image_view: allocated_image_view,
+            allocation: allocation,
+            image_extent: draw_image_extent,
+            format: Format::R16G16B16A16_SFLOAT,
+        };
+
+        let renderer_resources = RendererResources { draw_image };
+
+        renderer_resources
+    }
 }
 
 impl Drop for Engine {
     fn drop(&mut self) {
         let vulkan_context_resource = self.world.get_resource::<VulkanContextResource>().unwrap();
-        let render_context_resource = self.world.get_resource::<RenderContextResource>().unwrap();
+        let render_context_resource = self.world.get_resource::<RendererContext>().unwrap();
+        let renderer_resources = self.world.get_resource::<RendererResources>().unwrap();
 
         let device = &vulkan_context_resource.device;
 
         unsafe {
             device.device_wait_idle().unwrap();
+        }
+
+        unsafe {
+            device.destroy_image_view(renderer_resources.draw_image.image_view, None);
+            vulkan_context_resource.allocator.destroy_image(
+                renderer_resources.draw_image.image,
+                renderer_resources.draw_image.allocation,
+            );
         }
 
         render_context_resource
