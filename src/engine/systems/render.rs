@@ -8,7 +8,7 @@ use crate::engine::{
 
 pub fn render(
     vulkan_ctx: Res<VulkanContextResource>,
-    mut render_context: ResMut<RenderContextResource>,
+    render_context: ResMut<RenderContextResource>,
     frame_context: Res<FrameContext>,
 ) {
     let device = &vulkan_ctx.device;
