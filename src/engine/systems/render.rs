@@ -1,14 +1,17 @@
 use bevy_ecs::system::{Res, ResMut};
-use vulkanalia::vk::{CommandBufferUsageFlags, DeviceV1_0, ImageAspectFlags, ImageLayout};
+use vulkanalia::vk::{
+    CommandBufferUsageFlags, DeviceV1_0, Extent2D, ImageAspectFlags, ImageLayout,
+};
 
 use crate::engine::{
-    resources::{FrameContext, RendererContext, VulkanContextResource},
-    utils::{self, image_subresource_range, transition_image},
+    resources::{FrameContext, RendererContext, RendererResources, VulkanContextResource},
+    utils::{self, copy_image_to_image, image_subresource_range, transition_image},
 };
 
 pub fn render(
     vulkan_ctx: Res<VulkanContextResource>,
     render_context: ResMut<RendererContext>,
+    renderer_resources: Res<RendererResources>,
     frame_context: Res<FrameContext>,
 ) {
     let device = &vulkan_ctx.device;
@@ -26,11 +29,19 @@ pub fn render(
     }
 
     let image_index = frame_context.swapchain_image_index as usize;
-    let image = render_context.images[image_index];
+    let swapchain_image = render_context.images[image_index];
+    let draw_image = renderer_resources.draw_image.image;
     transition_image(
         device,
         command_buffer,
-        image,
+        draw_image,
+        ImageLayout::UNDEFINED,
+        ImageLayout::GENERAL,
+    );
+    transition_image(
+        device,
+        command_buffer,
+        swapchain_image,
         ImageLayout::UNDEFINED,
         ImageLayout::GENERAL,
     );
@@ -46,17 +57,31 @@ pub fn render(
     unsafe {
         device.cmd_clear_color_image(
             command_buffer,
-            image,
+            draw_image,
             ImageLayout::GENERAL,
             &clear_value,
             &ranges,
         );
     }
 
+    let draw_image_extent = renderer_resources.draw_image.image_extent;
+
+    copy_image_to_image(
+        device,
+        command_buffer,
+        draw_image,
+        swapchain_image,
+        Extent2D {
+            width: draw_image_extent.width,
+            height: draw_image_extent.height,
+        },
+        render_context.draw_extent,
+    );
+
     transition_image(
         device,
         command_buffer,
-        image,
+        swapchain_image,
         ImageLayout::GENERAL,
         ImageLayout::PRESENT_SRC_KHR,
     );

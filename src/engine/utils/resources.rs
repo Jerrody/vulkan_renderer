@@ -1,11 +1,8 @@
 use vulkanalia::vk::{
-    ComponentMapping, ComponentSwizzle, Extent3D, Format, Image, ImageAspectFlags,
-    ImageCreateFlags, ImageCreateInfo, ImageLayout, ImageSubresourceRange, ImageTiling, ImageType,
-    ImageUsageFlags, ImageViewCreateFlags, ImageViewCreateInfo, ImageViewType, SampleCountFlags,
-    SharingMode,
+    ComponentMapping, ComponentSwizzle, Extent3D, Format, Image, ImageAspectFlags, ImageCreateInfo,
+    ImageLayout, ImageSubresourceRange, ImageTiling, ImageType, ImageUsageFlags,
+    ImageViewCreateInfo, ImageViewType, SampleCountFlags, SharingMode,
 };
-
-use crate::engine::utils::image_subresource_range;
 
 pub fn create_image_info(
     format: Format,

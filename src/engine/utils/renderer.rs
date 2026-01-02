@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use vulkanalia::vk::{
-    AccessFlags2, CommandBuffer, CommandBufferBeginInfo, CommandBufferSubmitInfo,
-    CommandBufferUsageFlags, DependencyInfo, Device, DeviceV1_3, HasBuilder, Image,
-    ImageAspectFlags, ImageLayout, ImageMemoryBarrier2, ImageSubresourceRange, PipelineStageFlags2,
-    REMAINING_ARRAY_LAYERS, REMAINING_MIP_LEVELS, Semaphore, SemaphoreSubmitInfo, SubmitInfo,
-    SubmitInfo2,
+    AccessFlags2, BlitImageInfo2, CommandBuffer, CommandBufferBeginInfo, CommandBufferSubmitInfo,
+    CommandBufferUsageFlags, DependencyInfo, DeviceV1_3, Extent2D, Filter, HasBuilder, Image,
+    ImageAspectFlags, ImageBlit2, ImageLayout, ImageMemoryBarrier2, ImageSubresourceLayers,
+    ImageSubresourceRange, Offset3D, PipelineStageFlags2, REMAINING_ARRAY_LAYERS,
+    REMAINING_MIP_LEVELS, Semaphore, SemaphoreSubmitInfo, SubmitInfo2,
 };
 
 pub fn create_command_buffer_begin_info(flags: CommandBufferUsageFlags) -> CommandBufferBeginInfo {
@@ -87,4 +87,66 @@ pub fn submit_info(
         .build();
 
     submit_info
+}
+
+pub fn copy_image_to_image(
+    device: &Arc<vulkanalia_bootstrap::Device>,
+    command_buffer: CommandBuffer,
+    source_image: Image,
+    destination_image: Image,
+    src_extent: Extent2D,
+    dst_extent: Extent2D,
+) {
+    let src_offsets = [
+        Offset3D::default(),
+        Offset3D {
+            x: src_extent.width as _,
+            y: src_extent.height as _,
+            z: 1,
+        },
+    ];
+    let dst_offsets = [
+        Offset3D::default(),
+        Offset3D {
+            x: dst_extent.width as _,
+            y: dst_extent.height as _,
+            z: 1,
+        },
+    ];
+
+    let src_subresource = ImageSubresourceLayers {
+        aspect_mask: ImageAspectFlags::COLOR,
+        mip_level: Default::default(),
+        base_array_layer: Default::default(),
+        layer_count: 1,
+    };
+    let dst_subresource = ImageSubresourceLayers {
+        aspect_mask: ImageAspectFlags::COLOR,
+        mip_level: Default::default(),
+        base_array_layer: Default::default(),
+        layer_count: 1,
+    };
+    let blit_region = ImageBlit2 {
+        src_subresource,
+        src_offsets,
+        dst_subresource,
+        dst_offsets,
+        ..Default::default()
+    };
+
+    let regions = [blit_region];
+    let image_blit_info = BlitImageInfo2 {
+        src_image: source_image,
+        src_image_layout: ImageLayout::GENERAL,
+        dst_image: destination_image,
+        dst_image_layout: ImageLayout::GENERAL,
+        region_count: regions.len() as _,
+        regions: regions.as_ptr(),
+        filter: Filter::LINEAR,
+        ..Default::default()
+    };
+
+    unsafe {
+        device.cmd_blit_image2(command_buffer, &image_blit_info);
+    }
 }
