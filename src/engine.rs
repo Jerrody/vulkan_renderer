@@ -10,7 +10,10 @@ use bevy_ecs::{
 };
 use vulkanite::{
     Handle,
-    vk::raw::{Buffer, Image},
+    vk::{
+        self,
+        raw::{Buffer, Image},
+    },
 };
 use winit::window::Window;
 
@@ -79,21 +82,27 @@ impl Drop for Engine {
         device.wait_idle().unwrap();
 
         unsafe {
-            device.destroy_image_view(Some(&renderer_resources.draw_image.image_view));
-
             let draw_image_desciptor_buffer = &mut renderer_resources.draw_image_descriptor_buffer;
-            device.destroy_buffer(Some(&draw_image_desciptor_buffer.allocated_buffer.buffer));
-            vulkan_context_resource
-                .allocator
-                .free_memory(&mut draw_image_desciptor_buffer.allocated_buffer.allocation);
-
+            device.destroy_image_view(Some(&renderer_resources.draw_image.image_view));
             device.destroy_descriptor_set_layout(Some(
                 &draw_image_desciptor_buffer.descriptor_set_layout,
             ));
-            device.destroy_image(Some(&renderer_resources.draw_image.image));
-            vulkan_context_resource
-                .allocator
-                .free_memory(&mut renderer_resources.draw_image.allocation);
+
+            let draw_image_descriptor_buffer_raw = vk::raw::Buffer::from_raw(
+                draw_image_desciptor_buffer.allocated_buffer.buffer.as_raw(),
+            );
+            vulkan_context_resource.allocator.destroy_buffer(
+                draw_image_descriptor_buffer_raw,
+                &mut draw_image_desciptor_buffer.allocated_buffer.allocation,
+            );
+
+            let draw_image_raw =
+                vk::raw::Image::from_raw(renderer_resources.draw_image.image.as_raw());
+            vulkan_context_resource.allocator.destroy_image(
+                draw_image_raw,
+                &mut renderer_resources.draw_image.allocation,
+            );
+            drop(vulkan_context_resource.allocator);
 
             render_context_resource
                 .frames_data
