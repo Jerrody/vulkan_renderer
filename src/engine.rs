@@ -84,12 +84,16 @@ impl Engine {
         let mut unified_image_layout_feature =
             PhysicalDeviceUnifiedImageLayoutsFeaturesKHR::builder().unified_image_layouts(true);
 
-        let descriptor_buffer_feature =
+        let mut descriptor_buffer_feature =
             PhysicalDeviceDescriptorBufferFeaturesEXT::builder().descriptor_buffer(true);
+
+        let shader_objects_feature =
+            PhysicalDeviceShaderObjectFeaturesEXT::builder().shader_object(true);
 
         let mut physical_device_features13 = PhysicalDeviceVulkan13Features::builder()
             .dynamic_rendering(true)
             .synchronization2(true);
+        descriptor_buffer_feature.next = shader_objects_feature.next_mut();
         unified_image_layout_feature.next = descriptor_buffer_feature.next_mut();
         physical_device_features13.next = unified_image_layout_feature.next_mut();
         physical_device_features12.next = physical_device_features13.next_mut();
