@@ -15,7 +15,10 @@ use vulkanite::{
 use winit::window::Window;
 
 use crate::engine::{
-    resources::{FrameContext, RendererContext, RendererResources, VulkanContextResource},
+    resources::{
+        FrameContext, RendererContext, RendererResources, VulkanContextResource,
+        vulkan_context_resource,
+    },
     systems::{prepare_frame, present, render},
 };
 
@@ -116,6 +119,13 @@ impl Drop for Engine {
                         .device
                         .destroy_image_view(Some(image_view));
                 });
+
+            if let Some(debug_utils_messenger) = vulkan_context_resource.debug_utils_messenger {
+                vulkan_context_resource
+                    .instance
+                    .destroy_debug_utils_messenger_ext(Some(&debug_utils_messenger));
+            }
+
             vulkan_context_resource
                 .device
                 .destroy_swapchain_khr(Some(&vulkan_context_resource.swapchain));
