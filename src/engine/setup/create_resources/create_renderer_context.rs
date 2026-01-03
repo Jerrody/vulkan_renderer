@@ -8,10 +8,7 @@ use crate::engine::{
 };
 
 impl Engine {
-    pub(crate) fn create_renderer_context(
-        window: &Box<dyn Window>,
-        world: &World,
-    ) -> RendererContext {
+    pub(crate) fn create_renderer_context(window: &dyn Window, world: &World) -> RendererContext {
         let vulkan_context_resource = world.get_resource_ref::<VulkanContextResource>().unwrap();
         let device = vulkan_context_resource.device;
         let swapchain = &vulkan_context_resource.swapchain;
@@ -45,7 +42,7 @@ impl Engine {
 
         let device = &vulkan_context_resource.device;
         let frames_data = (0..frame_overlap)
-            .map(|_| unsafe {
+            .map(|_| {
                 let command_pool = device.create_command_pool(&command_pool_info).unwrap();
 
                 let command_buffer_allocate_info = CommandBufferAllocateInfo::default()
@@ -80,7 +77,6 @@ impl Engine {
             width: surface_size.width,
             height: surface_size.height,
         };
-        
 
         RendererContext {
             images,

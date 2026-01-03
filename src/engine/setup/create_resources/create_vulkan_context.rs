@@ -5,10 +5,10 @@ use vma::{Allocator, AllocatorCreateFlags, AllocatorCreateInfo};
 use vulkanite::{
     DefaultAllocator, Dispatcher, DynamicDispatcher, flagbits, structure_chain,
     vk::{
-        self, EXT_DESCRIPTOR_BUFFER, EXT_SHADER_OBJECT,
-        KHR_UNIFIED_IMAGE_LAYOUTS, PhysicalDeviceDescriptorBufferFeaturesEXT, PhysicalDeviceShaderObjectFeaturesEXT,
-        PhysicalDeviceUnifiedImageLayoutsFeaturesKHR,
-        PhysicalDeviceVulkan12Features, PhysicalDeviceVulkan13Features, SurfaceFormatKHR,
+        self, EXT_DESCRIPTOR_BUFFER, EXT_SHADER_OBJECT, KHR_UNIFIED_IMAGE_LAYOUTS,
+        PhysicalDeviceDescriptorBufferFeaturesEXT, PhysicalDeviceShaderObjectFeaturesEXT,
+        PhysicalDeviceUnifiedImageLayoutsFeaturesKHR, PhysicalDeviceVulkan12Features,
+        PhysicalDeviceVulkan13Features, SurfaceFormatKHR,
         rs::{PhysicalDevice, SwapchainKHR},
     },
     window,
@@ -30,7 +30,7 @@ extern "system" fn debug_callback(
 }
 
 impl Engine {
-    pub(crate) fn create_vulkan_context(window: &Box<dyn Window>) -> VulkanContextResource {
+    pub(crate) fn create_vulkan_context(window: &dyn Window) -> VulkanContextResource {
         let dispatcher = unsafe { DynamicDispatcher::new_loaded().unwrap() };
         let entry = vk::rs::Entry::new(dispatcher, DefaultAllocator);
         let (instance, debug_utils_messenger) = Self::create_instance(
@@ -60,8 +60,6 @@ impl Engine {
         let surface_size = window.surface_size();
         let (swapchain, surface_format) =
             Self::create_swapchain(&physical_device, &device, &surface, surface_size);
-
-        
 
         VulkanContextResource {
             instance,

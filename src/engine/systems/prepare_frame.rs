@@ -12,25 +12,23 @@ pub fn prepare_frame(
     let frame_data = render_ctx.get_current_frame_data();
     let fences = [frame_data.render_fence];
 
-    unsafe {
-        device
-            .wait_for_fences(fences.as_slice(), true, u64::MAX)
-            .unwrap();
-        device.reset_fences(fences.as_slice()).unwrap();
+    device
+        .wait_for_fences(fences.as_slice(), true, u64::MAX)
+        .unwrap();
+    device.reset_fences(fences.as_slice()).unwrap();
 
-        let (_status, swapchain_image_index) = device
-            .acquire_next_image_khr(
-                &vulkan_ctx.swapchain,
-                u64::MAX,
-                Some(&frame_data.swapchain_semaphore),
-                Default::default(),
-            )
-            .unwrap();
-        frame_ctx.swapchain_image_index = swapchain_image_index;
+    let (_status, swapchain_image_index) = device
+        .acquire_next_image_khr(
+            &vulkan_ctx.swapchain,
+            u64::MAX,
+            Some(&frame_data.swapchain_semaphore),
+            Default::default(),
+        )
+        .unwrap();
+    frame_ctx.swapchain_image_index = swapchain_image_index;
 
-        frame_data
-            .command_buffer
-            .reset(CommandBufferResetFlags::ReleaseResources)
-            .unwrap();
-    }
+    frame_data
+        .command_buffer
+        .reset(CommandBufferResetFlags::ReleaseResources)
+        .unwrap();
 }

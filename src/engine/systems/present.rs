@@ -34,12 +34,10 @@ pub fn present(
     );
 
     let submit_infos = [submit_info];
-    unsafe {
-        vulkan_ctx
-            .graphics_queue
-            .submit2(&submit_infos, Some(&frame_data.render_fence))
-            .unwrap();
-    }
+    vulkan_ctx
+        .graphics_queue
+        .submit2(&submit_infos, Some(&frame_data.render_fence))
+        .unwrap();
 
     let swapchains = [vulkan_ctx.swapchain];
     let wait_semaphores = [frame_data.render_semaphore];
@@ -49,12 +47,10 @@ pub fn present(
         .swapchain(swapchains.as_slice(), &image_indicies, None::<()>)
         .wait_semaphores(wait_semaphores.as_slice());
 
-    unsafe {
-        vulkan_ctx
-            .graphics_queue
-            .present_khr(&present_info)
-            .unwrap();
-    }
+    vulkan_ctx
+        .graphics_queue
+        .present_khr(&present_info)
+        .unwrap();
 
     render_ctx.frame_number += 1;
 }

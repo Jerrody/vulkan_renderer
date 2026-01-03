@@ -5,7 +5,7 @@ pub fn create_image_info<'a>(
     image_usage_flags: ImageUsageFlags,
     extent: Extent3D,
 ) -> ImageCreateInfo<'a> {
-    let image_create_info = ImageCreateInfo::default()
+    ImageCreateInfo::default()
         .image_type(ImageType::Type2D)
         .format(format)
         .extent(extent)
@@ -15,9 +15,7 @@ pub fn create_image_info<'a>(
         .tiling(ImageTiling::Optimal)
         .usage(image_usage_flags)
         .sharing_mode(SharingMode::Exclusive)
-        .initial_layout(ImageLayout::Undefined);
-
-    image_create_info
+        .initial_layout(ImageLayout::Undefined)
 }
 
 pub fn create_image_view_info<'a>(

@@ -3,8 +3,6 @@ use vulkanite::vk::{rs::*, *};
 pub fn create_command_buffer_begin_info<'a>(
     flags: CommandBufferUsageFlags,
 ) -> CommandBufferBeginInfo<'a> {
-    
-
     CommandBufferBeginInfo::default().flags(flags)
 }
 
@@ -32,8 +30,6 @@ pub fn transition_image(
 }
 
 pub fn image_subresource_range(aspect_mask: ImageAspectFlags) -> ImageSubresourceRange {
-    
-
     ImageSubresourceRange {
         aspect_mask,
         base_mip_level: Default::default(),
@@ -47,8 +43,6 @@ pub fn semaphore_submit_info<'a>(
     stage_mask: PipelineStageFlags2,
     semaphore: &'a Semaphore,
 ) -> SemaphoreSubmitInfo<'a> {
-    
-
     SemaphoreSubmitInfo::default()
         .semaphore(semaphore)
         .stage_mask(stage_mask)
@@ -57,8 +51,6 @@ pub fn semaphore_submit_info<'a>(
 pub fn command_buffer_submit_info<'a>(
     command_buffer: &'a CommandBuffer,
 ) -> CommandBufferSubmitInfo<'a> {
-    
-
     CommandBufferSubmitInfo::default().command_buffer(command_buffer)
 }
 
@@ -67,8 +59,6 @@ pub fn submit_info<'a>(
     wait_semaphores: &'a [SemaphoreSubmitInfo],
     signal_semaphores: &'a [SemaphoreSubmitInfo],
 ) -> SubmitInfo2<'a> {
-    
-
     SubmitInfo2::default()
         .wait_semaphore_infos(wait_semaphores)
         .signal_semaphore_infos(signal_semaphores)

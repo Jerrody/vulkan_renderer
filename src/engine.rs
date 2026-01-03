@@ -27,7 +27,7 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub fn new(window: &Box<dyn Window>) -> Self {
+    pub fn new(window: &dyn Window) -> Self {
         let mut world: World = World::new();
 
         let vulkan_context_resource = Self::create_vulkan_context(window);

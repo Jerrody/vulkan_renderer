@@ -1,4 +1,3 @@
-
 use bevy_ecs::world::World;
 use vulkanite::vk::*;
 
@@ -16,8 +15,6 @@ impl Engine {
             PhysicalDeviceVulkan11Properties,
             PhysicalDeviceDescriptorBufferPropertiesEXT,
         ) = vulkan_context_resource.physical_device.get_properties2();
-
-        
 
         DevicePropertiesResource {
             descriptor_buffer_properties,

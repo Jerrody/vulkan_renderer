@@ -37,11 +37,9 @@ impl<'a> DescriptorSetLayoutBuilder<'a> {
             DescriptorSetLayoutCreateInfo::default().flags(descriptor_set_layout_flags);
         descriptor_set_layout_info = descriptor_set_layout_info.bindings(&self.bindings);
 
-        let descriptor_set_layout = unsafe {
-            device
-                .create_descriptor_set_layout(&descriptor_set_layout_info)
-                .unwrap()
-        };
+        let descriptor_set_layout = device
+            .create_descriptor_set_layout(&descriptor_set_layout_info)
+            .unwrap();
 
         self.clear();
 

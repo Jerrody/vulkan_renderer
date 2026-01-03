@@ -33,9 +33,11 @@ impl Engine {
             image_usage_flags,
             draw_image_extent,
         );
-        let mut allocation_info = AllocationCreateInfo::default();
-        allocation_info.usage = MemoryUsage::Auto;
-        allocation_info.required_flags = MemoryPropertyFlags::DeviceLocal;
+        let allocation_info = AllocationCreateInfo {
+            usage: MemoryUsage::Auto,
+            required_flags: MemoryPropertyFlags::DeviceLocal,
+            ..Default::default()
+        };
 
         let (allocated_draw_image, allocation) = unsafe {
             vulkan_context
@@ -50,12 +52,10 @@ impl Engine {
             &allocated_draw_image,
             ImageAspectFlags::Color,
         );
-        let allocated_image_view = unsafe {
-            vulkan_context
-                .device
-                .create_image_view(&image_view_create_info)
-                .unwrap()
-        };
+        let allocated_image_view = vulkan_context
+            .device
+            .create_image_view(&image_view_create_info)
+            .unwrap();
 
         let draw_image = AllocatedImage {
             image: allocated_draw_image,
@@ -66,8 +66,6 @@ impl Engine {
         };
 
         let draw_image_descriptor_buffer = Self::create_descriptors(world);
-
-        
 
         RendererResources {
             draw_image,
@@ -91,7 +89,7 @@ impl Engine {
         );
 
         let descriptor_set_layout_size =
-            unsafe { device.get_descriptor_set_layout_size_ext(&descriptor_set_layout) };
+            device.get_descriptor_set_layout_size_ext(&descriptor_set_layout);
 
         let descriptor_buffer_size = Self::aligned_size(
             descriptor_set_layout_size,
@@ -100,12 +98,10 @@ impl Engine {
                 .descriptor_buffer_offset_alignment,
         );
 
-        let descriptor_buffer_offset = unsafe {
-            device.get_descriptor_set_layout_binding_offset_ext(
-                &descriptor_set_layout,
-                Default::default(),
-            )
-        };
+        let descriptor_buffer_offset = device.get_descriptor_set_layout_binding_offset_ext(
+            &descriptor_set_layout,
+            Default::default(),
+        );
 
         let buffer_info = BufferCreateInfo::default()
             .size(descriptor_buffer_size)
@@ -132,8 +128,6 @@ impl Engine {
             buffer: storage_image_descriptor_buffer,
             allocation,
         };
-
-        
 
         AllocatedDescriptorBuffer {
             allocated_buffer,

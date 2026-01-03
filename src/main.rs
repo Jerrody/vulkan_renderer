@@ -2,7 +2,6 @@
 
 mod engine;
 
-
 use winit::{
     application::ApplicationHandler,
     event::{ElementState, KeyEvent},
@@ -25,7 +24,7 @@ impl ApplicationHandler for Application {
 
         self.window = match event_loop.create_window(window_attributes) {
             Ok(window) => {
-                self.engine = Some(Engine::new(&window));
+                self.engine = Some(Engine::new(window.as_ref()));
 
                 Some(window)
             }
