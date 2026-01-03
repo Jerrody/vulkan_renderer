@@ -1,10 +1,11 @@
-use std::sync::Arc;
+use std::{ffi::c_void, sync::Arc};
 
-use vma::{Allocator, AllocatorOptions};
+use vma::{Allocator, AllocatorCreateFlags, AllocatorOptions};
 use vulkanalia::{
     Version,
     vk::{
-        ColorSpaceKHR, Extent2D, Format, HasBuilder, ImageUsageFlags, OutputChainStruct,
+        ColorSpaceKHR, EXT_DESCRIPTOR_BUFFER_EXTENSION, EXT_SHADER_OBJECT_EXTENSION, Extent2D,
+        Format, HasBuilder, ImageUsageFlags, KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION,
         PhysicalDeviceDescriptorBufferFeaturesEXT, PhysicalDeviceShaderObjectFeaturesEXT,
         PhysicalDeviceUnifiedImageLayoutsFeaturesKHR, PhysicalDeviceVulkan12Features,
         PhysicalDeviceVulkan13Features, PresentModeKHR, SurfaceFormat2KHR, SurfaceFormatKHR,
@@ -26,15 +27,14 @@ impl Engine {
             .app_name("Render")
             .engine_name("Engine Name")
             .app_version(Version::V1_4_0)
-            .request_validation_layers(false)
+            .require_api_version(Version::V1_4_0)
+            .request_validation_layers(true)
             .use_default_debug_messenger()
             .build()
             .unwrap();
 
-        let mut physical_device_features12 = PhysicalDeviceVulkan12Features::builder()
-            .buffer_device_address(true)
-            .descriptor_indexing(true)
-            .timeline_semaphore(true);
+        let physical_device_features12 =
+            PhysicalDeviceVulkan12Features::builder().buffer_device_address(true);
 
         let mut unified_image_layout_feature =
             PhysicalDeviceUnifiedImageLayoutsFeaturesKHR::builder().unified_image_layouts(true);
@@ -42,26 +42,33 @@ impl Engine {
         let mut descriptor_buffer_feature =
             PhysicalDeviceDescriptorBufferFeaturesEXT::builder().descriptor_buffer(true);
 
-        let shader_objects_feature =
+        let mut shader_objects_feature =
             PhysicalDeviceShaderObjectFeaturesEXT::builder().shader_object(true);
 
         let mut physical_device_features13 = PhysicalDeviceVulkan13Features::builder()
             .dynamic_rendering(true)
             .synchronization2(true);
-        descriptor_buffer_feature.next = shader_objects_feature.next_mut();
-        unified_image_layout_feature.next = descriptor_buffer_feature.next_mut();
-        physical_device_features13.next = unified_image_layout_feature.next_mut();
-        physical_device_features12.next = physical_device_features13.next_mut();
+
+        descriptor_buffer_feature.next = (&mut shader_objects_feature) as *mut _ as *mut c_void;
+        unified_image_layout_feature.next =
+            (&mut descriptor_buffer_feature) as *mut _ as *mut c_void;
+        physical_device_features13.next =
+            (&mut unified_image_layout_feature) as *mut _ as *mut c_void;
 
         let physical_device = PhysicalDeviceSelector::new(instance.clone())
-            .preferred_device_type(PreferredDeviceType::Discrete)
             .add_required_extension_feature(*physical_device_features12)
+            .add_required_extension_feature(*physical_device_features13)
             .select()
             .unwrap();
 
+        let extension_names = [
+            KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION.name,
+            EXT_SHADER_OBJECT_EXTENSION.name,
+            EXT_DESCRIPTOR_BUFFER_EXTENSION.name,
+        ];
         let device = Arc::new(
             DeviceBuilder::new(physical_device, instance.clone())
-                .build()
+                .build(&extension_names)
                 .unwrap(),
         );
 
@@ -94,12 +101,14 @@ impl Engine {
             .build()
             .unwrap();
 
-        let allocator_info = AllocatorOptions::new(
+        let mut allocation_options = AllocatorOptions::new(
             &instance.instance,
             &device.device,
             device.physical_device.physical_device,
         );
-        let allocator = unsafe { Allocator::new(&allocator_info).unwrap() };
+        allocation_options.flags = AllocatorCreateFlags::BUFFER_DEVICE_ADDRESS;
+
+        let allocator = unsafe { Allocator::new(&allocation_options).unwrap() };
 
         let vulkan_context_resource = VulkanContextResource {
             instance,

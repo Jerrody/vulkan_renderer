@@ -1,3 +1,5 @@
+//#![windows_subsystem = "windows"]
+
 mod engine;
 
 use std::sync::Arc;

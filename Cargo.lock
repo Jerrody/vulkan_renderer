@@ -835,9 +835,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.178"
+version = "0.2.179"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37c93d8daa9d8a012fd8ab92f088405fb202ea0b6ab73ee2482ae66af4f42091"
+checksum = "c5a2d376baa530d1238d133232d15e239abad80d05838b4b59354e5268af431f"
 
 [[package]]
 name = "libloading"
@@ -1671,7 +1671,7 @@ dependencies = [
 [[package]]
 name = "vulkanalia-bootstrap"
 version = "0.1.5"
-source = "git+https://github.com/Jerrody/vulkanalia-bootstrap#5ffd656dcab925bedaa6ae10dd381fd1a1e21b1f"
+source = "git+https://github.com/Jerrody/vulkanalia-bootstrap#08d63b7df68258c212fa0ca9ac9df74989bc9e14"
 dependencies = [
  "libloading",
  "raw-window-handle",

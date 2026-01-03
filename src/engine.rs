@@ -7,14 +7,23 @@ mod utils;
 use std::sync::Arc;
 
 use bevy_ecs::{
-    schedule::{Schedule, ScheduleLabel},
-    world::World,
+    schedule::{IntoScheduleConfigs, Schedule, ScheduleLabel},
+    world::{self, World},
 };
-use vulkanalia::vk::DeviceV1_0;
+use vma::{Alloc, AllocationCreateFlags, AllocationOptions};
+use vulkanalia::vk::{
+    BufferCreateFlags, BufferCreateInfo, BufferUsageFlags, DescriptorSetLayoutCreateFlags,
+    DescriptorType, DeviceV1_0, ExtDescriptorBufferExtensionDeviceCommands, ShaderStageFlags,
+    SharingMode,
+};
 use winit::window::Window;
 
 use crate::engine::{
-    resources::{FrameContext, RendererContext, RendererResources, VulkanContextResource},
+    descriptors::DescriptorSetLayoutBuilder,
+    resources::{
+        DevicePropertiesResource, FrameContext, RendererContext, RendererResources,
+        VulkanContextResource, render_resources, vulkan_context_resource,
+    },
     systems::{prepare_frame, present, render},
 };
 
@@ -33,8 +42,8 @@ impl Engine {
         let vulkan_context_resource = Self::create_vulkan_context(&window);
         world.insert_resource(vulkan_context_resource);
 
-        /*         let device_properties_resource = Self::create_device_properties(&world);
-        world.insert_resource(device_properties_resource); */
+        let device_properties_resource = Self::create_device_properties(&world);
+        world.insert_resource(device_properties_resource);
 
         let render_context = Self::create_renderer_context(&window, &world);
         world.insert_resource(render_context);
@@ -48,8 +57,8 @@ impl Engine {
         let mut schedule = Schedule::new(ScheduleLabelUpdate);
         schedule.add_systems((
             prepare_frame::prepare_frame,
-            render::render,
-            present::present,
+            render::render.after(prepare_frame::prepare_frame),
+            present::present.after(render::render),
         ));
 
         world.add_schedule(schedule);
@@ -65,6 +74,7 @@ impl Engine {
 impl Drop for Engine {
     fn drop(&mut self) {
         let vulkan_context_resource = self.world.get_resource::<VulkanContextResource>().unwrap();
+        let allocator = &vulkan_context_resource.allocator;
         let render_context_resource = self.world.get_resource::<RendererContext>().unwrap();
         let renderer_resources = self.world.get_resource::<RendererResources>().unwrap();
 
@@ -76,7 +86,16 @@ impl Drop for Engine {
 
         unsafe {
             device.destroy_image_view(renderer_resources.draw_image.image_view, None);
-            vulkan_context_resource.allocator.destroy_image(
+            let draw_image_desciptor_buffer = &renderer_resources.draw_image_descriptor_buffer;
+            allocator.destroy_buffer(
+                draw_image_desciptor_buffer.allocated_buffer.buffer,
+                draw_image_desciptor_buffer.allocated_buffer.allocation,
+            );
+            device.device.destroy_descriptor_set_layout(
+                draw_image_desciptor_buffer.descriptor_set_layout,
+                None,
+            );
+            allocator.destroy_image(
                 renderer_resources.draw_image.image,
                 renderer_resources.draw_image.allocation,
             );

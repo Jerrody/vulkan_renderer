@@ -46,12 +46,10 @@ impl Engine {
                     .unwrap()
                     .clone();
 
-                let render_fence = device
-                    .create_fence(
-                        &FenceCreateInfo::builder().flags(FenceCreateFlags::SIGNALED),
-                        None,
-                    )
-                    .unwrap();
+                let fence_info = FenceCreateInfo::builder()
+                    .flags(FenceCreateFlags::SIGNALED)
+                    .build();
+                let render_fence = device.create_fence(&fence_info, None).unwrap();
 
                 let semaphore_create_info = SemaphoreCreateInfo::default();
                 let swapchain_semaphore = device

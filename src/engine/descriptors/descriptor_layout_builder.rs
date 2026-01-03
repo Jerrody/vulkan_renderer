@@ -6,11 +6,11 @@ use vulkanalia::vk::{
 };
 
 #[derive(Default)]
-pub struct DescriptorLayoutBuilder {
+pub struct DescriptorSetLayoutBuilder {
     bindings: Vec<DescriptorSetLayoutBinding>,
 }
 
-impl DescriptorLayoutBuilder {
+impl DescriptorSetLayoutBuilder {
     pub fn new() -> Self {
         Default::default()
     }
