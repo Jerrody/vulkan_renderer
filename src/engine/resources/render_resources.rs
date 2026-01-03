@@ -1,6 +1,9 @@
 use bevy_ecs::resource::Resource;
 use vma::Allocation;
-use vulkanalia::vk::{Buffer, DescriptorSetLayout, Extent3D, Format, Image, ImageView};
+use vulkanite::vk::{
+    Extent3D, Format,
+    rs::{Buffer, DescriptorSetLayout, Image, ImageView},
+};
 
 pub struct AllocatedImage {
     pub image: Image,

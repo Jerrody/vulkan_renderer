@@ -1,123 +1,285 @@
-use std::{ffi::c_void, sync::Arc};
+use std::{collections::HashSet, ffi::CStr};
 
-use vma::{Allocator, AllocatorCreateFlags, AllocatorOptions};
-use vulkanalia::{
-    Version,
+use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawDisplayHandle};
+use vma::{Allocator, AllocatorCreateFlags, AllocatorCreateInfo};
+use vulkanite::{
+    DefaultAllocator, Dispatcher, DynamicDispatcher, flagbits, structure_chain,
     vk::{
-        ColorSpaceKHR, EXT_DESCRIPTOR_BUFFER_EXTENSION, EXT_SHADER_OBJECT_EXTENSION, Extent2D,
-        Format, HasBuilder, ImageUsageFlags, KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION,
-        PhysicalDeviceDescriptorBufferFeaturesEXT, PhysicalDeviceShaderObjectFeaturesEXT,
-        PhysicalDeviceUnifiedImageLayoutsFeaturesKHR, PhysicalDeviceVulkan12Features,
-        PhysicalDeviceVulkan13Features, PresentModeKHR, SurfaceFormat2KHR, SurfaceFormatKHR,
+        self, DebugUtilsMessageTypeFlagsEXT, EXT_DESCRIPTOR_BUFFER, EXT_SHADER_OBJECT, Format,
+        KHR_UNIFIED_IMAGE_LAYOUTS, PhysicalDeviceDescriptorBufferFeaturesEXT,
+        PhysicalDeviceFeatures2, PhysicalDeviceShaderObjectFeaturesEXT,
+        PhysicalDeviceUnifiedImageLayoutsFeaturesKHR, PhysicalDeviceVulkan11Features,
+        PhysicalDeviceVulkan12Features, PhysicalDeviceVulkan13Features, SurfaceFormatKHR,
+        rs::{PhysicalDevice, SwapchainKHR},
     },
+    window,
 };
-use vulkanalia_bootstrap::{
-    DeviceBuilder, InstanceBuilder, PhysicalDeviceSelector, PreferredDeviceType, SwapchainBuilder,
-};
-use winit::window::Window;
+use winit::{dpi::PhysicalSize, window::Window};
 
-use crate::engine::{
-    Engine,
-    resources::{QueueData, VulkanContextResource},
-};
+use crate::engine::{Engine, resources::VulkanContextResource};
+
+extern "system" fn debug_callback(
+    _severity: vk::DebugUtilsMessageSeverityFlagsEXT,
+    _ty: vk::DebugUtilsMessageTypeFlagsEXT,
+    data: &vk::DebugUtilsMessengerCallbackDataEXT,
+    _: *const (),
+) -> vk::Bool32 {
+    eprintln!("Validation layer: {:?}", unsafe {
+        CStr::from_ptr(data.p_message)
+    });
+    vk::FALSE
+}
 
 impl Engine {
-    pub(crate) fn create_vulkan_context(window: &Arc<dyn Window>) -> VulkanContextResource {
-        let instance = InstanceBuilder::new(Some(window.clone()))
-            .app_name("Render")
-            .engine_name("Engine Name")
-            .app_version(Version::V1_4_0)
-            .require_api_version(Version::V1_4_0)
-            .request_validation_layers(true)
-            .use_default_debug_messenger()
-            .build()
-            .unwrap();
-
-        let physical_device_features12 =
-            PhysicalDeviceVulkan12Features::builder().buffer_device_address(true);
-
-        let mut unified_image_layout_feature =
-            PhysicalDeviceUnifiedImageLayoutsFeaturesKHR::builder().unified_image_layouts(true);
-
-        let mut descriptor_buffer_feature =
-            PhysicalDeviceDescriptorBufferFeaturesEXT::builder().descriptor_buffer(true);
-
-        let mut shader_objects_feature =
-            PhysicalDeviceShaderObjectFeaturesEXT::builder().shader_object(true);
-
-        let mut physical_device_features13 = PhysicalDeviceVulkan13Features::builder()
-            .dynamic_rendering(true)
-            .synchronization2(true);
-
-        descriptor_buffer_feature.next = (&mut shader_objects_feature) as *mut _ as *mut c_void;
-        unified_image_layout_feature.next =
-            (&mut descriptor_buffer_feature) as *mut _ as *mut c_void;
-        physical_device_features13.next =
-            (&mut unified_image_layout_feature) as *mut _ as *mut c_void;
-
-        let physical_device = PhysicalDeviceSelector::new(instance.clone())
-            .add_required_extension_feature(*physical_device_features12)
-            .add_required_extension_feature(*physical_device_features13)
-            .select()
-            .unwrap();
-
-        let extension_names = [
-            KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION.name,
-            EXT_SHADER_OBJECT_EXTENSION.name,
-            EXT_DESCRIPTOR_BUFFER_EXTENSION.name,
-        ];
-        let device = Arc::new(
-            DeviceBuilder::new(physical_device, instance.clone())
-                .build(&extension_names)
-                .unwrap(),
+    pub(crate) fn create_vulkan_context(window: &Box<dyn Window>) -> VulkanContextResource {
+        let dispatcher = unsafe { DynamicDispatcher::new_loaded().unwrap() };
+        let entry = vk::rs::Entry::new(dispatcher, DefaultAllocator);
+        let (instance, debug_utils_messenger) = Self::create_instance(
+            true,
+            &entry,
+            &window
+                .rwh_06_display_handle()
+                .display_handle()
+                .unwrap()
+                .as_raw(),
         );
 
-        let (graphics_queue_index, graphics_queue) = device
-            .get_queue(vulkanalia_bootstrap::QueueType::Graphics)
-            .unwrap();
+        let surface = window::rs::create_surface(
+            &instance,
+            &window.display_handle().unwrap().as_raw(),
+            &window.window_handle().unwrap().as_raw(),
+        )
+        .unwrap();
+        let (physical_device, device, queue_family_index, graphics_queue) =
+            Self::create_device(&instance, &surface);
 
-        let graphics_queue_data = QueueData::new(graphics_queue_index, graphics_queue);
+        let mut allocator_create_info =
+            AllocatorCreateInfo::new(&instance, &device, &physical_device, &dispatcher);
+        allocator_create_info.flags |= AllocatorCreateFlags::bufferDeviceAddress;
+        let allocator = unsafe { Allocator::new(allocator_create_info).unwrap() };
 
-        let window_size = window.surface_size();
-        let swapchain = SwapchainBuilder::new(instance.clone(), device.clone())
-            .desired_format(
-                SurfaceFormat2KHR::builder()
-                    .surface_format(
-                        SurfaceFormatKHR::builder()
-                            .format(Format::B8G8R8A8_UNORM)
-                            .color_space(ColorSpaceKHR::SRGB_NONLINEAR)
-                            .build(),
-                    )
-                    .build(),
-            )
-            .add_image_usage_flags(
-                ImageUsageFlags::COLOR_ATTACHMENT | ImageUsageFlags::TRANSFER_DST,
-            )
-            .desired_present_mode(PresentModeKHR::FIFO)
-            .desired_size(Extent2D {
-                width: window_size.width,
-                height: window_size.height,
-            })
-            .build()
-            .unwrap();
-
-        let mut allocation_options = AllocatorOptions::new(
-            &instance.instance,
-            &device.device,
-            device.physical_device.physical_device,
-        );
-        allocation_options.flags = AllocatorCreateFlags::BUFFER_DEVICE_ADDRESS;
-
-        let allocator = unsafe { Allocator::new(&allocation_options).unwrap() };
+        let surface_size = window.surface_size();
+        let (swapchain, surface_format) =
+            Self::create_swapchain(&physical_device, &device, &surface, surface_size);
 
         let vulkan_context_resource = VulkanContextResource {
             instance,
+            debug_utils_messenger,
+            physical_device,
             device,
             allocator,
-            graphics_queue_data,
+            graphics_queue,
+            queue_family_index,
             swapchain,
+            surface_format,
         };
 
         vulkan_context_resource
+    }
+
+    pub fn create_instance(
+        do_enable_validation_layers: bool,
+        entry: &vk::rs::Entry,
+        display_handle: &RawDisplayHandle,
+    ) -> (vk::rs::Instance, Option<vk::rs::DebugUtilsMessengerEXT>) {
+        const VALIDATION_LAYER: &CStr = c"VK_LAYER_KHRONOS_validation";
+        let layers: Vec<_> = entry.enumerate_instance_layer_properties().unwrap();
+        let has_validation = layers
+            .into_iter()
+            .any(|layer| layer.get_layer_name() == VALIDATION_LAYER);
+        let enabled_layers = has_validation.then_some(VALIDATION_LAYER.as_ptr());
+
+        // enable VK_EXT_debug_utils only if the validation layer is enabled
+        let mut enabled_extensions =
+            Vec::from(window::enumerate_required_extensions(display_handle).unwrap());
+        if has_validation {
+            enabled_extensions.push(vk::EXT_DEBUG_UTILS.name);
+        }
+
+        let app_info = vk::ApplicationInfo::default()
+            .application_name(Some(c"Hello Triangle"))
+            .engine_name(Some(c"No Engine"))
+            .api_version(vk::API_VERSION_1_4);
+
+        let instance_info = vk::InstanceCreateInfo::default()
+            .application_info(Some(&app_info))
+            .enabled_extension(&enabled_extensions)
+            .enabled_layer(enabled_layers.as_slice());
+
+        let instance = entry.create_instance(&instance_info).unwrap();
+
+        let debug_messenger = if has_validation {
+            let debug_info = vk::DebugUtilsMessengerCreateInfoEXT::default()
+                .message_severity(
+                    flagbits!(vk::DebugUtilsMessageSeverityFlagsEXT::{Info | Warning | Error}),
+                )
+                .message_type(flagbits!(vk::DebugUtilsMessageTypeFlagsEXT::{General | Validation}))
+                .pfn_user_callback(Some(debug_callback));
+            Some(
+                instance
+                    .create_debug_utils_messenger_ext(&debug_info)
+                    .unwrap(),
+            )
+        } else {
+            None
+        };
+
+        (instance, debug_messenger)
+    }
+
+    pub fn create_device(
+        instance: &vk::rs::Instance,
+        surface: &vk::rs::SurfaceKHR,
+    ) -> (vk::rs::PhysicalDevice, vk::rs::Device, usize, vk::rs::Queue) {
+        let physical_devices: Vec<PhysicalDevice> = instance.enumerate_physical_devices().unwrap();
+
+        let compute_device_score = |physical_device: &vk::rs::PhysicalDevice| {
+            let properties = physical_device.get_properties();
+            let is_discrete = properties.device_type == vk::PhysicalDeviceType::DiscreteGpu;
+            let max_2d_dim = properties.limits.max_image_dimension2_d;
+
+            // compute a score based on if the gpu is discrete and the maximal supported 2d image dimension
+            (is_discrete as u32) * 10000 + max_2d_dim
+        };
+
+        let physical_device = physical_devices
+            .into_iter()
+            .max_by_key(compute_device_score)
+            .unwrap();
+
+        let (queue_family_index, _) = physical_device
+            .get_queue_family_properties::<Vec<_>>()
+            .into_iter()
+            .enumerate()
+            .find(|(queue, props)| {
+                props.queue_flags.contains(vk::QueueFlags::Graphics)
+                    && physical_device
+                        .get_surface_support_khr(*queue as u32, surface)
+                        .is_ok_and(|supported| supported)
+            })
+            .unwrap();
+
+        let features = vk::PhysicalDeviceFeatures::default();
+
+        let required_extensions = [
+            vk::KHR_SWAPCHAIN.name,
+            EXT_DESCRIPTOR_BUFFER.name,
+            KHR_UNIFIED_IMAGE_LAYOUTS.name,
+            EXT_SHADER_OBJECT.name,
+        ];
+        let mut missing_extensions: HashSet<&CStr> =
+            required_extensions.iter().map(|ext| ext.get()).collect();
+        for extension_prop in physical_device
+            .enumerate_device_extension_properties::<Vec<_>>(None)
+            .unwrap()
+        {
+            missing_extensions.remove(extension_prop.get_extension_name());
+        }
+
+        if !missing_extensions.is_empty() {
+            missing_extensions
+                .iter()
+                .enumerate()
+                .for_each(|(index, missing_extension)| {
+                    println!("Missing Extension {index}: {:?}", missing_extension)
+                });
+            panic!("Detected unsupported extentions.");
+        }
+
+        let queue_prio = 1.0f32;
+        let queue_info = vk::DeviceQueueCreateInfo::default()
+            .queue_family_index(queue_family_index as u32)
+            .queue_priorities(&queue_prio);
+
+        let device_info = structure_chain!(
+            vk::DeviceCreateInfo::default()
+                .queue_create_infos(&queue_info)
+                .enabled_features(Some(&features))
+                .enabled_extension(&required_extensions),
+            PhysicalDeviceVulkan12Features::default().buffer_device_address(true),
+            PhysicalDeviceVulkan13Features::default()
+                .synchronization2(true)
+                .dynamic_rendering(true),
+            PhysicalDeviceUnifiedImageLayoutsFeaturesKHR::default().unified_image_layouts(true),
+            PhysicalDeviceDescriptorBufferFeaturesEXT::default().descriptor_buffer(true),
+            PhysicalDeviceShaderObjectFeaturesEXT::default().shader_object(true),
+        );
+
+        let device = physical_device.create_device(device_info.as_ref()).unwrap();
+        let queue = device.get_queue(queue_family_index as u32, 0);
+
+        (physical_device, device, queue_family_index, queue)
+    }
+
+    fn create_swapchain(
+        physical_device: &vk::rs::PhysicalDevice,
+        device: &vk::rs::Device,
+        surface: &vk::rs::SurfaceKHR,
+        window_size: PhysicalSize<u32>,
+    ) -> (SwapchainKHR, SurfaceFormatKHR) {
+        let capabilities = physical_device
+            .get_surface_capabilities_khr(surface)
+            .unwrap();
+
+        let surface_format = physical_device
+            .get_surface_formats_khr::<Vec<_>>(Some(surface))
+            .unwrap()
+            .into_iter()
+            .max_by_key(|fmt| match fmt {
+                // we have one pair of format/color_space that we prefer
+                vk::SurfaceFormatKHR {
+                    format: vk::Format::B8G8R8A8Srgb,
+                    color_space: vk::ColorSpaceKHR::SrgbNonlinear,
+                } => 1,
+                _ => 0,
+            })
+            .unwrap();
+
+        // Only use FIFO for the time being
+        // The Vulkan spec guarantees that if the swapchain extension is supported
+        // then the FIFO present mode is too
+        if !physical_device
+            .get_surface_present_modes_khr::<Vec<_>>(Some(surface))
+            .unwrap()
+            .contains(&vk::PresentModeKHR::Fifo)
+        {
+            panic!("Unsupported present mode: {:?}", vk::PresentModeKHR::Fifo);
+        }
+
+        let extent = if capabilities.current_extent.width != u32::MAX {
+            capabilities.current_extent
+        } else {
+            let min_ex = capabilities.min_image_extent;
+            let max_ex = capabilities.max_image_extent;
+            vk::Extent2D {
+                width: window_size.width.clamp(min_ex.width, max_ex.width),
+                height: window_size.height.clamp(min_ex.height, max_ex.height),
+            }
+        };
+
+        let max_swap_count = if capabilities.max_image_count != 0 {
+            capabilities.max_image_count
+        } else {
+            u32::MAX
+        };
+        let swapchain_count = (capabilities.min_image_count + 1).min(max_swap_count);
+
+        let swapchain_info = vk::SwapchainCreateInfoKHR::default()
+            .surface(&surface)
+            .min_image_count(swapchain_count)
+            .image_format(surface_format.format)
+            .image_color_space(surface_format.color_space)
+            .image_extent(extent)
+            .image_array_layers(1)
+            .image_usage(vk::ImageUsageFlags::ColorAttachment | vk::ImageUsageFlags::TransferDst)
+            .image_sharing_mode(vk::SharingMode::Exclusive)
+            .pre_transform(capabilities.current_transform)
+            .composite_alpha(vk::CompositeAlphaFlagsKHR::Opaque)
+            .present_mode(vk::PresentModeKHR::Fifo)
+            .clipped(true);
+
+        let swapchain = device.create_swapchain_khr(&swapchain_info).unwrap();
+
+        (swapchain, surface_format)
     }
 }

@@ -10,9 +10,18 @@ bevy_ecs = { version = "0.17.3", default-features = false, features = [
     "std",
     "backtrace",
 ] }
-vulkanalia = "0.34.0"
-vulkanalia-bootstrap = { git = "https://github.com/Jerrody/vulkanalia-bootstrap" }
-vma = { package = "vulkanalia-vma", version = "0.8.0" }
+vulkanite = { version = "0.0.11", features = [
+    "version_1_4",
+    "loaded",
+    "ext_unified_image_layouts",
+    "ext_descriptor_buffer",
+    "raw-window-handle",
+    "ext_swapchain",
+    "ext_shader_object",
+    "ext_debug_utils",
+    "ext_synchronization2",
+] }
+vma = { package = "vk-mem", git = "https://github.com/Macdu/vk-mem-rs.git", branch = "vulkanite" }
 
 [profile.dev]
 opt-level = 1

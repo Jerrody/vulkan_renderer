@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use winit::{
     application::ApplicationHandler,
+    dpi::PhysicalSize,
     event::{ElementState, KeyEvent},
     event_loop::EventLoop,
     keyboard::{KeyCode, PhysicalKey},
@@ -16,7 +17,7 @@ use crate::engine::Engine;
 
 #[derive(Default)]
 struct Application {
-    window: Option<Arc<dyn Window>>,
+    window: Option<Box<dyn Window>>,
     engine: Option<Engine>,
 }
 
@@ -25,11 +26,13 @@ impl ApplicationHandler for Application {
         let window_attributes = WindowAttributes::default().with_title("Vulkan Engine");
 
         self.window = match event_loop.create_window(window_attributes) {
-            Ok(window) => Some(Arc::from(window)),
+            Ok(window) => {
+                self.engine = Some(Engine::new(&window));
+
+                Some(window)
+            }
             Err(_) => panic!("Failed to create window!"),
         };
-
-        self.engine = Some(Engine::new(self.window.clone()));
     }
 
     fn window_event(

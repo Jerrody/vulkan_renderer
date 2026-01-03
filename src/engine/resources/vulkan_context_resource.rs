@@ -1,25 +1,19 @@
-use std::sync::Arc;
-
 use bevy_ecs::resource::Resource;
 use vma::Allocator;
-use vulkanalia::vk::Queue;
-
-pub struct QueueData {
-    pub index: usize,
-    pub queue: Queue,
-}
-
-impl QueueData {
-    pub fn new(index: usize, queue: Queue) -> Self {
-        QueueData { index, queue }
-    }
-}
+use vulkanite::vk::{
+    SurfaceFormatKHR,
+    rs::{DebugUtilsMessengerEXT, Device, Instance, PhysicalDevice, Queue, SwapchainKHR},
+};
 
 #[derive(Resource)]
 pub struct VulkanContextResource {
-    pub instance: Arc<vulkanalia_bootstrap::Instance>,
-    pub device: Arc<vulkanalia_bootstrap::Device>,
+    pub instance: Instance,
+    pub debug_utils_messenger: Option<DebugUtilsMessengerEXT>,
+    pub device: Device,
+    pub physical_device: PhysicalDevice,
     pub allocator: Allocator,
-    pub graphics_queue_data: QueueData,
-    pub swapchain: vulkanalia_bootstrap::Swapchain,
+    pub graphics_queue: Queue,
+    pub queue_family_index: usize,
+    pub swapchain: SwapchainKHR,
+    pub surface_format: SurfaceFormatKHR,
 }

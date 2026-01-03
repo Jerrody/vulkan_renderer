@@ -1,73 +1,54 @@
 use bevy_ecs::system::{Res, ResMut};
-use vulkanalia::vk::{
-    CommandBufferUsageFlags, DeviceV1_0, Extent2D, ImageAspectFlags, ImageLayout,
-};
+use vulkanite::vk::*;
 
 use crate::engine::{
-    resources::{FrameContext, RendererContext, RendererResources, VulkanContextResource},
+    resources::{FrameContext, RendererContext, RendererResources},
     utils::{self, copy_image_to_image, image_subresource_range, transition_image},
 };
 
 pub fn render(
-    vulkan_ctx: Res<VulkanContextResource>,
     render_context: ResMut<RendererContext>,
     renderer_resources: Res<RendererResources>,
     frame_context: Res<FrameContext>,
 ) {
-    let device = &vulkan_ctx.device;
     let frame_data = render_context.get_current_frame_data();
 
     let command_buffer = frame_data.command_buffer;
 
     let command_buffer_begin_info =
-        utils::create_command_buffer_begin_info(CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+        utils::create_command_buffer_begin_info(CommandBufferUsageFlags::OneTimeSubmit);
 
-    unsafe {
-        device
-            .begin_command_buffer(command_buffer, &command_buffer_begin_info)
-            .unwrap();
-    }
+    command_buffer.begin(&command_buffer_begin_info).unwrap();
 
     let image_index = frame_context.swapchain_image_index as usize;
     let swapchain_image = render_context.images[image_index];
     let draw_image = renderer_resources.draw_image.image;
     transition_image(
-        device,
         command_buffer,
         draw_image,
-        ImageLayout::UNDEFINED,
-        ImageLayout::GENERAL,
+        ImageLayout::Undefined,
+        ImageLayout::General,
     );
     transition_image(
-        device,
         command_buffer,
         swapchain_image,
-        ImageLayout::UNDEFINED,
-        ImageLayout::GENERAL,
+        ImageLayout::Undefined,
+        ImageLayout::General,
     );
 
     let flash = f32::abs(f32::sin(render_context.frame_number as f32 / 120.0));
-    let clear_value = vulkanalia::vk::ClearColorValue {
+    let clear_value = ClearColorValue {
         float32: [0.0, 0.0, flash, 1.0],
     };
 
-    let clear_range = image_subresource_range(ImageAspectFlags::COLOR);
+    let clear_range = image_subresource_range(ImageAspectFlags::Color);
 
     let ranges = [clear_range];
-    unsafe {
-        device.cmd_clear_color_image(
-            command_buffer,
-            draw_image,
-            ImageLayout::GENERAL,
-            &clear_value,
-            &ranges,
-        );
-    }
+    command_buffer.clear_color_image(&draw_image, ImageLayout::General, &clear_value, &ranges);
 
     let draw_image_extent = renderer_resources.draw_image.image_extent;
 
     copy_image_to_image(
-        device,
         command_buffer,
         draw_image,
         swapchain_image,
@@ -79,14 +60,11 @@ pub fn render(
     );
 
     transition_image(
-        device,
         command_buffer,
         swapchain_image,
-        ImageLayout::GENERAL,
-        ImageLayout::PRESENT_SRC_KHR,
+        ImageLayout::General,
+        ImageLayout::PresentSrcKHR,
     );
 
-    unsafe {
-        device.end_command_buffer(command_buffer).unwrap();
-    }
+    command_buffer.end().unwrap();
 }

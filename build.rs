@@ -30,7 +30,7 @@ fn main() -> io::Result<()> {
 
     for file_path in &file_paths {
         let filename = file_path.0.file_name().unwrap().to_str().unwrap();
-        let status = Command::new("slangc")
+        let status = Command::new("bin/slangc")
             // generate SPIR-V
             .arg("-target")
             .arg("spirv")

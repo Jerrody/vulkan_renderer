@@ -4,25 +4,20 @@ mod setup;
 mod systems;
 mod utils;
 
-use std::sync::Arc;
-
 use bevy_ecs::{
     schedule::{IntoScheduleConfigs, Schedule, ScheduleLabel},
-    world::{self, World},
+    world::World,
 };
-use vma::{Alloc, AllocationCreateFlags, AllocationOptions};
-use vulkanalia::vk::{
-    BufferCreateFlags, BufferCreateInfo, BufferUsageFlags, DescriptorSetLayoutCreateFlags,
-    DescriptorType, DeviceV1_0, ExtDescriptorBufferExtensionDeviceCommands, ShaderStageFlags,
-    SharingMode,
+use vulkanite::{
+    Handle,
+    vk::raw::{Buffer, Image},
 };
 use winit::window::Window;
 
 use crate::engine::{
-    descriptors::DescriptorSetLayoutBuilder,
     resources::{
-        DevicePropertiesResource, FrameContext, RendererContext, RendererResources,
-        VulkanContextResource, render_resources, vulkan_context_resource,
+        FrameContext, RendererContext, RendererResources, VulkanContextResource, render_resources,
+        vulkan_context_resource,
     },
     systems::{prepare_frame, present, render},
 };
@@ -35,9 +30,8 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub fn new(window: Option<Arc<dyn Window>>) -> Self {
-        let mut world = World::new();
-        let window = &window.unwrap();
+    pub fn new(window: &Box<dyn Window>) -> Self {
+        let mut world: World = World::new();
 
         let vulkan_context_resource = Self::create_vulkan_context(&window);
         world.insert_resource(vulkan_context_resource);
@@ -73,50 +67,56 @@ impl Engine {
 
 impl Drop for Engine {
     fn drop(&mut self) {
-        let vulkan_context_resource = self.world.get_resource::<VulkanContextResource>().unwrap();
-        let allocator = &vulkan_context_resource.allocator;
-        let render_context_resource = self.world.get_resource::<RendererContext>().unwrap();
-        let renderer_resources = self.world.get_resource::<RendererResources>().unwrap();
-
-        let device = &vulkan_context_resource.device;
-
-        unsafe {
-            device.device_wait_idle().unwrap();
-        }
-
-        unsafe {
-            device.destroy_image_view(renderer_resources.draw_image.image_view, None);
-            let draw_image_desciptor_buffer = &renderer_resources.draw_image_descriptor_buffer;
-            allocator.destroy_buffer(
-                draw_image_desciptor_buffer.allocated_buffer.buffer,
-                draw_image_desciptor_buffer.allocated_buffer.allocation,
-            );
-            device.device.destroy_descriptor_set_layout(
-                draw_image_desciptor_buffer.descriptor_set_layout,
-                None,
-            );
-            allocator.destroy_image(
-                renderer_resources.draw_image.image,
-                renderer_resources.draw_image.allocation,
-            );
-        }
-
-        render_context_resource
-            .frames_data
-            .iter()
-            .for_each(|frame_data| unsafe {
-                device.destroy_command_pool(frame_data.command_pool, None);
-                device.destroy_fence(frame_data.render_fence, None);
-                device.destroy_semaphore(frame_data.render_semaphore, None);
-                device.destroy_semaphore(frame_data.swapchain_semaphore, None);
-            });
-
-        vulkan_context_resource
-            .swapchain
-            .destroy_image_views()
+        let mut vulkan_context_resource = self
+            .world
+            .remove_resource::<VulkanContextResource>()
             .unwrap();
-        vulkan_context_resource.swapchain.destroy();
-        vulkan_context_resource.device.destroy();
-        vulkan_context_resource.instance.destroy();
+        let render_context_resource = self.world.remove_resource::<RendererContext>().unwrap();
+        let mut renderer_resources = self.world.remove_resource::<RendererResources>().unwrap();
+
+        let device = &mut vulkan_context_resource.device;
+
+        device.wait_idle().unwrap();
+
+        unsafe {
+            device.destroy_image_view(Some(&renderer_resources.draw_image.image_view));
+
+            let draw_image_desciptor_buffer = &mut renderer_resources.draw_image_descriptor_buffer;
+            device.destroy_buffer(Some(&draw_image_desciptor_buffer.allocated_buffer.buffer));
+            vulkan_context_resource
+                .allocator
+                .free_memory(&mut draw_image_desciptor_buffer.allocated_buffer.allocation);
+
+            device.destroy_descriptor_set_layout(Some(
+                &draw_image_desciptor_buffer.descriptor_set_layout,
+            ));
+            device.destroy_image(Some(&renderer_resources.draw_image.image));
+            vulkan_context_resource
+                .allocator
+                .free_memory(&mut renderer_resources.draw_image.allocation);
+
+            render_context_resource
+                .frames_data
+                .iter()
+                .for_each(|frame_data| {
+                    device.destroy_command_pool(Some(&frame_data.command_pool));
+                    device.destroy_fence(Some(&frame_data.render_fence));
+                    device.destroy_semaphore(Some(&frame_data.render_semaphore));
+                    device.destroy_semaphore(Some(&frame_data.swapchain_semaphore));
+                });
+
+            render_context_resource
+                .image_views
+                .iter()
+                .for_each(|image_view| {
+                    vulkan_context_resource
+                        .device
+                        .destroy_image_view(Some(image_view));
+                });
+            vulkan_context_resource
+                .device
+                .destroy_swapchain_khr(Some(&vulkan_context_resource.swapchain));
+            vulkan_context_resource.device.destroy();
+        }
     }
 }

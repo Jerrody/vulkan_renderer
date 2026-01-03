@@ -1,5 +1,8 @@
 use bevy_ecs::resource::Resource;
-use vulkanalia::vk::{CommandBuffer, CommandPool, Extent2D, Fence, Image, ImageView, Semaphore};
+use vulkanite::vk::{
+    Extent2D,
+    rs::{CommandBuffer, CommandPool, Fence, Image, ImageView, Semaphore},
+};
 
 pub struct FrameData {
     pub command_pool: CommandPool,

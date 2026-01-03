@@ -1,5 +1,5 @@
 use bevy_ecs::system::{Res, ResMut};
-use vulkanalia::vk::{CommandBufferResetFlags, DeviceV1_0, KhrSwapchainExtensionDeviceCommands};
+use vulkanite::vk::*;
 
 use crate::engine::resources::{FrameContext, RendererContext, VulkanContextResource};
 
@@ -13,24 +13,24 @@ pub fn prepare_frame(
     let fences = [frame_data.render_fence];
 
     unsafe {
-        device.wait_for_fences(&fences, true, u64::MAX).unwrap();
-        device.reset_fences(&fences).unwrap();
+        device
+            .wait_for_fences(fences.as_slice(), true, u64::MAX)
+            .unwrap();
+        device.reset_fences(fences.as_slice()).unwrap();
 
-        let (swapchain_image_index, _) = device
+        let (status, swapchain_image_index) = device
             .acquire_next_image_khr(
-                *vulkan_ctx.swapchain.as_ref(),
+                &vulkan_ctx.swapchain,
                 u64::MAX,
-                frame_data.swapchain_semaphore,
+                Some(&frame_data.swapchain_semaphore),
                 Default::default(),
             )
             .unwrap();
         frame_ctx.swapchain_image_index = swapchain_image_index;
 
-        device
-            .reset_command_buffer(
-                frame_data.command_buffer,
-                CommandBufferResetFlags::RELEASE_RESOURCES,
-            )
+        frame_data
+            .command_buffer
+            .reset(CommandBufferResetFlags::ReleaseResources)
             .unwrap();
     }
 }

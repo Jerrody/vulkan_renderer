@@ -1,27 +1,20 @@
-use std::sync::Arc;
-
-use vulkanalia::vk::{
-    DescriptorSetLayout, DescriptorSetLayoutBinding, DescriptorSetLayoutCreateFlags,
-    DescriptorSetLayoutCreateInfo, DescriptorType, DeviceV1_0, ShaderStageFlags,
-};
+use vulkanite::vk::{rs::*, *};
 
 #[derive(Default)]
-pub struct DescriptorSetLayoutBuilder {
-    bindings: Vec<DescriptorSetLayoutBinding>,
+pub struct DescriptorSetLayoutBuilder<'a> {
+    bindings: Vec<DescriptorSetLayoutBinding<'a>>,
 }
 
-impl DescriptorSetLayoutBuilder {
+impl<'a> DescriptorSetLayoutBuilder<'a> {
     pub fn new() -> Self {
         Default::default()
     }
 
     pub fn add_binding(&mut self, binding: u32, descriptor_type: DescriptorType) {
-        let binding = DescriptorSetLayoutBinding {
-            binding,
-            descriptor_type,
-            descriptor_count: 1,
-            ..Default::default()
-        };
+        let binding = DescriptorSetLayoutBinding::default()
+            .binding(binding)
+            .descriptor_type(descriptor_type)
+            .descriptor_count(1);
 
         self.bindings.push(binding);
     }
@@ -32,7 +25,7 @@ impl DescriptorSetLayoutBuilder {
 
     pub fn build(
         &mut self,
-        device: &Arc<vulkanalia_bootstrap::Device>,
+        device: &Device,
         shader_stages: ShaderStageFlags,
         descriptor_set_layout_flags: DescriptorSetLayoutCreateFlags,
     ) -> DescriptorSetLayout {
@@ -40,16 +33,13 @@ impl DescriptorSetLayoutBuilder {
             binding.stage_flags |= shader_stages;
         });
 
-        let descriptor_set_layout_info = DescriptorSetLayoutCreateInfo {
-            flags: descriptor_set_layout_flags,
-            binding_count: self.bindings.len() as _,
-            bindings: self.bindings.as_ptr(),
-            ..Default::default()
-        };
+        let mut descriptor_set_layout_info =
+            DescriptorSetLayoutCreateInfo::default().flags(descriptor_set_layout_flags);
+        descriptor_set_layout_info = descriptor_set_layout_info.bindings(&self.bindings);
 
         let descriptor_set_layout = unsafe {
             device
-                .create_descriptor_set_layout(&descriptor_set_layout_info, None)
+                .create_descriptor_set_layout(&descriptor_set_layout_info)
                 .unwrap()
         };
 
