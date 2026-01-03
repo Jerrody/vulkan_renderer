@@ -1,5 +1,5 @@
 use bevy_ecs::system::{Res, ResMut};
-use vulkanite::vk::{rs::*, *};
+use vulkanite::vk::*;
 
 use crate::engine::{
     resources::{FrameContext, RendererContext, VulkanContextResource},
@@ -11,7 +11,7 @@ pub fn present(
     mut render_ctx: ResMut<RendererContext>,
     frame_ctx: Res<FrameContext>,
 ) {
-    let device = &vulkan_ctx.device;
+    let _device = &vulkan_ctx.device;
     let frame_data = render_ctx.get_current_frame_data();
     let command_buffer = frame_data.command_buffer;
     let swapchain_image_index = frame_ctx.swapchain_image_index;

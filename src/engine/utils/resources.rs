@@ -17,7 +17,7 @@ pub fn create_image_info<'a>(
         .sharing_mode(SharingMode::Exclusive)
         .initial_layout(ImageLayout::Undefined);
 
-    return image_create_info;
+    image_create_info
 }
 
 pub fn create_image_view_info<'a>(
@@ -44,5 +44,5 @@ pub fn create_image_view_info<'a>(
         );
     image_view_create_info = image_view_create_info.image(image);
 
-    return image_view_create_info;
+    image_view_create_info
 }

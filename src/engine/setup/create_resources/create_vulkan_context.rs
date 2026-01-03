@@ -5,10 +5,9 @@ use vma::{Allocator, AllocatorCreateFlags, AllocatorCreateInfo};
 use vulkanite::{
     DefaultAllocator, Dispatcher, DynamicDispatcher, flagbits, structure_chain,
     vk::{
-        self, DebugUtilsMessageTypeFlagsEXT, EXT_DESCRIPTOR_BUFFER, EXT_SHADER_OBJECT, Format,
-        KHR_UNIFIED_IMAGE_LAYOUTS, PhysicalDeviceDescriptorBufferFeaturesEXT,
-        PhysicalDeviceFeatures2, PhysicalDeviceShaderObjectFeaturesEXT,
-        PhysicalDeviceUnifiedImageLayoutsFeaturesKHR, PhysicalDeviceVulkan11Features,
+        self, EXT_DESCRIPTOR_BUFFER, EXT_SHADER_OBJECT,
+        KHR_UNIFIED_IMAGE_LAYOUTS, PhysicalDeviceDescriptorBufferFeaturesEXT, PhysicalDeviceShaderObjectFeaturesEXT,
+        PhysicalDeviceUnifiedImageLayoutsFeaturesKHR,
         PhysicalDeviceVulkan12Features, PhysicalDeviceVulkan13Features, SurfaceFormatKHR,
         rs::{PhysicalDevice, SwapchainKHR},
     },
@@ -62,7 +61,9 @@ impl Engine {
         let (swapchain, surface_format) =
             Self::create_swapchain(&physical_device, &device, &surface, surface_size);
 
-        let vulkan_context_resource = VulkanContextResource {
+        
+
+        VulkanContextResource {
             instance,
             debug_utils_messenger,
             physical_device,
@@ -72,13 +73,11 @@ impl Engine {
             queue_family_index,
             swapchain,
             surface_format,
-        };
-
-        vulkan_context_resource
+        }
     }
 
     pub fn create_instance(
-        do_enable_validation_layers: bool,
+        _do_enable_validation_layers: bool,
         entry: &vk::rs::Entry,
         display_handle: &RawDisplayHandle,
     ) -> (vk::rs::Instance, Option<vk::rs::DebugUtilsMessengerEXT>) {
@@ -265,7 +264,7 @@ impl Engine {
         let swapchain_count = (capabilities.min_image_count + 1).min(max_swap_count);
 
         let swapchain_info = vk::SwapchainCreateInfoKHR::default()
-            .surface(&surface)
+            .surface(surface)
             .min_image_count(swapchain_count)
             .image_format(surface_format.format)
             .image_color_space(surface_format.color_space)

@@ -10,18 +10,12 @@ use bevy_ecs::{
 };
 use vulkanite::{
     Handle,
-    vk::{
-        self,
-        raw::{Buffer, Image},
-    },
+    vk::{self},
 };
 use winit::window::Window;
 
 use crate::engine::{
-    resources::{
-        FrameContext, RendererContext, RendererResources, VulkanContextResource, render_resources,
-        vulkan_context_resource,
-    },
+    resources::{FrameContext, RendererContext, RendererResources, VulkanContextResource},
     systems::{prepare_frame, present, render},
 };
 
@@ -36,13 +30,13 @@ impl Engine {
     pub fn new(window: &Box<dyn Window>) -> Self {
         let mut world: World = World::new();
 
-        let vulkan_context_resource = Self::create_vulkan_context(&window);
+        let vulkan_context_resource = Self::create_vulkan_context(window);
         world.insert_resource(vulkan_context_resource);
 
         let device_properties_resource = Self::create_device_properties(&world);
         world.insert_resource(device_properties_resource);
 
-        let render_context = Self::create_renderer_context(&window, &world);
+        let render_context = Self::create_renderer_context(window, &world);
         world.insert_resource(render_context);
 
         let renderer_resources = Self::create_renderer_resources(&world);

@@ -4,7 +4,7 @@ use winit::window::Window;
 
 use crate::engine::{
     Engine,
-    resources::{FrameData, RendererContext, VulkanContextResource, vulkan_context_resource},
+    resources::{FrameData, RendererContext, VulkanContextResource},
 };
 
 impl Engine {
@@ -16,7 +16,7 @@ impl Engine {
         let device = vulkan_context_resource.device;
         let swapchain = &vulkan_context_resource.swapchain;
 
-        let images: Vec<Image> = device.get_swapchain_images_khr(&swapchain).unwrap();
+        let images: Vec<Image> = device.get_swapchain_images_khr(swapchain).unwrap();
         let image_views: Vec<ImageView> = images
             .iter()
             .map(|img| {
@@ -80,15 +80,15 @@ impl Engine {
             width: surface_size.width,
             height: surface_size.height,
         };
-        let render_context_resource = RendererContext {
+        
+
+        RendererContext {
             images,
             image_views,
             frame_overlap,
             draw_extent,
             frames_data,
             frame_number: Default::default(),
-        };
-
-        render_context_resource
+        }
     }
 }

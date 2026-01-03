@@ -2,11 +2,9 @@
 
 mod engine;
 
-use std::sync::Arc;
 
 use winit::{
     application::ApplicationHandler,
-    dpi::PhysicalSize,
     event::{ElementState, KeyEvent},
     event_loop::EventLoop,
     keyboard::{KeyCode, PhysicalKey},

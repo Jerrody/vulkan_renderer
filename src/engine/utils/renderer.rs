@@ -3,9 +3,9 @@ use vulkanite::vk::{rs::*, *};
 pub fn create_command_buffer_begin_info<'a>(
     flags: CommandBufferUsageFlags,
 ) -> CommandBufferBeginInfo<'a> {
-    let command_buffer_begin_info = CommandBufferBeginInfo::default().flags(flags);
+    
 
-    command_buffer_begin_info
+    CommandBufferBeginInfo::default().flags(flags)
 }
 
 pub fn transition_image(
@@ -32,35 +32,34 @@ pub fn transition_image(
 }
 
 pub fn image_subresource_range(aspect_mask: ImageAspectFlags) -> ImageSubresourceRange {
-    let image_subresource_range = ImageSubresourceRange {
+    
+
+    ImageSubresourceRange {
         aspect_mask,
         base_mip_level: Default::default(),
         level_count: REMAINING_MIP_LEVELS,
         base_array_layer: Default::default(),
         layer_count: REMAINING_ARRAY_LAYERS,
-    };
-
-    image_subresource_range
+    }
 }
 
 pub fn semaphore_submit_info<'a>(
     stage_mask: PipelineStageFlags2,
     semaphore: &'a Semaphore,
 ) -> SemaphoreSubmitInfo<'a> {
-    let semaphore_submit_info = SemaphoreSubmitInfo::default()
-        .semaphore(semaphore)
-        .stage_mask(stage_mask);
+    
 
-    semaphore_submit_info
+    SemaphoreSubmitInfo::default()
+        .semaphore(semaphore)
+        .stage_mask(stage_mask)
 }
 
 pub fn command_buffer_submit_info<'a>(
     command_buffer: &'a CommandBuffer,
 ) -> CommandBufferSubmitInfo<'a> {
-    let command_buffer_submit_info =
-        CommandBufferSubmitInfo::default().command_buffer(command_buffer);
+    
 
-    command_buffer_submit_info
+    CommandBufferSubmitInfo::default().command_buffer(command_buffer)
 }
 
 pub fn submit_info<'a>(
@@ -68,12 +67,12 @@ pub fn submit_info<'a>(
     wait_semaphores: &'a [SemaphoreSubmitInfo],
     signal_semaphores: &'a [SemaphoreSubmitInfo],
 ) -> SubmitInfo2<'a> {
-    let submit_info = SubmitInfo2::default()
+    
+
+    SubmitInfo2::default()
         .wait_semaphore_infos(wait_semaphores)
         .signal_semaphore_infos(signal_semaphores)
-        .command_buffer_infos(command_buffer_submit_infos);
-
-    submit_info
+        .command_buffer_infos(command_buffer_submit_infos)
 }
 
 pub fn copy_image_to_image(

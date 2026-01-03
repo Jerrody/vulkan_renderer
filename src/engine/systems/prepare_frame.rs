@@ -18,7 +18,7 @@ pub fn prepare_frame(
             .unwrap();
         device.reset_fences(fences.as_slice()).unwrap();
 
-        let (status, swapchain_image_index) = device
+        let (_status, swapchain_image_index) = device
             .acquire_next_image_khr(
                 &vulkan_ctx.swapchain,
                 u64::MAX,

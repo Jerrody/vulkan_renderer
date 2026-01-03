@@ -60,19 +60,19 @@ impl Engine {
         let draw_image = AllocatedImage {
             image: allocated_draw_image,
             image_view: allocated_image_view,
-            allocation: allocation,
+            allocation,
             image_extent: draw_image_extent,
             format: Format::R16G16B16A16Sfloat,
         };
 
-        let draw_image_descriptor_buffer = Self::create_descriptors(&world);
+        let draw_image_descriptor_buffer = Self::create_descriptors(world);
 
-        let renderer_resources = RendererResources {
+        
+
+        RendererResources {
             draw_image,
             draw_image_descriptor_buffer,
-        };
-
-        renderer_resources
+        }
     }
 
     fn create_descriptors(world: &World) -> AllocatedDescriptorBuffer {
@@ -85,7 +85,7 @@ impl Engine {
         let mut descriptor_set_layout_builder = DescriptorSetLayoutBuilder::new();
         descriptor_set_layout_builder.add_binding(0, DescriptorType::StorageImage);
         let descriptor_set_layout = descriptor_set_layout_builder.build(
-            &device,
+            device,
             ShaderStageFlags::Compute,
             DescriptorSetLayoutCreateFlags::DescriptorBufferEXT,
         );
@@ -133,14 +133,14 @@ impl Engine {
             allocation,
         };
 
-        let allocated_descriptor_buffer = AllocatedDescriptorBuffer {
+        
+
+        AllocatedDescriptorBuffer {
             allocated_buffer,
             descriptor_buffer_offset,
             descriptor_buffer_size,
             descriptor_set_layout,
-        };
-
-        allocated_descriptor_buffer
+        }
     }
 
     fn aligned_size(value: u64, alignment: u64) -> u64 {
