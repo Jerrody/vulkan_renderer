@@ -96,7 +96,7 @@ impl Engine {
         let app_info = vk::ApplicationInfo::default()
             .application_name(Some(c"Hello Triangle"))
             .engine_name(Some(c"No Engine"))
-            .api_version(vk::API_VERSION_1_4);
+            .api_version(vk::API_VERSION_1_3);
 
         let instance_info = vk::InstanceCreateInfo::default()
             .application_info(Some(&app_info))
