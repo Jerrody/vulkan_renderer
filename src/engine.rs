@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use bevy_ecs::{
     schedule::{Schedule, ScheduleLabel},
-    world::{self, World},
+    world::World,
 };
 use vma::{Alloc, AllocationOptions, Allocator, AllocatorOptions, MemoryUsage};
 use vulkanalia::{Version, vk::*};
