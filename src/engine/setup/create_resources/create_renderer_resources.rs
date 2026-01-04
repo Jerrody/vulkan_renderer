@@ -1,15 +1,18 @@
 use bevy_ecs::world::World;
 use vma::{Alloc, AllocationCreateFlags, AllocationCreateInfo, MemoryUsage};
-use vulkanite::vk::{rs::*, *};
+use vulkanite::{
+    include_spirv,
+    vk::{self, rs::*, *},
+};
 
 use crate::engine::{
     Engine,
     descriptors::DescriptorSetLayoutBuilder,
     resources::{
         AllocatedBuffer, AllocatedDescriptorBuffer, AllocatedImage, DevicePropertiesResource,
-        RendererContext, RendererResources, VulkanContextResource,
+        RendererContext, RendererResources, VulkanContextResource, vulkan_context_resource,
     },
-    utils::{create_image_info, create_image_view_info},
+    utils::{create_image_info, create_image_view_info, load_shader},
 };
 
 impl Engine {
@@ -67,9 +70,13 @@ impl Engine {
 
         let draw_image_descriptor_buffer = Self::create_descriptors(world);
 
+        let descriptor_layouts = [draw_image_descriptor_buffer.descriptor_set_layout];
+        let gradient_shader = Self::create_shaders(&vulkan_context.device, &descriptor_layouts);
+
         RendererResources {
             draw_image,
             draw_image_descriptor_buffer,
+            gradient_shader,
         }
     }
 
@@ -139,5 +146,26 @@ impl Engine {
 
     fn aligned_size(value: u64, alignment: u64) -> u64 {
         (value + alignment - 1) & !(alignment - 1)
+    }
+
+    fn create_shaders(device: &Device, descriptor_set_layout: &[DescriptorSetLayout]) -> ShaderEXT {
+        let shader_code = load_shader(r"shaders\gradient.slang");
+
+        let mut shader_info = ShaderCreateInfoEXT::default()
+            .flags(ShaderCreateFlagsEXT::LinkStage)
+            .code(&shader_code)
+            .name(Some(c"main"))
+            .stage(ShaderStageFlags::Compute)
+            .code_type(ShaderCodeTypeEXT::Spirv)
+            .set_layouts(descriptor_set_layout);
+        shader_info.code_size = shader_code.len() * size_of::<u32>();
+
+        let shader_infos = [shader_info];
+        let (_status, shaders): (_, Vec<ShaderEXT>) =
+            device.create_shaders_ext(&shader_infos).unwrap();
+
+        let compute_shader = shaders[0];
+
+        compute_shader
     }
 }

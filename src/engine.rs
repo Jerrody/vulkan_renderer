@@ -101,6 +101,8 @@ impl Drop for Engine {
             );
             drop(vulkan_context_resource.allocator);
 
+            device.destroy_shader_ext(Some(&renderer_resources.gradient_shader));
+
             render_context_resource
                 .frames_data
                 .iter()
@@ -130,6 +132,7 @@ impl Drop for Engine {
                 .device
                 .destroy_swapchain_khr(Some(&vulkan_context_resource.swapchain));
             vulkan_context_resource.device.destroy();
+            vulkan_context_resource.instance.destroy();
         }
     }
 }

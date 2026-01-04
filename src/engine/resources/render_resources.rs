@@ -2,7 +2,7 @@ use bevy_ecs::resource::Resource;
 use vma::Allocation;
 use vulkanite::vk::{
     Extent3D, Format,
-    rs::{Buffer, DescriptorSetLayout, Image, ImageView},
+    rs::{Buffer, DescriptorSetLayout, Image, ImageView, ShaderEXT},
 };
 
 pub struct AllocatedImage {
@@ -29,4 +29,5 @@ pub struct AllocatedDescriptorBuffer {
 pub struct RendererResources {
     pub draw_image: AllocatedImage,
     pub draw_image_descriptor_buffer: AllocatedDescriptorBuffer,
+    pub gradient_shader: ShaderEXT,
 }
