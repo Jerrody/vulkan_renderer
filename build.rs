@@ -30,23 +30,31 @@ fn main() -> io::Result<()> {
 
     for file_path in &file_paths {
         let filename = file_path.0.file_name().unwrap().to_str().unwrap();
+
+        let output_filename = std::format!("shaders/output/{}.spv", filename);
         let status = Command::new("bin/slangc")
             // generate SPIR-V
             .arg("-target")
             .arg("spirv")
             .arg("-profile")
-            .arg("spirv_1_5")
+            .arg("spirv_1_6")
             .arg("-emit-spirv-directly")
             .arg("-O3")
             // optionally force direct SPIR-V emission (avoids GLSL path)
             // .arg("-emit-spirv-directly")
             // specify output .spv path
             .arg("-o")
-            .arg(std::format!("shaders/output/{}.spv", filename))
+            .arg(&output_filename)
             // input Slang source path (the same path you used before)
             .arg(std::format!("shaders/{}", filename))
             // optional: if your Slang module has a non-default entry point name, pass -entry
             // .arg("-entry").arg("computeMain")
+            .status()?;
+        let status = Command::new("bin/spirv-opt")
+            .arg(&output_filename)
+            .arg("-O")
+            .arg("-o")
+            .arg(&output_filename)
             .status()?;
 
         println!("Compiled shader: {:?} | Status: {:?}", file_path, status);
