@@ -35,9 +35,9 @@ fn main() -> io::Result<()> {
             .arg("-target")
             .arg("spirv")
             .arg("-profile")
-            .arg("spirv_1_4")
+            .arg("spirv_1_5")
             .arg("-emit-spirv-directly")
-            //.arg("-O3")
+            .arg("-O3")
             // optionally force direct SPIR-V emission (avoids GLSL path)
             // .arg("-emit-spirv-directly")
             // specify output .spv path

@@ -4,6 +4,7 @@ mod engine;
 
 use winit::{
     application::ApplicationHandler,
+    dpi::PhysicalSize,
     event::{ElementState, KeyEvent},
     event_loop::EventLoop,
     keyboard::{KeyCode, PhysicalKey},
@@ -20,7 +21,10 @@ struct Application {
 
 impl ApplicationHandler for Application {
     fn can_create_surfaces(&mut self, event_loop: &dyn winit::event_loop::ActiveEventLoop) {
-        let window_attributes = WindowAttributes::default().with_title("Vulkan Engine");
+        let surface_size = PhysicalSize::new(1700, 900);
+        let window_attributes = WindowAttributes::default()
+            .with_title("Vulkan Engine")
+            .with_surface_size(surface_size);
 
         self.window = match event_loop.create_window(window_attributes) {
             Ok(window) => {

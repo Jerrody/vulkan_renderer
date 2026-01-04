@@ -1,8 +1,10 @@
+use std::mem::ManuallyDrop;
+
 use bevy_ecs::world::World;
 use vma::{Alloc, AllocationCreateFlags, AllocationCreateInfo, MemoryUsage};
 use vulkanite::{
-    include_spirv,
-    vk::{self, rs::*, *},
+    Handle, include_spirv,
+    vk::{self, raw::get_buffer_device_address, rs::*, *},
 };
 
 use crate::engine::{
@@ -10,7 +12,8 @@ use crate::engine::{
     descriptors::DescriptorSetLayoutBuilder,
     resources::{
         AllocatedBuffer, AllocatedDescriptorBuffer, AllocatedImage, DevicePropertiesResource,
-        RendererContext, RendererResources, VulkanContextResource, vulkan_context_resource,
+        RendererContext, RendererResources, ShaderObject, VulkanContextResource,
+        vulkan_context_resource,
     },
     utils::{create_image_info, create_image_view_info, load_shader},
 };
@@ -68,19 +71,23 @@ impl Engine {
             format: Format::R16G16B16A16Sfloat,
         };
 
-        let draw_image_descriptor_buffer = Self::create_descriptors(world);
+        let draw_image_descriptor_buffer = Self::create_descriptors(world, &draw_image);
 
         let descriptor_layouts = [draw_image_descriptor_buffer.descriptor_set_layout];
-        let gradient_shader = Self::create_shaders(&vulkan_context.device, &descriptor_layouts);
+        let gradient_compute_shader_object = Self::create_shader(
+            &vulkan_context.device,
+            ShaderStageFlags::Compute,
+            &descriptor_layouts,
+        );
 
         RendererResources {
             draw_image,
             draw_image_descriptor_buffer,
-            gradient_shader,
+            gradient_compute_shader_object,
         }
     }
 
-    fn create_descriptors(world: &World) -> AllocatedDescriptorBuffer {
+    fn create_descriptors(world: &World, draw_image: &AllocatedImage) -> AllocatedDescriptorBuffer {
         let vulkan_context_resource = world.get_resource_ref::<VulkanContextResource>().unwrap();
         let device_properties_resource = world
             .get_resource_ref::<DevicePropertiesResource>()
@@ -131,16 +138,64 @@ impl Engine {
         };
         let storage_image_descriptor_buffer = Buffer::from_inner(storage_image_descriptor_buffer);
 
-        let allocated_buffer = AllocatedBuffer {
+        let allocated_descriptor_buffer = AllocatedBuffer {
             buffer: storage_image_descriptor_buffer,
             allocation,
         };
 
+        let draw_image_descriptor_image_info = DescriptorImageInfo::default()
+            .image_layout(ImageLayout::General)
+            .image_view(Some(&draw_image.image_view));
+
+        let descriptor_size = device_properties_resource
+            .descriptor_buffer_properties
+            .storage_image_descriptor_size;
+
+        let mut draw_image_descriptor_get_info =
+            DescriptorGetInfoEXT::default().ty(DescriptorType::StorageImage);
+
+        let p_draw_image_descriptor_image_info =
+            ManuallyDrop::new(&draw_image_descriptor_image_info as *const _ as _);
+        draw_image_descriptor_get_info.data.p_storage_image = p_draw_image_descriptor_image_info;
+
+        let mut allocation = allocated_descriptor_buffer.allocation;
+        let descriptor_buffer_address = unsafe {
+            vulkan_context_resource
+                .allocator
+                .map_memory(&mut allocation)
+                .unwrap()
+        };
+        device.get_descriptor_ext(
+            &draw_image_descriptor_get_info,
+            descriptor_size,
+            descriptor_buffer_address as _,
+        );
+        unsafe {
+            vulkan_context_resource
+                .allocator
+                .unmap_memory(&mut allocation);
+        }
+
+        let descriptor_set_layouts: [vk::raw::DescriptorSetLayout; 1] = unsafe {
+            [vk::raw::DescriptorSetLayout::from_raw(
+                descriptor_set_layout.as_raw(),
+            )]
+        };
+        let pipeline_layout_info =
+            PipelineLayoutCreateInfo::default().set_layouts(descriptor_set_layouts.as_slice());
+        let pipeline_layout = device
+            .create_pipeline_layout(&pipeline_layout_info)
+            .unwrap();
+
+        let allocated_descriptor_buffer_address =
+            Self::get_device_address(&device, &allocated_descriptor_buffer.buffer);
         AllocatedDescriptorBuffer {
-            allocated_buffer,
+            allocated_descriptor_buffer,
             descriptor_buffer_offset,
             descriptor_buffer_size,
             descriptor_set_layout,
+            address: allocated_descriptor_buffer_address,
+            pipeline_layout,
         }
     }
 
@@ -148,24 +203,36 @@ impl Engine {
         (value + alignment - 1) & !(alignment - 1)
     }
 
-    fn create_shaders(device: &Device, descriptor_set_layout: &[DescriptorSetLayout]) -> ShaderEXT {
-        let shader_code = load_shader(r"shaders\gradient.slang");
+    fn get_device_address(device: &Device, buffer: &Buffer) -> DeviceAddress {
+        let buffer_device_address = BufferDeviceAddressInfo::default().buffer(buffer);
 
-        let mut shader_info = ShaderCreateInfoEXT::default()
-            .flags(ShaderCreateFlagsEXT::LinkStage)
+        let buffer_address = device.get_buffer_address(&buffer_device_address);
+
+        buffer_address
+    }
+
+    fn create_shader(
+        device: &Device,
+        stage: ShaderStageFlags,
+        descriptor_set_layout: &[DescriptorSetLayout],
+    ) -> ShaderObject {
+        let shader_code = load_shader(r"shaders\output\gradient.slang.spv");
+
+        let shader_info = ShaderCreateInfoEXT::default()
             .code(&shader_code)
             .name(Some(c"main"))
-            .stage(ShaderStageFlags::Compute)
+            .stage(stage)
             .code_type(ShaderCodeTypeEXT::Spirv)
             .set_layouts(descriptor_set_layout);
-        shader_info.code_size = shader_code.len() * size_of::<u32>();
 
         let shader_infos = [shader_info];
         let (_status, shaders): (_, Vec<ShaderEXT>) =
             device.create_shaders_ext(&shader_infos).unwrap();
 
-        let compute_shader = shaders[0];
+        let shader = shaders[0];
 
-        compute_shader
+        let shader_object = ShaderObject::new(shader, stage);
+
+        shader_object
     }
 }

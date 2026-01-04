@@ -79,19 +79,30 @@ impl Drop for Engine {
         device.wait_idle().unwrap();
 
         unsafe {
-            let draw_image_desciptor_buffer = &mut renderer_resources.draw_image_descriptor_buffer;
+            let draw_image_desciptor_buffer = &renderer_resources.draw_image_descriptor_buffer;
             device.destroy_image_view(Some(&renderer_resources.draw_image.image_view));
-            device.destroy_descriptor_set_layout(Some(
-                &draw_image_desciptor_buffer.descriptor_set_layout,
-            ));
+
+            let pipeline_layout = renderer_resources
+                .draw_image_descriptor_buffer
+                .pipeline_layout;
+            device.destroy_pipeline_layout(Some(&pipeline_layout));
+
+            let descriptor_set_layout = draw_image_desciptor_buffer.descriptor_set_layout;
+            device.destroy_descriptor_set_layout(Some(&descriptor_set_layout));
 
             let draw_image_descriptor_buffer_raw = vk::raw::Buffer::from_raw(
-                draw_image_desciptor_buffer.allocated_buffer.buffer.as_raw(),
+                draw_image_desciptor_buffer
+                    .allocated_descriptor_buffer
+                    .buffer
+                    .as_raw(),
             );
-            vulkan_context_resource.allocator.destroy_buffer(
-                draw_image_descriptor_buffer_raw,
-                &mut draw_image_desciptor_buffer.allocated_buffer.allocation,
-            );
+
+            let mut allocation = draw_image_desciptor_buffer
+                .allocated_descriptor_buffer
+                .allocation;
+            vulkan_context_resource
+                .allocator
+                .destroy_buffer(draw_image_descriptor_buffer_raw, &mut allocation);
 
             let draw_image_raw =
                 vk::raw::Image::from_raw(renderer_resources.draw_image.image.as_raw());
@@ -101,7 +112,9 @@ impl Drop for Engine {
             );
             drop(vulkan_context_resource.allocator);
 
-            device.destroy_shader_ext(Some(&renderer_resources.gradient_shader));
+            device.destroy_shader_ext(Some(
+                &renderer_resources.gradient_compute_shader_object.shader,
+            ));
 
             render_context_resource
                 .frames_data
@@ -132,6 +145,9 @@ impl Drop for Engine {
                 .device
                 .destroy_swapchain_khr(Some(&vulkan_context_resource.swapchain));
             vulkan_context_resource.device.destroy();
+            vulkan_context_resource
+                .instance
+                .destroy_surface_khr(Some(&vulkan_context_resource.surface));
             vulkan_context_resource.instance.destroy();
         }
     }

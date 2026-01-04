@@ -2,13 +2,16 @@ use bevy_ecs::resource::Resource;
 use vma::Allocator;
 use vulkanite::vk::{
     SurfaceFormatKHR,
-    rs::{DebugUtilsMessengerEXT, Device, Instance, PhysicalDevice, Queue, SwapchainKHR},
+    rs::{
+        DebugUtilsMessengerEXT, Device, Instance, PhysicalDevice, Queue, SurfaceKHR, SwapchainKHR,
+    },
 };
 
 #[derive(Resource)]
 pub struct VulkanContextResource {
     pub instance: Instance,
     pub debug_utils_messenger: Option<DebugUtilsMessengerEXT>,
+    pub surface: SurfaceKHR,
     pub device: Device,
     pub physical_device: PhysicalDevice,
     pub allocator: Allocator,

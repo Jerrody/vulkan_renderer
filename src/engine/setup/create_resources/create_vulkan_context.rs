@@ -64,6 +64,7 @@ impl Engine {
         VulkanContextResource {
             instance,
             debug_utils_messenger,
+            surface,
             physical_device,
             device,
             allocator,
