@@ -273,7 +273,7 @@ impl Engine {
             .image_sharing_mode(vk::SharingMode::Exclusive)
             .pre_transform(capabilities.current_transform)
             .composite_alpha(vk::CompositeAlphaFlagsKHR::Opaque)
-            .present_mode(vk::PresentModeKHR::Fifo)
+            .present_mode(vk::PresentModeKHR::Mailbox)
             .clipped(true);
 
         let swapchain = device.create_swapchain_khr(&swapchain_info).unwrap();

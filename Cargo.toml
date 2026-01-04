@@ -25,3 +25,8 @@ vma = { package = "vk-mem", git = "https://github.com/Jerrody/vulkanite-mem-rs",
 
 [profile.dev]
 opt-level = 1
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
