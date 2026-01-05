@@ -1,63 +1,69 @@
 use std::process::Command;
-use std::{fs, io};
+use std::{env, fs, io, path::PathBuf};
 
 fn main() -> io::Result<()> {
     let dir = "shaders";
-
     println!("cargo:rerun-if-changed=shaders");
-    let mut file_paths = Vec::new();
+
+    let sdk_path = env::var("VULKAN_SDK")
+        .expect("VULKAN_SDK environment variable not found. Is the Vulkan SDK installed?");
+
+    let sdk_bin = PathBuf::from(sdk_path).join("Bin");
+
+    let exe_suffix = if cfg!(target_os = "windows") {
+        ".exe"
+    } else {
+        Default::default()
+    };
+
+    let slangc_path = sdk_bin.join(format!("slangc{}", exe_suffix));
+    let spirv_opt_path = sdk_bin.join(format!("spirv-opt{}", exe_suffix));
 
     fs::create_dir_all("shaders/output")?;
 
+    let mut file_paths = Vec::new();
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
 
-        let shader_types = ["slang"];
-        if path.parent().unwrap().to_str().unwrap() != "ignore_for_compilation"
-            && path.is_file()
-            && shader_types.contains(&path.extension().and_then(|s| s.to_str()).unwrap())
+        if path.is_file()
+            && path.extension().and_then(|s| s.to_str()) == Some("slang")
+            && !path.to_str().unwrap().contains("ignore_for_compilation")
         {
-            let shader_extension = path
-                .extension()
-                .and_then(|s| s.to_str())
-                .unwrap()
-                .to_string()
-                .clone();
-            file_paths.push((path, shader_extension));
+            file_paths.push(path);
         }
     }
 
-    for file_path in &file_paths {
-        let filename = file_path.0.file_name().unwrap().to_str().unwrap();
+    for path in file_paths {
+        let filename = path.file_name().unwrap().to_str().unwrap();
+        let output_filename = format!("shaders/output/{}.spv", filename);
 
-        let output_filename = std::format!("shaders/output/{}.spv", filename);
-        let status = Command::new("bin/slangc")
-            // generate SPIR-V
+        let slang_status = Command::new(&slangc_path)
             .arg("-target")
             .arg("spirv")
             .arg("-profile")
             .arg("spirv_1_6")
             .arg("-emit-spirv-directly")
             .arg("-O3")
-            // optionally force direct SPIR-V emission (avoids GLSL path)
-            // .arg("-emit-spirv-directly")
-            // specify output .spv path
             .arg("-o")
             .arg(&output_filename)
-            // input Slang source path (the same path you used before)
-            .arg(std::format!("shaders/{}", filename))
-            // optional: if your Slang module has a non-default entry point name, pass -entry
-            // .arg("-entry").arg("computeMain")
+            .arg(&path)
             .status()?;
-        let status = Command::new("bin/spirv-opt")
+
+        if !slang_status.success() {
+            panic!("Failed to compile shader with slangc: {}", filename);
+        }
+
+        let opt_status = Command::new(&spirv_opt_path)
             .arg(&output_filename)
             .arg("-O")
             .arg("-o")
             .arg(&output_filename)
             .status()?;
 
-        println!("Compiled shader: {:?} | Status: {:?}", file_path, status);
+        if opt_status.success() {
+            println!("cargo:warning=Compiled and optimized shader: {}", filename);
+        }
     }
 
     Ok(())
