@@ -10,13 +10,23 @@ static const float3 colors[3] = float3[](
 
 struct VertexOutput
 {
-    float4 sv_position : SV_Position;
-    float3 color;
+    private float4 _sv_position : SV_Position;
+    private float3 _color;
 
-    __init(float4 new_sv_position, float3 new_color)
+    property float3 Color
     {
-        sv_position = new_sv_position;
-        color = new_color;
+        [ForceInline]
+        get
+        {
+            return _color;
+        }
+    }
+
+    [ForceInline]
+    __init(float4 sv_position, float3 color)
+    {
+        _sv_position = sv_position;
+        _color = color;
     }
 };
 
@@ -33,7 +43,7 @@ func vs_main(uint vertex_id: SV_VertexID)->VertexOutput
 [shader("fragment")]
 func fs_main(VertexOutput vertex_output)->float4
 {
-    let color = float4(vertex_output.color.xyz, 1.0);
+    let color = float4(vertex_output.Color.xyz, 1.0);
 
     return color;
 }
