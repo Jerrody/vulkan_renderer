@@ -1,27 +1,27 @@
-[[vk::binding(0, 0)]]
-[[vk::image_format("rgba16f")]]
-RWTexture2D<float4> image;
+let image : RWTexture2D<float4>;
 
 [shader("compute")]
 [numthreads(16, 16, 1)]
-void main(uint3 dispatch_thread_id: SV_DispatchThreadID, uint3 group_thread_id: SV_GroupThreadID)
+func main(uint3 dispatch_thread_id: SV_DispatchThreadID, uint3 group_thread_id: SV_GroupThreadID)
 {
-    int2 texel_coord = int2(dispatch_thread_id.xy);
+    let texel_coord = (int2)dispatch_thread_id.xy;
 
-    uint width, height;
+    var width : uint;
+    var height : uint;
     image.GetDimensions(width, height);
 
-    if (texel_coord.x < int(width) && texel_coord.y < int(height))
+    if (texel_coord.x < (int)width && texel_coord.y < (int)height)
     {
-        float4 color = float4(0.0, 0.0, 0.0, 1.0);
+        var color = float4(0.0, 0.0, 0.0, 1.0);
 
         if (group_thread_id.x != 0 && group_thread_id.y != 0)
         {
-            color.x = float(texel_coord.x) / float(width);
-            color.y = float(texel_coord.y) / float(height);
+            color.x = (float)texel_coord.x / (float)width;
+            color.y = (float)texel_coord.y / (float)height;
         }
 
-        int2 coord = int2(texel_coord);
+        let coord = (int2)texel_coord;
+
         image[coord] = color;
     }
 }
