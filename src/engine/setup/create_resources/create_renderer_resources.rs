@@ -198,8 +198,6 @@ impl Engine {
     fn get_device_address(device: &Device, buffer: &Buffer) -> DeviceAddress {
         let buffer_device_address = BufferDeviceAddressInfo::default().buffer(buffer);
 
-        
-
         device.get_buffer_address(&buffer_device_address)
     }
 
@@ -222,8 +220,6 @@ impl Engine {
             device.create_shaders_ext(&shader_infos).unwrap();
 
         let shader = shaders[0];
-
-        
 
         ShaderObject::new(shader, stage)
     }
