@@ -3,8 +3,8 @@ use std::mem::ManuallyDrop;
 use bevy_ecs::world::World;
 use vma::{Alloc, AllocationCreateFlags, AllocationCreateInfo, MemoryUsage};
 use vulkanite::{
-    Handle, include_spirv,
-    vk::{self, raw::get_buffer_device_address, rs::*, *},
+    Handle,
+    vk::{self, rs::*, *},
 };
 
 use crate::engine::{
@@ -13,7 +13,6 @@ use crate::engine::{
     resources::{
         AllocatedBuffer, AllocatedDescriptorBuffer, AllocatedImage, DevicePropertiesResource,
         RendererContext, RendererResources, ShaderObject, VulkanContextResource,
-        vulkan_context_resource,
     },
     utils::{create_image_info, create_image_view_info, load_shader},
 };
@@ -103,7 +102,7 @@ impl Engine {
         );
 
         let descriptor_set_layout_size =
-            device.get_descriptor_set_layout_size_ext(&descriptor_set_layout);
+            device.get_descriptor_set_layout_size_ext(descriptor_set_layout);
 
         let descriptor_buffer_size = Self::aligned_size(
             descriptor_set_layout_size,
@@ -113,7 +112,7 @@ impl Engine {
         );
 
         let descriptor_buffer_offset = device.get_descriptor_set_layout_binding_offset_ext(
-            &descriptor_set_layout,
+            descriptor_set_layout,
             Default::default(),
         );
 
@@ -176,11 +175,7 @@ impl Engine {
                 .unmap_memory(&mut allocation);
         }
 
-        let descriptor_set_layouts: [vk::raw::DescriptorSetLayout; 1] = unsafe {
-            [vk::raw::DescriptorSetLayout::from_raw(
-                descriptor_set_layout.as_raw(),
-            )]
-        };
+        let descriptor_set_layouts = [descriptor_set_layout];
         let pipeline_layout_info =
             PipelineLayoutCreateInfo::default().set_layouts(descriptor_set_layouts.as_slice());
         let pipeline_layout = device

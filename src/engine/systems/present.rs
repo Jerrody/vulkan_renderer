@@ -36,7 +36,7 @@ pub fn present(
     let submit_infos = [submit_info];
     vulkan_ctx
         .graphics_queue
-        .submit2(&submit_infos, Some(&frame_data.render_fence))
+        .submit2(&submit_infos, Some(frame_data.render_fence))
         .unwrap();
 
     let swapchains = [vulkan_ctx.swapchain];

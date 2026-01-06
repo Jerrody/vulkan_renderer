@@ -80,15 +80,15 @@ impl Drop for Engine {
 
         unsafe {
             let draw_image_desciptor_buffer = &renderer_resources.draw_image_descriptor_buffer;
-            device.destroy_image_view(Some(&renderer_resources.draw_image.image_view));
+            device.destroy_image_view(Some(renderer_resources.draw_image.image_view));
 
             let pipeline_layout = renderer_resources
                 .draw_image_descriptor_buffer
                 .pipeline_layout;
-            device.destroy_pipeline_layout(Some(&pipeline_layout));
+            device.destroy_pipeline_layout(Some(pipeline_layout));
 
             let descriptor_set_layout = draw_image_desciptor_buffer.descriptor_set_layout;
-            device.destroy_descriptor_set_layout(Some(&descriptor_set_layout));
+            device.destroy_descriptor_set_layout(Some(descriptor_set_layout));
 
             let draw_image_descriptor_buffer_raw = vk::raw::Buffer::from_raw(
                 draw_image_desciptor_buffer
@@ -113,17 +113,17 @@ impl Drop for Engine {
             drop(vulkan_context_resource.allocator);
 
             device.destroy_shader_ext(Some(
-                &renderer_resources.gradient_compute_shader_object.shader,
+                renderer_resources.gradient_compute_shader_object.shader,
             ));
 
             render_context_resource
                 .frames_data
                 .iter()
                 .for_each(|frame_data| {
-                    device.destroy_command_pool(Some(&frame_data.command_pool));
-                    device.destroy_fence(Some(&frame_data.render_fence));
-                    device.destroy_semaphore(Some(&frame_data.render_semaphore));
-                    device.destroy_semaphore(Some(&frame_data.swapchain_semaphore));
+                    device.destroy_command_pool(Some(frame_data.command_pool));
+                    device.destroy_fence(Some(frame_data.render_fence));
+                    device.destroy_semaphore(Some(frame_data.render_semaphore));
+                    device.destroy_semaphore(Some(frame_data.swapchain_semaphore));
                 });
 
             render_context_resource
@@ -132,22 +132,22 @@ impl Drop for Engine {
                 .for_each(|image_view| {
                     vulkan_context_resource
                         .device
-                        .destroy_image_view(Some(image_view));
+                        .destroy_image_view(Some(*image_view));
                 });
 
             if let Some(debug_utils_messenger) = vulkan_context_resource.debug_utils_messenger {
                 vulkan_context_resource
                     .instance
-                    .destroy_debug_utils_messenger_ext(Some(&debug_utils_messenger));
+                    .destroy_debug_utils_messenger_ext(Some(debug_utils_messenger));
             }
 
             vulkan_context_resource
                 .device
-                .destroy_swapchain_khr(Some(&vulkan_context_resource.swapchain));
+                .destroy_swapchain_khr(Some(vulkan_context_resource.swapchain));
             vulkan_context_resource.device.destroy();
             vulkan_context_resource
                 .instance
-                .destroy_surface_khr(Some(&vulkan_context_resource.surface));
+                .destroy_surface_khr(Some(vulkan_context_resource.surface));
             vulkan_context_resource.instance.destroy();
         }
     }

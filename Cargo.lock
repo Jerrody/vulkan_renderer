@@ -925,18 +925,18 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.104"
+version = "1.0.105"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9695f8df41bb4f3d222c95a67532365f569318332d03d5f3f67f37b20e6ebdf0"
+checksum = "535d180e0ecab6268a3e718bb9fd44db66bbbc256257165fc699dadf70d16fe7"
 dependencies = [
  "unicode-ident",
 ]
 
 [[package]]
 name = "quote"
-version = "1.0.42"
+version = "1.0.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a338cc41d27e6cc6dce6cefc13a0729dfbb81c262b1f519331575dd80ef3067f"
+checksum = "dc74d9a594b72ae6656596548f56f667211f8a97b3d4c3d467150794690dc40a"
 dependencies = [
  "proc-macro2",
 ]
@@ -1267,7 +1267,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "vk-mem"
 version = "0.4.0"
-source = "git+https://github.com/Jerrody/vulkanite-mem-rs?branch=vulkanite#ae092e1b2f504a2cec02ff95ecf47d6bf7d76852"
+source = "git+https://github.com/Jerrody/vulkanite-mem-rs?branch=vulkanite#4b926c5e64cf5adae9846d47ab6fceb709e68db8"
 dependencies = [
  "bitflags",
  "cc",
@@ -1288,7 +1288,7 @@ dependencies = [
 [[package]]
 name = "vulkanite"
 version = "0.0.11"
-source = "git+https://github.com/Jerrody/vulkanite#5dfa753dcbe4c91ccd94e30abd4a7b9006426855"
+source = "git+https://github.com/Jerrody/vulkanite#911ffc8ab570841c87b258e1f578d0c4b1d6efe2"
 dependencies = [
  "bitflags",
  "libloading",

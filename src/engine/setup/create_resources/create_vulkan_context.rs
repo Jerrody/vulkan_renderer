@@ -152,7 +152,7 @@ impl Engine {
             .find(|(queue, props)| {
                 props.queue_flags.contains(vk::QueueFlags::Graphics)
                     && physical_device
-                        .get_surface_support_khr(*queue as u32, surface)
+                        .get_surface_support_khr(*queue as u32, *surface)
                         .is_ok_and(|supported| supported)
             })
             .unwrap();
@@ -216,11 +216,11 @@ impl Engine {
         window_size: PhysicalSize<u32>,
     ) -> (SwapchainKHR, SurfaceFormatKHR) {
         let capabilities = physical_device
-            .get_surface_capabilities_khr(surface)
+            .get_surface_capabilities_khr(*surface)
             .unwrap();
 
         let surface_format = physical_device
-            .get_surface_formats_khr::<Vec<_>>(Some(surface))
+            .get_surface_formats_khr::<Vec<_>>(Some(*surface))
             .unwrap()
             .into_iter()
             .max_by_key(|fmt| match fmt {
@@ -237,7 +237,7 @@ impl Engine {
         // The Vulkan spec guarantees that if the swapchain extension is supported
         // then the FIFO present mode is too
         if !physical_device
-            .get_surface_present_modes_khr::<Vec<_>>(Some(surface))
+            .get_surface_present_modes_khr::<Vec<_>>(Some(*surface))
             .unwrap()
             .contains(&vk::PresentModeKHR::Fifo)
         {

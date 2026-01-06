@@ -19,9 +19,9 @@ pub fn prepare_frame(
 
     let (_status, swapchain_image_index) = device
         .acquire_next_image_khr(
-            &vulkan_ctx.swapchain,
+            vulkan_ctx.swapchain,
             u64::MAX,
-            Some(&frame_data.swapchain_semaphore),
+            Some(frame_data.swapchain_semaphore),
             Default::default(),
         )
         .unwrap();

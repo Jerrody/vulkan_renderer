@@ -13,7 +13,7 @@ impl Engine {
         let device = vulkan_context_resource.device;
         let swapchain = &vulkan_context_resource.swapchain;
 
-        let images: Vec<Image> = device.get_swapchain_images_khr(swapchain).unwrap();
+        let images: Vec<Image> = device.get_swapchain_images_khr(*swapchain).unwrap();
         let image_views: Vec<ImageView> = images
             .iter()
             .map(|img| {

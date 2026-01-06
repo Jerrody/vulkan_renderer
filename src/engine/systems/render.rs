@@ -56,7 +56,7 @@ pub fn render(
     let offsets = [0];
     command_buffer.set_descriptor_buffer_offsets_ext(
         PipelineBindPoint::Compute,
-        &renderer_resources
+        renderer_resources
             .draw_image_descriptor_buffer
             .pipeline_layout,
         Default::default(),
@@ -108,5 +108,5 @@ fn draw_background(
     let clear_range = image_subresource_range(ImageAspectFlags::Color);
 
     let ranges = [clear_range];
-    command_buffer.clear_color_image(draw_image, ImageLayout::General, &clear_value, &ranges);
+    command_buffer.clear_color_image(*draw_image, ImageLayout::General, &clear_value, &ranges);
 }
