@@ -24,7 +24,7 @@ vulkanite = { git = "https://github.com/Jerrody/vulkanite", features = [
 vma = { package = "vk-mem", git = "https://github.com/Jerrody/vulkanite-mem-rs", branch = "vulkanite" }
 
 [profile.dev]
-opt-level = 1
+opt-level = 2
 
 [profile.release]
 opt-level = 3
