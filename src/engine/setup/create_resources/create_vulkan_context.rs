@@ -18,14 +18,116 @@ use winit::{dpi::PhysicalSize, window::Window};
 use crate::engine::{Engine, resources::VulkanContextResource};
 
 extern "system" fn debug_callback(
-    _severity: vk::DebugUtilsMessageSeverityFlagsEXT,
-    _ty: vk::DebugUtilsMessageTypeFlagsEXT,
+    severity: vk::DebugUtilsMessageSeverityFlagsEXT,
+    ty: vk::DebugUtilsMessageTypeFlagsEXT,
     data: &vk::DebugUtilsMessengerCallbackDataEXT,
     _: *const (),
 ) -> vk::Bool32 {
-    eprintln!("Validation layer: {:?}", unsafe {
-        CStr::from_ptr(data.p_message)
-    });
+    use vk::DebugUtilsMessageSeverityFlagsEXT as Severity;
+    use vk::DebugUtilsMessageTypeFlagsEXT as Type;
+
+    let message = unsafe { CStr::from_ptr(data.p_message).to_string_lossy() };
+    let trimmed = message.trim();
+
+    static mut IN_DEVICE_SETUP: bool = false;
+    static mut DEVICE_REPORTED: bool = false;
+
+    if trimmed.contains("vkCreateDevice layer callstack setup to:") {
+        unsafe {
+            IN_DEVICE_SETUP = true;
+        }
+        return vk::FALSE;
+    }
+
+    if trimmed.starts_with("<Device>") {
+        unsafe {
+            IN_DEVICE_SETUP = false;
+        }
+        return vk::FALSE;
+    }
+
+    if unsafe { IN_DEVICE_SETUP } {
+        return vk::FALSE;
+    }
+
+    if trimmed.contains("Inserted device layer") {
+        return vk::FALSE;
+    }
+
+    if !unsafe { DEVICE_REPORTED }
+        && trimmed.contains("Using \"")
+        && trimmed.contains("with driver:")
+    {
+        if let Some(start) = trimmed.find('"') {
+            if let Some(end) = trimmed[start + 1..].find('"') {
+                let device_name = &trimmed[start + 1..start + 1 + end];
+                if ty == Type::General || ty == Type::Validation {
+                    eprintln!("\x1b[92m[Vulkan]\x1b[0m Using device: {}", device_name);
+                    unsafe {
+                        DEVICE_REPORTED = true;
+                    }
+                }
+            }
+        }
+        return vk::FALSE;
+    }
+
+    match (severity, ty) {
+        (Severity::Error, _) => {
+            let prefix = match ty {
+                Type::Validation => "[Validation Error]",
+                Type::Performance => "[Performance Error]",
+                Type::General => "[General Error]",
+                _ => "[Error]",
+            };
+            eprintln!("\x1b[91m{}\x1b[0m {}", prefix, trimmed);
+        }
+
+        (Severity::Warning, _) => {
+            let prefix = match ty {
+                Type::Validation => "[Validation Warning]",
+                Type::Performance => "[Performance Warning]",
+                Type::General => "[General Warning]",
+                _ => "[Warning]",
+            };
+            eprintln!("\x1b[93m{}\x1b[0m {}", prefix, trimmed);
+        }
+
+        (Severity::Info, ty) => {
+            if ty == Type::General {
+                if trimmed.contains("vkCreateInstance")
+                    || trimmed.contains("vkCreateDevice")
+                    || trimmed.contains("vkCreateSwapchain")
+                {
+                    if trimmed.contains("success") || trimmed.contains("created") {
+                        eprintln!("\x1b[96m[Info]\x1b[0m {}", trimmed);
+                    }
+                } else if trimmed.contains("Device")
+                    || trimmed.contains("Queue")
+                    || trimmed.contains("Swapchain")
+                    || trimmed.contains("Memory")
+                    || trimmed.contains("surface")
+                    || trimmed.contains("format")
+                {
+                    eprintln!("\x1b[96m[Info]\x1b[0m {}", trimmed);
+                }
+            } else {
+                let prefix = match ty {
+                    Type::Validation => "[Validation]",
+                    Type::Performance => "[Performance]",
+                    _ => "[Info]",
+                };
+                eprintln!("\x1b[96m{}\x1b[0m {}", prefix, trimmed);
+            }
+        }
+
+        (Severity::Verbose, _) => {
+            return vk::FALSE;
+        }
+
+        _ => {}
+    }
+
     vk::FALSE
 }
 
