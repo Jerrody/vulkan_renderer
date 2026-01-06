@@ -2,10 +2,7 @@ use std::mem::ManuallyDrop;
 
 use bevy_ecs::world::World;
 use vma::{Alloc, AllocationCreateFlags, AllocationCreateInfo, MemoryUsage};
-use vulkanite::{
-    Handle,
-    vk::{self, rs::*, *},
-};
+use vulkanite::vk::{rs::*, *};
 
 use crate::engine::{
     Engine,
@@ -183,7 +180,7 @@ impl Engine {
             .unwrap();
 
         let allocated_descriptor_buffer_address =
-            Self::get_device_address(&device, &allocated_descriptor_buffer.buffer);
+            Self::get_device_address(device, &allocated_descriptor_buffer.buffer);
         AllocatedDescriptorBuffer {
             allocated_descriptor_buffer,
             descriptor_buffer_offset,
@@ -201,9 +198,9 @@ impl Engine {
     fn get_device_address(device: &Device, buffer: &Buffer) -> DeviceAddress {
         let buffer_device_address = BufferDeviceAddressInfo::default().buffer(buffer);
 
-        let buffer_address = device.get_buffer_address(&buffer_device_address);
+        
 
-        buffer_address
+        device.get_buffer_address(&buffer_device_address)
     }
 
     fn create_shader(
@@ -226,8 +223,8 @@ impl Engine {
 
         let shader = shaders[0];
 
-        let shader_object = ShaderObject::new(shader, stage);
+        
 
-        shader_object
+        ShaderObject::new(shader, stage)
     }
 }

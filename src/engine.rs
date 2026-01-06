@@ -17,7 +17,6 @@ use winit::window::Window;
 use crate::engine::{
     resources::{
         FrameContext, RendererContext, RendererResources, VulkanContextResource,
-        vulkan_context_resource,
     },
     systems::{prepare_frame, present, render},
 };
