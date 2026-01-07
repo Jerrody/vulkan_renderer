@@ -111,8 +111,6 @@ pub fn render(
         [ColorComponentFlags::R | ColorComponentFlags::G | ColorComponentFlags::B];
     command_buffer.set_color_write_mask_ext(Default::default(), &color_component_flags);
 
-    draw_triangle(&renderer_resources, command_buffer);
-
     command_buffer.end_rendering();
 
     copy_image_to_image(
