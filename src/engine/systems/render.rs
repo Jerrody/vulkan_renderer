@@ -1,4 +1,5 @@
 use bevy_ecs::system::{Res, ResMut};
+use glam::Mat4;
 use vulkanite::{
     Handle,
     vk::{
@@ -8,7 +9,7 @@ use vulkanite::{
 };
 
 use crate::engine::{
-    resources::{FrameContext, RendererContext, RendererResources},
+    resources::{FrameContext, MeshPushConstant, RendererContext, RendererResources},
     utils::{self, copy_image_to_image, image_subresource_range, transition_image},
 };
 
@@ -110,6 +111,20 @@ pub fn render(
     let color_component_flags =
         [ColorComponentFlags::R | ColorComponentFlags::G | ColorComponentFlags::B];
     command_buffer.set_color_write_mask_ext(Default::default(), &color_component_flags);
+
+    let first_mesh = &renderer_resources.mesh_buffers[0];
+    let mesh_push_constant = [MeshPushConstant {
+        world_matrix: Mat4::IDENTITY,
+        vertex_buffer_device_adress: first_mesh.vertex_buffer_device_address,
+    }];
+
+    command_buffer.push_constants(
+        renderer_resources.mesh_pipeline_layout,
+        ShaderStageFlags::MeshEXT,
+        Default::default(),
+        size_of::<MeshPushConstant>() as _,
+        mesh_push_constant.as_ptr() as _,
+    );
 
     command_buffer.end_rendering();
 
