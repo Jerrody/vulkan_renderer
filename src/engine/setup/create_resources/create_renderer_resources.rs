@@ -74,7 +74,8 @@ impl Engine {
             &vulkan_context.device,
             r"shaders\output\gradient.slang.spv",
             ShaderStageFlags::Compute,
-            Default::default(),
+            ShaderStageFlags::default(),
+            ShaderCreateFlagsEXT::default(),
             &descriptor_layouts,
         );
 
@@ -82,7 +83,8 @@ impl Engine {
             &vulkan_context.device,
             r"shaders\output\triangle.slang.spv",
             ShaderStageFlags::Vertex,
-            Default::default(),
+            ShaderStageFlags::Fragment,
+            ShaderCreateFlagsEXT::default(),
             &descriptor_layouts,
         );
 
@@ -90,7 +92,8 @@ impl Engine {
             &vulkan_context.device,
             r"shaders\output\triangle.slang.spv",
             ShaderStageFlags::Fragment,
-            Default::default(),
+            ShaderStageFlags::default(),
+            ShaderCreateFlagsEXT::default(),
             &descriptor_layouts,
         );
 
@@ -225,6 +228,7 @@ impl Engine {
         device: &Device,
         path: &str,
         stage: ShaderStageFlags,
+        next_stage: ShaderStageFlags,
         link: ShaderCreateFlagsEXT,
         descriptor_set_layout: &[DescriptorSetLayout],
     ) -> ShaderObject {
@@ -235,6 +239,7 @@ impl Engine {
             .code(&shader_code)
             .name(Some(c"main"))
             .stage(stage)
+            .next_stage(next_stage)
             .code_type(ShaderCodeTypeEXT::Spirv)
             .set_layouts(descriptor_set_layout);
 

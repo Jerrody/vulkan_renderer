@@ -1,7 +1,10 @@
 use bevy_ecs::system::{Res, ResMut};
-use vulkanite::vk::{
-    rs::{CommandBuffer, Image},
-    *,
+use vulkanite::{
+    Handle,
+    vk::{
+        rs::{CommandBuffer, Image},
+        *,
+    },
 };
 
 use crate::engine::{
@@ -39,6 +42,117 @@ pub fn render(
         ImageLayout::General,
     );
 
+    let draw_image_extent3d = renderer_resources.draw_image.image_extent;
+    let draw_image_extent2d = Extent2D {
+        width: draw_image_extent3d.width,
+        height: draw_image_extent3d.height,
+    };
+
+    draw_gradient(
+        renderer_resources.as_ref(),
+        command_buffer,
+        draw_image_extent2d,
+    );
+
+    let color_attachment_infos = [RenderingAttachmentInfo {
+        image_view: Some(renderer_resources.draw_image.image_view.borrow()),
+        image_layout: ImageLayout::General,
+        resolve_mode: ResolveModeFlags::None,
+        load_op: AttachmentLoadOp::Load,
+        store_op: AttachmentStoreOp::Store,
+        ..Default::default()
+    }];
+
+    let rendering_info = RenderingInfo {
+        render_area: Rect2D {
+            offset: Default::default(),
+            extent: draw_image_extent2d,
+        },
+        layer_count: 1,
+        color_attachment_count: color_attachment_infos.len() as _,
+        p_color_attachments: color_attachment_infos.as_ptr(),
+        ..Default::default()
+    };
+
+    command_buffer.begin_rendering(&rendering_info);
+
+    let viewports = Viewport {
+        width: draw_image_extent2d.width as _,
+        height: draw_image_extent2d.height as _,
+        min_depth: 0.0,
+        max_depth: 1.0,
+        ..Default::default()
+    };
+    let scissors = Rect2D {
+        extent: draw_image_extent2d,
+        ..Default::default()
+    };
+
+    command_buffer.set_viewport_with_count(&viewports);
+    command_buffer.set_scissor_with_count(&scissors);
+    command_buffer.set_cull_mode(CullModeFlags::Back);
+    command_buffer.set_front_face(FrontFace::Clockwise);
+    command_buffer.set_depth_test_enable_ext(false);
+    command_buffer.set_depth_write_enable(false);
+    command_buffer.set_primitive_restart_enable(false);
+    command_buffer.set_rasterizer_discard_enable(false);
+    command_buffer.set_primitive_topology(PrimitiveTopology::TriangleList);
+    command_buffer.set_polygon_mode_ext(PolygonMode::Fill);
+    command_buffer.set_rasterization_samples_ext(SampleCountFlags::Count1);
+    command_buffer.set_alpha_to_coverage_enable_ext(false);
+    command_buffer.set_depth_bias_enable(false);
+    command_buffer.set_stencil_test_enable(false);
+    command_buffer.set_sample_mask_ext(SampleCountFlags::Count1, &[SampleMask::MAX]);
+
+    let blend_enables = [Bool32::False];
+    command_buffer.set_color_blend_enable_ext(Default::default(), blend_enables.as_slice());
+
+    let color_component_flags =
+        [ColorComponentFlags::R | ColorComponentFlags::G | ColorComponentFlags::B];
+    command_buffer.set_color_write_mask_ext(Default::default(), &color_component_flags);
+
+    let vertex_bindings_descriptions = [];
+    let vertex_attributes = [];
+    command_buffer.set_vertex_input_ext(&vertex_bindings_descriptions, &vertex_attributes);
+
+    let shader_stages = [
+        renderer_resources.vertex_shader_object.stage,
+        renderer_resources.fragment_shader_object.stage,
+    ];
+    let shaders = [
+        renderer_resources.vertex_shader_object.shader,
+        renderer_resources.fragment_shader_object.shader,
+    ];
+
+    command_buffer.bind_shaders_ext(shader_stages.as_slice(), shaders.as_slice());
+
+    command_buffer.draw(3, 1, Default::default(), Default::default());
+
+    command_buffer.end_rendering();
+
+    copy_image_to_image(
+        command_buffer,
+        draw_image,
+        swapchain_image,
+        draw_image_extent2d,
+        render_context.draw_extent,
+    );
+
+    transition_image(
+        command_buffer,
+        swapchain_image,
+        ImageLayout::General,
+        ImageLayout::PresentSrcKHR,
+    );
+
+    command_buffer.end().unwrap();
+}
+
+fn draw_gradient(
+    renderer_resources: &RendererResources,
+    command_buffer: CommandBuffer,
+    draw_extent: Extent2D,
+) {
     let gradient_compute_shader_object = renderer_resources.gradient_compute_shader_object;
 
     let stages = [gradient_compute_shader_object.stage];
@@ -65,36 +179,13 @@ pub fn render(
     );
 
     command_buffer.dispatch(
-        f32::ceil(render_context.draw_extent.width as f32 / 16.0) as _,
-        f32::ceil(render_context.draw_extent.height as f32 / 16.0) as _,
+        f32::ceil(draw_extent.width as f32 / 16.0) as _,
+        f32::ceil(draw_extent.height as f32 / 16.0) as _,
         1,
     );
-
-    //draw_background(&render_context, command_buffer, &draw_image);
-
-    let draw_image_extent = renderer_resources.draw_image.image_extent;
-
-    copy_image_to_image(
-        command_buffer,
-        draw_image,
-        swapchain_image,
-        Extent2D {
-            width: draw_image_extent.width,
-            height: draw_image_extent.height,
-        },
-        render_context.draw_extent,
-    );
-
-    transition_image(
-        command_buffer,
-        swapchain_image,
-        ImageLayout::General,
-        ImageLayout::PresentSrcKHR,
-    );
-
-    command_buffer.end().unwrap();
 }
 
+#[allow(dead_code)]
 fn draw_background(
     render_context: &ResMut<RendererContext>,
     command_buffer: CommandBuffer,
