@@ -7,8 +7,8 @@ use vulkanite::{
     vk::{
         self, EXT_DESCRIPTOR_BUFFER, EXT_SHADER_OBJECT, KHR_UNIFIED_IMAGE_LAYOUTS,
         PhysicalDeviceDescriptorBufferFeaturesEXT, PhysicalDeviceShaderObjectFeaturesEXT,
-        PhysicalDeviceUnifiedImageLayoutsFeaturesKHR, PhysicalDeviceVulkan12Features,
-        PhysicalDeviceVulkan13Features, SurfaceFormatKHR,
+        PhysicalDeviceUnifiedImageLayoutsFeaturesKHR, PhysicalDeviceVulkan11Features,
+        PhysicalDeviceVulkan12Features, PhysicalDeviceVulkan13Features, SurfaceFormatKHR,
         rs::{PhysicalDevice, SwapchainKHR},
     },
     window,
@@ -199,7 +199,7 @@ impl Engine {
         let app_info = vk::ApplicationInfo::default()
             .application_name(Some(c"Hello Triangle"))
             .engine_name(Some(c"No Engine"))
-            .api_version(vk::API_VERSION_1_3);
+            .api_version(vk::API_VERSION_1_4);
 
         let instance_info = vk::InstanceCreateInfo::default()
             .application_info(Some(&app_info))
@@ -296,6 +296,7 @@ impl Engine {
                 .queue_create_infos(&queue_info)
                 .enabled_features(Some(&features))
                 .enabled_extension(&required_extensions),
+            PhysicalDeviceVulkan11Features::default().shader_draw_parameters(true),
             PhysicalDeviceVulkan12Features::default().buffer_device_address(true),
             PhysicalDeviceVulkan13Features::default()
                 .synchronization2(true)

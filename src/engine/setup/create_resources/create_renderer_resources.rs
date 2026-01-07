@@ -72,7 +72,25 @@ impl Engine {
         let descriptor_layouts = [draw_image_descriptor_buffer.descriptor_set_layout];
         let gradient_compute_shader_object = Self::create_shader(
             &vulkan_context.device,
+            r"shaders\output\gradient.slang.spv",
             ShaderStageFlags::Compute,
+            Default::default(),
+            &descriptor_layouts,
+        );
+
+        let vertex_shader_object = Self::create_shader(
+            &vulkan_context.device,
+            r"shaders\output\triangle.slang.spv",
+            ShaderStageFlags::Vertex,
+            Default::default(),
+            &descriptor_layouts,
+        );
+
+        let fragment_shader_object = Self::create_shader(
+            &vulkan_context.device,
+            r"shaders\output\triangle.slang.spv",
+            ShaderStageFlags::Fragment,
+            Default::default(),
             &descriptor_layouts,
         );
 
@@ -80,6 +98,8 @@ impl Engine {
             draw_image,
             draw_image_descriptor_buffer,
             gradient_compute_shader_object,
+            vertex_shader_object,
+            fragment_shader_object,
         }
     }
 
@@ -203,12 +223,15 @@ impl Engine {
 
     fn create_shader(
         device: &Device,
+        path: &str,
         stage: ShaderStageFlags,
+        link: ShaderCreateFlagsEXT,
         descriptor_set_layout: &[DescriptorSetLayout],
     ) -> ShaderObject {
-        let shader_code = load_shader(r"shaders\output\gradient.slang.spv");
+        let shader_code = load_shader(path);
 
         let shader_info = ShaderCreateInfoEXT::default()
+            .flags(link)
             .code(&shader_code)
             .name(Some(c"main"))
             .stage(stage)

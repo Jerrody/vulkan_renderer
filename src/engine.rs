@@ -112,6 +112,8 @@ impl Drop for Engine {
             device.destroy_shader_ext(Some(
                 renderer_resources.gradient_compute_shader_object.shader,
             ));
+            device.destroy_shader_ext(Some(renderer_resources.vertex_shader_object.shader));
+            device.destroy_shader_ext(Some(renderer_resources.fragment_shader_object.shader));
 
             render_context_resource
                 .frames_data

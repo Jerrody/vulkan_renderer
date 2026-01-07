@@ -31,7 +31,7 @@ struct VertexOutput
 };
 
 [shader("vertex")]
-func vs_main(uint vertex_id: SV_VertexID)->VertexOutput
+func main(uint vertex_id: SV_VertexID)->VertexOutput
 {
     let current_position = positions[vertex_id];
 
@@ -41,7 +41,7 @@ func vs_main(uint vertex_id: SV_VertexID)->VertexOutput
 }
 
 [shader("fragment")]
-func fs_main(VertexOutput vertex_output)->float4
+func main(VertexOutput vertex_output)->float4
 {
     let color = float4(vertex_output.Color.xyz, 1.0);
 

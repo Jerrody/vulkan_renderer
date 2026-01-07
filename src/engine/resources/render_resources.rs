@@ -44,4 +44,6 @@ pub struct RendererResources {
     pub draw_image: AllocatedImage,
     pub draw_image_descriptor_buffer: AllocatedDescriptorBuffer,
     pub gradient_compute_shader_object: ShaderObject,
+    pub vertex_shader_object: ShaderObject,
+    pub fragment_shader_object: ShaderObject,
 }
