@@ -1,9 +1,15 @@
+pub mod model_loader;
+
+pub use model_loader::*;
+
 use bevy_ecs::resource::Resource;
 use vma::Allocation;
 use vulkanite::vk::{
     DeviceAddress, Extent3D, Format, ShaderStageFlags,
     rs::{Buffer, DescriptorSetLayout, Image, ImageView, PipelineLayout, ShaderEXT},
 };
+
+use crate::engine::resources::render_resources::model_loader::ModelLoader;
 
 pub struct AllocatedImage {
     pub image: Image,
@@ -46,4 +52,5 @@ pub struct RendererResources {
     pub gradient_compute_shader_object: ShaderObject,
     pub vertex_shader_object: ShaderObject,
     pub fragment_shader_object: ShaderObject,
+    pub model_loader: ModelLoader,
 }

@@ -10,6 +10,7 @@ use crate::engine::{
     resources::{
         AllocatedBuffer, AllocatedDescriptorBuffer, AllocatedImage, DevicePropertiesResource,
         RendererContext, RendererResources, ShaderObject, VulkanContextResource,
+        model_loader::ModelLoader, render_resources,
     },
     utils::{ShaderInfo, create_image_info, create_image_view_info, load_shader},
 };
@@ -111,13 +112,20 @@ impl Engine {
 
         let created_shaders = Self::create_shaders(&vulkan_context.device, &shaders_info);
 
-        RendererResources {
+        let renderer_resources = RendererResources {
             draw_image,
             draw_image_descriptor_buffer,
             gradient_compute_shader_object: created_shaders[0],
             vertex_shader_object: created_shaders[1],
             fragment_shader_object: created_shaders[2],
-        }
+            model_loader: ModelLoader::new(),
+        };
+
+        renderer_resources
+            .model_loader
+            .load_model(r"assets/basicmesh.glb");
+
+        renderer_resources
     }
 
     fn create_descriptors(world: &World, draw_image: &AllocatedImage) -> AllocatedDescriptorBuffer {
