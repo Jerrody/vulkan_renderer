@@ -11,7 +11,7 @@ use crate::engine::{
         AllocatedBuffer, AllocatedDescriptorBuffer, AllocatedImage, DevicePropertiesResource,
         RendererContext, RendererResources, ShaderObject, VulkanContextResource,
     },
-    utils::{create_image_info, create_image_view_info, load_shader},
+    utils::{ShaderInfo, create_image_info, create_image_view_info, load_shader},
 };
 
 impl Engine {
@@ -69,40 +69,54 @@ impl Engine {
 
         let draw_image_descriptor_buffer = Self::create_descriptors(world, &draw_image);
 
-        let descriptor_layouts = [draw_image_descriptor_buffer.descriptor_set_layout];
-        let gradient_compute_shader_object = Self::create_shader(
-            &vulkan_context.device,
-            r"shaders\output\gradient.slang.spv",
-            ShaderStageFlags::Compute,
-            ShaderStageFlags::default(),
-            ShaderCreateFlagsEXT::default(),
-            &descriptor_layouts,
-        );
+        let gradient_descriptor_layouts = [draw_image_descriptor_buffer.descriptor_set_layout];
 
-        let vertex_shader_object = Self::create_shader(
-            &vulkan_context.device,
-            r"shaders\output\triangle.slang.spv",
-            ShaderStageFlags::Vertex,
-            ShaderStageFlags::Fragment,
-            ShaderCreateFlagsEXT::default(),
-            &descriptor_layouts,
-        );
+        /* let gradient_shader_info = ShaderInfo {
+                   path: r"shaders\output\gradient.slang.spv",
+                   flags: ShaderCreateFlagsEXT::empty(),
+                   stage: ShaderStageFlags::Compute,
+                   next_stage: ShaderStageFlags::empty(),
+                   descriptor_layouts: &descriptor_layouts,
+               };
+        */
+        /*         let gradient_compute_shader_object =
+        Self::create_shader(&vulkan_context.device, gradient_shader_info); */
 
-        let fragment_shader_object = Self::create_shader(
-            &vulkan_context.device,
-            r"shaders\output\triangle.slang.spv",
-            ShaderStageFlags::Fragment,
-            ShaderStageFlags::default(),
-            ShaderCreateFlagsEXT::default(),
-            &descriptor_layouts,
-        );
+        let triangle_descriptor_set_layouts = [];
+
+        let triangle_shader_path = r"shaders\output\triangle.slang.spv";
+        let shaders_info = [
+            ShaderInfo {
+                path: r"shaders\output\gradient.slang.spv",
+                flags: ShaderCreateFlagsEXT::empty(),
+                stage: ShaderStageFlags::Compute,
+                next_stage: ShaderStageFlags::empty(),
+                descriptor_layouts: &gradient_descriptor_layouts,
+            },
+            ShaderInfo {
+                path: &triangle_shader_path,
+                flags: ShaderCreateFlagsEXT::LinkStage,
+                stage: ShaderStageFlags::Vertex,
+                next_stage: ShaderStageFlags::Fragment,
+                descriptor_layouts: &triangle_descriptor_set_layouts,
+            },
+            ShaderInfo {
+                path: triangle_shader_path,
+                flags: ShaderCreateFlagsEXT::LinkStage,
+                stage: ShaderStageFlags::Fragment,
+                next_stage: ShaderStageFlags::empty(),
+                descriptor_layouts: &triangle_descriptor_set_layouts,
+            },
+        ];
+
+        let created_shaders = Self::create_shaders(&vulkan_context.device, &shaders_info);
 
         RendererResources {
             draw_image,
             draw_image_descriptor_buffer,
-            gradient_compute_shader_object,
-            vertex_shader_object,
-            fragment_shader_object,
+            gradient_compute_shader_object: created_shaders[0],
+            vertex_shader_object: created_shaders[1],
+            fragment_shader_object: created_shaders[2],
         }
     }
 
@@ -224,31 +238,58 @@ impl Engine {
         device.get_buffer_address(&buffer_device_address)
     }
 
-    fn create_shader(
-        device: &Device,
-        path: &str,
-        stage: ShaderStageFlags,
-        next_stage: ShaderStageFlags,
-        link: ShaderCreateFlagsEXT,
-        descriptor_set_layout: &[DescriptorSetLayout],
-    ) -> ShaderObject {
-        let shader_code = load_shader(path);
+    fn create_shaders(device: &Device, shader_infos: &[ShaderInfo]) -> Vec<ShaderObject> {
+        let shader_codes: Vec<Vec<u8>> = shader_infos
+            .iter()
+            .map(|shader_info| load_shader(shader_info.path))
+            .collect();
 
-        let shader_info = ShaderCreateInfoEXT::default()
-            .flags(link)
+        let shader_create_infos: Vec<_> = shader_infos
+            .iter()
+            .zip(shader_codes.as_slice())
+            .map(|(shader_info, shader_code)| {
+                let shader_info = ShaderCreateInfoEXT::default()
+                    .flags(shader_info.flags)
+                    .code(shader_code)
+                    .name(Some(c"main"))
+                    .stage(shader_info.stage)
+                    .next_stage(shader_info.next_stage)
+                    .code_type(ShaderCodeTypeEXT::Spirv)
+                    .set_layouts(shader_info.descriptor_layouts);
+
+                shader_info
+            })
+            .collect();
+
+        let (_status, shaders): (_, Vec<ShaderEXT>) =
+            device.create_shaders_ext(&shader_create_infos).unwrap();
+
+        shaders
+            .into_iter()
+            .zip(shader_infos.iter().as_slice())
+            .map(|(shader, shader_info)| ShaderObject::new(shader, shader_info.stage))
+            .collect()
+    }
+
+    #[allow(unused)]
+    fn create_shader(device: &Device, shader_info: ShaderInfo) -> ShaderObject {
+        let shader_code = load_shader(shader_info.path);
+
+        let shader_create_info = ShaderCreateInfoEXT::default()
+            .flags(shader_info.flags)
             .code(&shader_code)
             .name(Some(c"main"))
-            .stage(stage)
-            .next_stage(next_stage)
+            .stage(shader_info.stage)
+            .next_stage(shader_info.next_stage)
             .code_type(ShaderCodeTypeEXT::Spirv)
-            .set_layouts(descriptor_set_layout);
+            .set_layouts(shader_info.descriptor_layouts);
 
-        let shader_infos = [shader_info];
+        let shader_infos = [shader_create_info];
         let (_status, shaders): (_, Vec<ShaderEXT>) =
             device.create_shaders_ext(&shader_infos).unwrap();
 
         let shader = shaders[0];
 
-        ShaderObject::new(shader, stage)
+        ShaderObject::new(shader, shader_info.stage)
     }
 }

@@ -1,5 +1,14 @@
 use vulkanite::vk::{rs::*, *};
 
+#[derive(Clone, Copy)]
+pub struct ShaderInfo<'a> {
+    pub path: &'a str,
+    pub flags: ShaderCreateFlagsEXT,
+    pub stage: ShaderStageFlags,
+    pub next_stage: ShaderStageFlags,
+    pub descriptor_layouts: &'a [DescriptorSetLayout],
+}
+
 pub fn create_command_buffer_begin_info<'a>(
     flags: CommandBufferUsageFlags,
 ) -> CommandBufferBeginInfo<'a> {

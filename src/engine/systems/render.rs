@@ -185,7 +185,7 @@ fn draw_gradient(
     );
 }
 
-#[allow(dead_code)]
+#[allow(unused)]
 fn draw_background(
     render_context: &ResMut<RendererContext>,
     command_buffer: CommandBuffer,
