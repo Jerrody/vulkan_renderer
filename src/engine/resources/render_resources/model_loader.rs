@@ -1,4 +1,5 @@
-use asset_importer::{Importer, postprocess::PostProcessSteps};
+use asset_importer::{Importer, mesh::Mesh, postprocess::PostProcessSteps, scene::MeshIterator};
+use bevy_ecs::entity::{hash_set::IntoIter, index_set::Iter};
 
 pub struct MeshAsset {}
 
@@ -15,16 +16,14 @@ impl ModelLoader {
         }
     }
 
-    pub fn load_model<'a>(&self, path: &'a str) {
+    pub fn load_model<'a>(&self, path: &'a str) -> MeshIterator {
         let model = self
             .importer
             .read_file(path)
             .with_post_process(PostProcessSteps::REALTIME)
             .import()
             .unwrap();
-        for mesh in model.meshes() {
-            let vertices = mesh.vertices();
-            println!("Mesh has {} vertices (copied)", vertices.len());
-        }
+
+        model.meshes().into_iter()
     }
 }

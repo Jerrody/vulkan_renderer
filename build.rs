@@ -43,6 +43,7 @@ fn main() -> io::Result<()> {
             .arg("spirv")
             .arg("-profile")
             .arg("spirv_1_6")
+            .arg("-fvk-use-scalar-layout")
             .arg("-emit-spirv-directly")
             .arg("-O3")
             .arg("-o")

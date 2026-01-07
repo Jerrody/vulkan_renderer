@@ -100,6 +100,16 @@ impl Drop for Engine {
             vulkan_context_resource
                 .allocator
                 .destroy_buffer(draw_image_descriptor_buffer_raw, &mut allocation);
+            renderer_resources
+                .mesh_buffers
+                .iter_mut()
+                .for_each(|mesh_buffer| {
+                    vulkan_context_resource.allocator.destroy_buffer(
+                        *mesh_buffer.vertex_buffer.buffer,
+                        &mut mesh_buffer.vertex_buffer.allocation,
+                    );
+                });
+            device.destroy_pipeline_layout(Some(renderer_resources.mesh_pipeline_layout));
 
             let draw_image_raw =
                 vk::raw::Image::from_raw(renderer_resources.draw_image.image.as_raw());

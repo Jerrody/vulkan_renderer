@@ -1,7 +1,8 @@
-use std::mem::ManuallyDrop;
+use std::{mem::ManuallyDrop, os::raw::c_void};
 
 use bevy_ecs::world::World;
-use vma::{Alloc, AllocationCreateFlags, AllocationCreateInfo, MemoryUsage};
+use glam::{Vec2, Vec3};
+use vma::{Alloc, AllocationCreateFlags, AllocationCreateInfo, Allocator, MemoryUsage};
 use vulkanite::vk::{rs::*, *};
 
 use crate::engine::{
@@ -9,8 +10,8 @@ use crate::engine::{
     descriptors::DescriptorSetLayoutBuilder,
     resources::{
         AllocatedBuffer, AllocatedDescriptorBuffer, AllocatedImage, DevicePropertiesResource,
-        RendererContext, RendererResources, ShaderObject, VulkanContextResource,
-        model_loader::ModelLoader, render_resources,
+        MeshBuffer, MeshPushConstant, RendererContext, RendererResources, ShaderObject, Vertex,
+        VulkanContextResource, allocation::create_buffer, model_loader::ModelLoader,
     },
     utils::{ShaderInfo, create_image_info, create_image_view_info, load_shader},
 };
@@ -112,20 +113,82 @@ impl Engine {
 
         let created_shaders = Self::create_shaders(&vulkan_context.device, &shaders_info);
 
-        let renderer_resources = RendererResources {
+        let model_loader = ModelLoader::new();
+
+        let meshes = model_loader.load_model(r"assets/basicmesh.glb");
+
+        let mut mesh_buffers = Vec::new();
+        for mesh in meshes {
+            let verticies = mesh
+                .vertices_iter()
+                .zip(
+                    mesh.normals()
+                        .unwrap()
+                        .into_iter()
+                        .zip(mesh.texture_coords_iter(Default::default())),
+                )
+                .into_iter()
+                .map(|(position, (normal, uv))| {
+                    let position = Vec3::new(position.x, position.y, position.z);
+                    let normal = Vec3::new(normal.x, normal.y, normal.z);
+                    let uv = Vec2::new(uv.x, uv.y);
+
+                    Vertex {
+                        position,
+                        normal,
+                        uv,
+                    }
+                })
+                .collect::<Vec<Vertex>>();
+
+            let mut allocated_vertex_buffer = create_buffer(
+                &vulkan_context.allocator,
+                verticies.len(),
+                BufferUsageFlags::TransferDst,
+            );
+
+            unsafe {
+                Self::transfer_data(
+                    &vulkan_context.allocator,
+                    &mut allocated_vertex_buffer,
+                    verticies.as_ptr() as _,
+                    verticies.len(),
+                );
+            }
+
+            let vertex_buffer_device_buffer =
+                Self::get_device_address(&vulkan_context.device, &allocated_vertex_buffer.buffer);
+            let mesh_buffer = MeshBuffer {
+                vertex_buffer: allocated_vertex_buffer,
+                vertex_buffer_device_address: vertex_buffer_device_buffer,
+            };
+
+            mesh_buffers.push(mesh_buffer);
+        }
+
+        let push_constant_ranges = [PushConstantRange {
+            stage_flags: ShaderStageFlags::MeshEXT,
+            offset: Default::default(),
+            size: size_of::<MeshPushConstant>() as _,
+        }];
+        let mesh_pipeline_layout_create_info = PipelineLayoutCreateInfo::default()
+            .push_constant_ranges(push_constant_ranges.as_slice());
+
+        let mesh_pipeline_layout = vulkan_context
+            .device
+            .create_pipeline_layout(&mesh_pipeline_layout_create_info)
+            .unwrap();
+
+        RendererResources {
             draw_image,
             draw_image_descriptor_buffer,
             gradient_compute_shader_object: created_shaders[0],
             vertex_shader_object: created_shaders[1],
             fragment_shader_object: created_shaders[2],
-            model_loader: ModelLoader::new(),
-        };
-
-        renderer_resources
-            .model_loader
-            .load_model(r"assets/basicmesh.glb");
-
-        renderer_resources
+            model_loader,
+            mesh_buffers,
+            mesh_pipeline_layout,
+        }
     }
 
     fn create_descriptors(world: &World, draw_image: &AllocatedImage) -> AllocatedDescriptorBuffer {
@@ -299,5 +362,21 @@ impl Engine {
         let shader = shaders[0];
 
         ShaderObject::new(shader, shader_info.stage)
+    }
+
+    unsafe fn transfer_data(
+        allocator: &Allocator,
+        allocated_buffer: &mut AllocatedBuffer,
+        src: *const c_void,
+        size: usize,
+    ) {
+        unsafe {
+            let p_mapped_memory = allocator
+                .map_memory(&mut allocated_buffer.allocation)
+                .unwrap();
+            std::ptr::copy_nonoverlapping(src, p_mapped_memory as _, size);
+
+            allocator.unmap_memory(&mut allocated_buffer.allocation);
+        }
     }
 }

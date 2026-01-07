@@ -5,10 +5,11 @@ use vma::{Allocator, AllocatorCreateFlags, AllocatorCreateInfo};
 use vulkanite::{
     DefaultAllocator, Dispatcher, DynamicDispatcher, flagbits, structure_chain,
     vk::{
-        self, EXT_DESCRIPTOR_BUFFER, EXT_SHADER_OBJECT, KHR_UNIFIED_IMAGE_LAYOUTS,
-        PhysicalDeviceDescriptorBufferFeaturesEXT, PhysicalDeviceShaderObjectFeaturesEXT,
-        PhysicalDeviceUnifiedImageLayoutsFeaturesKHR, PhysicalDeviceVulkan11Features,
-        PhysicalDeviceVulkan12Features, PhysicalDeviceVulkan13Features, SurfaceFormatKHR,
+        self, EXT_DESCRIPTOR_BUFFER, EXT_MESH_SHADER, EXT_SHADER_OBJECT, KHR_UNIFIED_IMAGE_LAYOUTS,
+        PhysicalDeviceDescriptorBufferFeaturesEXT, PhysicalDeviceMeshShaderFeaturesEXT,
+        PhysicalDeviceShaderObjectFeaturesEXT, PhysicalDeviceUnifiedImageLayoutsFeaturesKHR,
+        PhysicalDeviceVulkan11Features, PhysicalDeviceVulkan12Features,
+        PhysicalDeviceVulkan13Features, SurfaceFormatKHR,
         rs::{PhysicalDevice, SwapchainKHR},
     },
     window,
@@ -266,6 +267,7 @@ impl Engine {
             EXT_DESCRIPTOR_BUFFER.name,
             KHR_UNIFIED_IMAGE_LAYOUTS.name,
             EXT_SHADER_OBJECT.name,
+            EXT_MESH_SHADER.name,
         ];
         let mut missing_extensions: HashSet<&CStr> =
             required_extensions.iter().map(|ext| ext.get()).collect();
@@ -297,13 +299,16 @@ impl Engine {
                 .enabled_features(Some(&features))
                 .enabled_extension(&required_extensions),
             PhysicalDeviceVulkan11Features::default().shader_draw_parameters(true),
-            PhysicalDeviceVulkan12Features::default().buffer_device_address(true),
+            PhysicalDeviceVulkan12Features::default()
+                .buffer_device_address(true)
+                .scalar_block_layout(true),
             PhysicalDeviceVulkan13Features::default()
                 .synchronization2(true)
                 .dynamic_rendering(true),
             PhysicalDeviceUnifiedImageLayoutsFeaturesKHR::default().unified_image_layouts(true),
             PhysicalDeviceDescriptorBufferFeaturesEXT::default().descriptor_buffer(true),
             PhysicalDeviceShaderObjectFeaturesEXT::default().shader_object(true),
+            PhysicalDeviceMeshShaderFeaturesEXT::default().mesh_shader(true)
         );
 
         let device = physical_device.create_device(device_info.as_ref()).unwrap();

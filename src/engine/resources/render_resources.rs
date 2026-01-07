@@ -1,8 +1,8 @@
+pub mod allocation;
 pub mod model_loader;
 
-pub use model_loader::*;
-
 use bevy_ecs::resource::Resource;
+use glam::{Mat4, Vec2, Vec3};
 use vma::Allocation;
 use vulkanite::vk::{
     DeviceAddress, Extent3D, Format, ShaderStageFlags,
@@ -10,6 +10,23 @@ use vulkanite::vk::{
 };
 
 use crate::engine::resources::render_resources::model_loader::ModelLoader;
+
+#[repr(C, align(4))]
+pub struct Vertex {
+    pub position: Vec3,
+    pub normal: Vec3,
+    pub uv: Vec2,
+}
+
+pub struct MeshBuffer {
+    pub vertex_buffer: AllocatedBuffer,
+    pub vertex_buffer_device_address: DeviceAddress,
+}
+
+pub struct MeshPushConstant {
+    pub world_matrix: Mat4,
+    pub vertex_buffer_device_adress: DeviceAddress,
+}
 
 pub struct AllocatedImage {
     pub image: Image,
@@ -53,4 +70,6 @@ pub struct RendererResources {
     pub vertex_shader_object: ShaderObject,
     pub fragment_shader_object: ShaderObject,
     pub model_loader: ModelLoader,
+    pub mesh_buffers: Vec<MeshBuffer>,
+    pub mesh_pipeline_layout: PipelineLayout,
 }
