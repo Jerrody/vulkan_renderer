@@ -111,22 +111,7 @@ pub fn render(
         [ColorComponentFlags::R | ColorComponentFlags::G | ColorComponentFlags::B];
     command_buffer.set_color_write_mask_ext(Default::default(), &color_component_flags);
 
-    let vertex_bindings_descriptions = [];
-    let vertex_attributes = [];
-    command_buffer.set_vertex_input_ext(&vertex_bindings_descriptions, &vertex_attributes);
-
-    let shader_stages = [
-        renderer_resources.vertex_shader_object.stage,
-        renderer_resources.fragment_shader_object.stage,
-    ];
-    let shaders = [
-        renderer_resources.vertex_shader_object.shader,
-        renderer_resources.fragment_shader_object.shader,
-    ];
-
-    command_buffer.bind_shaders_ext(shader_stages.as_slice(), shaders.as_slice());
-
-    command_buffer.draw(3, 1, Default::default(), Default::default());
+    draw_triangle(&renderer_resources, command_buffer);
 
     command_buffer.end_rendering();
 
@@ -146,6 +131,25 @@ pub fn render(
     );
 
     command_buffer.end().unwrap();
+}
+
+fn draw_triangle(renderer_resources: &RendererResources, command_buffer: CommandBuffer) {
+    let vertex_bindings_descriptions = [];
+    let vertex_attributes = [];
+    command_buffer.set_vertex_input_ext(&vertex_bindings_descriptions, &vertex_attributes);
+
+    let shader_stages = [
+        renderer_resources.vertex_shader_object.stage,
+        renderer_resources.fragment_shader_object.stage,
+    ];
+    let shaders = [
+        renderer_resources.vertex_shader_object.shader,
+        renderer_resources.fragment_shader_object.shader,
+    ];
+
+    command_buffer.bind_shaders_ext(shader_stages.as_slice(), shaders.as_slice());
+
+    command_buffer.draw(3, 1, Default::default(), Default::default());
 }
 
 fn draw_gradient(
