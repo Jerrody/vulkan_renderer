@@ -61,3 +61,11 @@ void main(
         outIndices[li] = uint3(v0, v1, v2);
     }
 }
+
+[shader("fragment")]
+func main(VertexOutput vertex_output)->float4
+{
+    let color = float4(vertex_output.color.xyz, 1.0);
+
+    return color;
+}

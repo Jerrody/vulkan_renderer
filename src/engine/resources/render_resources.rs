@@ -23,6 +23,7 @@ pub struct MeshBuffer {
     pub vertex_buffer_device_address: DeviceAddress,
 }
 
+#[repr(C, align(4))]
 pub struct MeshPushConstant {
     pub world_matrix: Mat4,
     pub vertex_buffer_device_adress: DeviceAddress,
@@ -67,7 +68,7 @@ pub struct RendererResources {
     pub draw_image: AllocatedImage,
     pub draw_image_descriptor_buffer: AllocatedDescriptorBuffer,
     pub gradient_compute_shader_object: ShaderObject,
-    pub vertex_shader_object: ShaderObject,
+    pub mesh_shader_object: ShaderObject,
     pub fragment_shader_object: ShaderObject,
     pub model_loader: ModelLoader,
     pub mesh_buffers: Vec<MeshBuffer>,

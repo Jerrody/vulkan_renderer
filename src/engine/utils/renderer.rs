@@ -7,6 +7,7 @@ pub struct ShaderInfo<'a> {
     pub stage: ShaderStageFlags,
     pub next_stage: ShaderStageFlags,
     pub descriptor_layouts: &'a [DescriptorSetLayout],
+    pub push_constant_ranges: Option<&'a [PushConstantRange]>,
 }
 
 pub fn create_command_buffer_begin_info<'a>(

@@ -1103,9 +1103,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.179"
+version = "0.2.180"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c5a2d376baa530d1238d133232d15e239abad80d05838b4b59354e5268af431f"
+checksum = "bcc35a38544a891a5f7c865aca548a982ccb3b8650a5b06d0fd33a10283c56fc"
 
 [[package]]
 name = "libloading"
@@ -2387,7 +2387,7 @@ dependencies = [
 [[package]]
 name = "vulkanite"
 version = "0.0.11"
-source = "git+https://github.com/Jerrody/vulkanite#911ffc8ab570841c87b258e1f578d0c4b1d6efe2"
+source = "git+https://github.com/Jerrody/vulkanite#b291598f0ed2df78f9fe2fa6a7a865e40b4ddebf"
 dependencies = [
  "bitflags",
  "libloading",

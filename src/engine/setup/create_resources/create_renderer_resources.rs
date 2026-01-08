@@ -86,7 +86,20 @@ impl Engine {
 
         let triangle_descriptor_set_layouts = [];
 
-        let triangle_shader_path = r"shaders\output\triangle.slang.spv";
+        let push_constant_ranges = [PushConstantRange {
+            stage_flags: ShaderStageFlags::MeshEXT,
+            offset: Default::default(),
+            size: size_of::<MeshPushConstant>() as _,
+        }];
+        let mesh_pipeline_layout_create_info = PipelineLayoutCreateInfo::default()
+            .push_constant_ranges(push_constant_ranges.as_slice());
+
+        let mesh_pipeline_layout = vulkan_context
+            .device
+            .create_pipeline_layout(&mesh_pipeline_layout_create_info)
+            .unwrap();
+
+        let mesh_shader_path = r"shaders\output\mesh.slang.spv";
         let shaders_info = [
             ShaderInfo {
                 path: r"shaders\output\gradient.slang.spv",
@@ -94,20 +107,23 @@ impl Engine {
                 stage: ShaderStageFlags::Compute,
                 next_stage: ShaderStageFlags::empty(),
                 descriptor_layouts: &gradient_descriptor_layouts,
+                push_constant_ranges: None,
             },
             ShaderInfo {
-                path: &triangle_shader_path,
-                flags: ShaderCreateFlagsEXT::LinkStage,
-                stage: ShaderStageFlags::Vertex,
+                path: &mesh_shader_path,
+                flags: ShaderCreateFlagsEXT::LinkStage | ShaderCreateFlagsEXT::NoTaskShader,
+                stage: ShaderStageFlags::MeshEXT,
                 next_stage: ShaderStageFlags::Fragment,
                 descriptor_layouts: &triangle_descriptor_set_layouts,
+                push_constant_ranges: Some(&push_constant_ranges),
             },
             ShaderInfo {
-                path: triangle_shader_path,
+                path: mesh_shader_path,
                 flags: ShaderCreateFlagsEXT::LinkStage,
                 stage: ShaderStageFlags::Fragment,
                 next_stage: ShaderStageFlags::empty(),
                 descriptor_layouts: &triangle_descriptor_set_layouts,
+                push_constant_ranges: None,
             },
         ];
 
@@ -166,24 +182,11 @@ impl Engine {
             mesh_buffers.push(mesh_buffer);
         }
 
-        let push_constant_ranges = [PushConstantRange {
-            stage_flags: ShaderStageFlags::MeshEXT,
-            offset: Default::default(),
-            size: size_of::<MeshPushConstant>() as _,
-        }];
-        let mesh_pipeline_layout_create_info = PipelineLayoutCreateInfo::default()
-            .push_constant_ranges(push_constant_ranges.as_slice());
-
-        let mesh_pipeline_layout = vulkan_context
-            .device
-            .create_pipeline_layout(&mesh_pipeline_layout_create_info)
-            .unwrap();
-
         RendererResources {
             draw_image,
             draw_image_descriptor_buffer,
             gradient_compute_shader_object: created_shaders[0],
-            vertex_shader_object: created_shaders[1],
+            mesh_shader_object: created_shaders[1],
             fragment_shader_object: created_shaders[2],
             model_loader,
             mesh_buffers,
@@ -326,7 +329,8 @@ impl Engine {
                     .stage(shader_info.stage)
                     .next_stage(shader_info.next_stage)
                     .code_type(ShaderCodeTypeEXT::Spirv)
-                    .set_layouts(shader_info.descriptor_layouts);
+                    .set_layouts(shader_info.descriptor_layouts)
+                    .push_constant_ranges(shader_info.push_constant_ranges.unwrap_or_default());
 
                 shader_info
             })

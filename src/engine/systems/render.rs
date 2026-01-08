@@ -1,19 +1,27 @@
+use std::num::NonZero;
+
 use bevy_ecs::system::{Res, ResMut};
 use glam::Mat4;
 use vulkanite::{
     Handle,
     vk::{
+        self,
+        raw::ShaderEXT,
         rs::{CommandBuffer, Image},
         *,
     },
 };
 
 use crate::engine::{
-    resources::{FrameContext, MeshPushConstant, RendererContext, RendererResources},
+    resources::{
+        FrameContext, MeshPushConstant, RendererContext, RendererResources, VulkanContextResource,
+        vulkan_context_resource,
+    },
     utils::{self, copy_image_to_image, image_subresource_range, transition_image},
 };
 
 pub fn render(
+    vulkan_context_resource: Res<VulkanContextResource>,
     render_context: ResMut<RendererContext>,
     renderer_resources: Res<RendererResources>,
     frame_context: Res<FrameContext>,
@@ -126,6 +134,28 @@ pub fn render(
         mesh_push_constant.as_ptr() as _,
     );
 
+    let vertex_bindings_descriptions = [];
+    let vertex_attributes = [];
+    command_buffer.set_vertex_input_ext(&vertex_bindings_descriptions, &vertex_attributes);
+
+    let shader_stages = [ShaderStageFlags::Vertex];
+    let shaders: [raw::ShaderEXT; 1] = [vk::raw::ShaderEXT(Default::default())];
+
+    command_buffer.bind_shaders_ext(shader_stages.as_slice(), shaders.as_slice());
+
+    let shader_stages = [
+        renderer_resources.mesh_shader_object.stage,
+        renderer_resources.fragment_shader_object.stage,
+    ];
+    let shaders = [
+        *renderer_resources.mesh_shader_object.shader,
+        *renderer_resources.fragment_shader_object.shader,
+    ];
+
+    command_buffer.bind_shaders_ext(shader_stages.as_slice(), shaders.as_slice());
+
+    command_buffer.draw_mesh_tasks_ext(64, 1, 1);
+
     command_buffer.end_rendering();
 
     copy_image_to_image(
@@ -152,11 +182,11 @@ fn draw_triangle(renderer_resources: &RendererResources, command_buffer: Command
     command_buffer.set_vertex_input_ext(&vertex_bindings_descriptions, &vertex_attributes);
 
     let shader_stages = [
-        renderer_resources.vertex_shader_object.stage,
+        renderer_resources.mesh_shader_object.stage,
         renderer_resources.fragment_shader_object.stage,
     ];
     let shaders = [
-        renderer_resources.vertex_shader_object.shader,
+        renderer_resources.mesh_shader_object.shader,
         renderer_resources.fragment_shader_object.shader,
     ];
 
