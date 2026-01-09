@@ -123,7 +123,7 @@ impl Engine {
                 stage: ShaderStageFlags::Fragment,
                 next_stage: ShaderStageFlags::empty(),
                 descriptor_layouts: &triangle_descriptor_set_layouts,
-                push_constant_ranges: None,
+                push_constant_ranges: Some(&push_constant_ranges),
             },
         ];
 
@@ -156,10 +156,15 @@ impl Engine {
                     }
                 })
                 .collect::<Vec<Vertex>>();
+            let indices = mesh.triangle_indices_iter().count();
+            let mut flat_verticies: Vec<Vertex> = Vec::with_capacity(indices);
+            mesh.triangle_indices_iter().for_each(|index| {
+                flat_verticies.push(verticies[index as usize]);
+            });
 
             let mut allocated_vertex_buffer = create_buffer(
                 &vulkan_context.allocator,
-                verticies.len(),
+                flat_verticies.len() * size_of::<Vertex>(),
                 BufferUsageFlags::TransferDst,
             );
 
@@ -167,8 +172,8 @@ impl Engine {
                 Self::transfer_data(
                     &vulkan_context.allocator,
                     &mut allocated_vertex_buffer,
-                    verticies.as_ptr() as _,
-                    verticies.len(),
+                    flat_verticies.as_ptr() as _,
+                    flat_verticies.len() * size_of::<Vertex>(),
                 );
             }
 

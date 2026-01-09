@@ -1,14 +1,12 @@
-static const uint MAX_VERTS = 64;
-static const uint MAX_TRIS = 21;
+static const uint MAX_VERTS = 36;
+static const uint MAX_TRIS = 12;
 static const uint TRIANGLE_VERTEX_COUNT = 3;
 
 struct Vertex
 {
     float3 position;
     float3 normal;
-    float4 color;
-    float uv_x;
-    float uv_y;
+    float2 uv;
 };
 
 struct VertexOutput
@@ -45,10 +43,12 @@ void main(
 
     Vertex v = pushConsts.vertexBuffer[vertexIndex];
 
+    float4 worldPos = mul(pushConsts.render_matrix, float4(v.position, 1.0f));
+
     VertexOutput vertex_ouput;
-    vertex_ouput.position = float4(v.position, 1.0f);
-    vertex_ouput.color = v.color.xyz;
-    vertex_ouput.uv = float2(v.uv_x, v.uv_y);
+    vertex_ouput.position = worldPos;
+    vertex_ouput.color = float3(v.uv.xy, 1.0);
+    vertex_ouput.uv = v.uv;
 
     outVerts[li] = vertex_ouput;
 
@@ -65,7 +65,7 @@ void main(
 [shader("fragment")]
 func main(VertexOutput vertex_output)->float4
 {
-    let color = float4(vertex_output.color.xyz, 1.0);
+    let color = float4(vertex_output.uv.xy, 1.0, 1.0);
 
     return color;
 }

@@ -116,8 +116,7 @@ pub fn render(
     let blend_enables = [Bool32::False];
     command_buffer.set_color_blend_enable_ext(Default::default(), blend_enables.as_slice());
 
-    let color_component_flags =
-        [ColorComponentFlags::R | ColorComponentFlags::G | ColorComponentFlags::B];
+    let color_component_flags = [ColorComponentFlags::all()];
     command_buffer.set_color_write_mask_ext(Default::default(), &color_component_flags);
 
     let first_mesh = &renderer_resources.mesh_buffers[0];
@@ -139,9 +138,21 @@ pub fn render(
     command_buffer.set_vertex_input_ext(&vertex_bindings_descriptions, &vertex_attributes);
 
     let shader_stages = [ShaderStageFlags::Vertex];
-    let shaders: [raw::ShaderEXT; 1] = [vk::raw::ShaderEXT(Default::default())];
+    use vulkanite::Dispatcher;
 
-    command_buffer.bind_shaders_ext(shader_stages.as_slice(), shaders.as_slice());
+    unsafe {
+        let dispatcher = vulkan_context_resource.device.get_dispatcher();
+        let vulkan_command = dispatcher
+            .get_command_dispatcher()
+            .cmd_bind_shaders_ext
+            .get();
+        vulkan_command(
+            Some(command_buffer.borrow()),
+            1,
+            shader_stages.as_slice().as_ptr().cast(),
+            std::ptr::null(),
+        );
+    }
 
     let shader_stages = [
         renderer_resources.mesh_shader_object.stage,
@@ -154,7 +165,7 @@ pub fn render(
 
     command_buffer.bind_shaders_ext(shader_stages.as_slice(), shaders.as_slice());
 
-    command_buffer.draw_mesh_tasks_ext(64, 1, 1);
+    command_buffer.draw_mesh_tasks_ext(36, 1, 1);
 
     command_buffer.end_rendering();
 

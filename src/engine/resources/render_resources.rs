@@ -11,6 +11,7 @@ use vulkanite::vk::{
 
 use crate::engine::resources::render_resources::model_loader::ModelLoader;
 
+#[derive(Clone, Copy)]
 #[repr(C, align(4))]
 pub struct Vertex {
     pub position: Vec3,
