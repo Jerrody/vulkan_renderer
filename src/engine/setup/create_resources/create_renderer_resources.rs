@@ -13,7 +13,9 @@ use crate::engine::{
         MeshBuffer, MeshPushConstant, RendererContext, RendererResources, ShaderObject, Vertex,
         VulkanContextResource, allocation::create_buffer, model_loader::ModelLoader,
     },
-    utils::{ShaderInfo, create_image_info, create_image_view_info, load_shader},
+    utils::{
+        ShaderInfo, create_image_info, create_image_view_info, get_device_address, load_shader,
+    },
 };
 
 impl Engine {
@@ -156,32 +158,48 @@ impl Engine {
                     }
                 })
                 .collect::<Vec<Vertex>>();
-            let indices = mesh.triangle_indices_iter().count();
-            let mut flat_verticies: Vec<Vertex> = Vec::with_capacity(indices);
-            mesh.triangle_indices_iter().for_each(|index| {
-                flat_verticies.push(verticies[index as usize]);
-            });
+
+            let mut indices = Vec::new();
+            for face in mesh.faces() {
+                for index in face.indices() {
+                    indices.push(*index);
+                }
+            }
 
             let mut allocated_vertex_buffer = create_buffer(
+                &vulkan_context.device,
                 &vulkan_context.allocator,
-                flat_verticies.len() * size_of::<Vertex>(),
+                verticies.len() * size_of::<Vertex>(),
                 BufferUsageFlags::TransferDst,
             );
-
             unsafe {
                 Self::transfer_data(
                     &vulkan_context.allocator,
                     &mut allocated_vertex_buffer,
-                    flat_verticies.as_ptr() as _,
-                    flat_verticies.len() * size_of::<Vertex>(),
+                    verticies.as_ptr() as _,
+                    verticies.len() * size_of::<Vertex>(),
                 );
             }
 
-            let vertex_buffer_device_buffer =
-                Self::get_device_address(&vulkan_context.device, &allocated_vertex_buffer.buffer);
+            let mut allocated_index_buffer = create_buffer(
+                &vulkan_context.device,
+                &vulkan_context.allocator,
+                indices.len() * size_of::<u32>(),
+                BufferUsageFlags::TransferDst,
+            );
+            unsafe {
+                Self::transfer_data(
+                    &vulkan_context.allocator,
+                    &mut allocated_index_buffer,
+                    indices.as_ptr() as _,
+                    indices.len() * size_of::<u32>(),
+                );
+            }
+
             let mesh_buffer = MeshBuffer {
                 vertex_buffer: allocated_vertex_buffer,
-                vertex_buffer_device_address: vertex_buffer_device_buffer,
+                index_buffer: allocated_index_buffer,
+                triangle_count: (indices.len() / 3) as u32,
             };
 
             mesh_buffers.push(mesh_buffer);
@@ -253,6 +271,7 @@ impl Engine {
         let allocated_descriptor_buffer = AllocatedBuffer {
             buffer: storage_image_descriptor_buffer,
             allocation,
+            device_address: Default::default(),
         };
 
         let draw_image_descriptor_image_info = DescriptorImageInfo::default()
@@ -296,7 +315,8 @@ impl Engine {
             .unwrap();
 
         let allocated_descriptor_buffer_address =
-            Self::get_device_address(device, &allocated_descriptor_buffer.buffer);
+            get_device_address(device, &allocated_descriptor_buffer.buffer);
+
         AllocatedDescriptorBuffer {
             allocated_descriptor_buffer,
             descriptor_buffer_offset,
@@ -309,12 +329,6 @@ impl Engine {
 
     fn aligned_size(value: u64, alignment: u64) -> u64 {
         (value + alignment - 1) & !(alignment - 1)
-    }
-
-    fn get_device_address(device: &Device, buffer: &Buffer) -> DeviceAddress {
-        let buffer_device_address = BufferDeviceAddressInfo::default().buffer(buffer);
-
-        device.get_buffer_address(&buffer_device_address)
     }
 
     fn create_shaders(device: &Device, shader_infos: &[ShaderInfo]) -> Vec<ShaderObject> {

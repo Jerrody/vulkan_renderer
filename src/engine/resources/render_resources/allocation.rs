@@ -3,8 +3,10 @@ use vulkanite::vk::BufferCreateInfo;
 use vulkanite::vk::{rs::*, *};
 
 use crate::engine::resources::AllocatedBuffer;
+use crate::engine::utils::get_device_address;
 
 pub fn create_buffer(
+    device: &rs::Device,
     allocator: &Allocator,
     allocation_size: usize,
     usage: BufferUsageFlags,
@@ -29,5 +31,11 @@ pub fn create_buffer(
     };
     let buffer = Buffer::from_inner(buffer);
 
-    AllocatedBuffer { buffer, allocation }
+    let device_address = get_device_address(device, &buffer);
+
+    AllocatedBuffer {
+        buffer,
+        allocation,
+        device_address,
+    }
 }

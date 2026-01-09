@@ -108,6 +108,10 @@ impl Drop for Engine {
                         *mesh_buffer.vertex_buffer.buffer,
                         &mut mesh_buffer.vertex_buffer.allocation,
                     );
+                    vulkan_context_resource.allocator.destroy_buffer(
+                        *mesh_buffer.index_buffer.buffer,
+                        &mut mesh_buffer.index_buffer.allocation,
+                    );
                 });
             device.destroy_pipeline_layout(Some(renderer_resources.mesh_pipeline_layout));
 

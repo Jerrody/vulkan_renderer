@@ -21,13 +21,16 @@ pub struct Vertex {
 
 pub struct MeshBuffer {
     pub vertex_buffer: AllocatedBuffer,
-    pub vertex_buffer_device_address: DeviceAddress,
+    pub index_buffer: AllocatedBuffer,
+    pub triangle_count: u32,
 }
 
 #[repr(C, align(4))]
 pub struct MeshPushConstant {
     pub world_matrix: Mat4,
     pub vertex_buffer_device_adress: DeviceAddress,
+    pub index_buffer_device_address: DeviceAddress,
+    pub triangle_count: u32,
 }
 
 pub struct AllocatedImage {
@@ -41,6 +44,7 @@ pub struct AllocatedImage {
 pub struct AllocatedBuffer {
     pub buffer: Buffer,
     pub allocation: Allocation,
+    pub device_address: DeviceAddress,
 }
 
 pub struct AllocatedDescriptorBuffer {

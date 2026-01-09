@@ -16,6 +16,12 @@ pub fn create_command_buffer_begin_info<'a>(
     CommandBufferBeginInfo::default().flags(flags)
 }
 
+pub fn get_device_address(device: &Device, buffer: &Buffer) -> DeviceAddress {
+    let buffer_device_address = BufferDeviceAddressInfo::default().buffer(buffer);
+
+    device.get_buffer_address(&buffer_device_address)
+}
+
 pub fn transition_image(
     command_buffer: CommandBuffer,
     image: Image,

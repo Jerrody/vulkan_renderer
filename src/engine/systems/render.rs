@@ -1,12 +1,8 @@
-use std::num::NonZero;
-
 use bevy_ecs::system::{Res, ResMut};
 use glam::Mat4;
 use vulkanite::{
     Handle,
     vk::{
-        self,
-        raw::ShaderEXT,
         rs::{CommandBuffer, Image},
         *,
     },
@@ -15,7 +11,6 @@ use vulkanite::{
 use crate::engine::{
     resources::{
         FrameContext, MeshPushConstant, RendererContext, RendererResources, VulkanContextResource,
-        vulkan_context_resource,
     },
     utils::{self, copy_image_to_image, image_subresource_range, transition_image},
 };
@@ -87,9 +82,10 @@ pub fn render(
 
     let viewports = Viewport {
         width: draw_image_extent2d.width as _,
-        height: draw_image_extent2d.height as _,
+        height: (draw_image_extent2d.height as f32),
         min_depth: 0.0,
         max_depth: 1.0,
+        //y: draw_image_extent2d.height as _,
         ..Default::default()
     };
     let scissors = Rect2D {
@@ -119,10 +115,12 @@ pub fn render(
     let color_component_flags = [ColorComponentFlags::all()];
     command_buffer.set_color_write_mask_ext(Default::default(), &color_component_flags);
 
-    let first_mesh = &renderer_resources.mesh_buffers[0];
+    let first_mesh = &renderer_resources.mesh_buffers[2];
     let mesh_push_constant = [MeshPushConstant {
         world_matrix: Mat4::IDENTITY,
-        vertex_buffer_device_adress: first_mesh.vertex_buffer_device_address,
+        vertex_buffer_device_adress: first_mesh.vertex_buffer.device_address,
+        index_buffer_device_address: first_mesh.index_buffer.device_address,
+        triangle_count: first_mesh.triangle_count,
     }];
 
     command_buffer.push_constants(
@@ -165,7 +163,10 @@ pub fn render(
 
     command_buffer.bind_shaders_ext(shader_stages.as_slice(), shaders.as_slice());
 
-    command_buffer.draw_mesh_tasks_ext(36, 1, 1);
+    let group_count = 64;
+    let group_count = (first_mesh.triangle_count + group_count - 1) / group_count;
+
+    command_buffer.draw_mesh_tasks_ext(group_count, 1, 1);
 
     command_buffer.end_rendering();
 
