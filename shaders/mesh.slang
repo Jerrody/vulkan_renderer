@@ -1,5 +1,5 @@
-static const uint MAX_VERTS = 36;
-static const uint MAX_TRIS = 12;
+static const uint MAX_VERTS = 64;
+static const uint MAX_TRIS = 21;
 static const uint TRIANGLE_VERTEX_COUNT = 3;
 
 struct Vertex

@@ -165,7 +165,7 @@ pub fn render(
 
     command_buffer.bind_shaders_ext(shader_stages.as_slice(), shaders.as_slice());
 
-    command_buffer.draw_mesh_tasks_ext(36, 1, 1);
+    command_buffer.draw_mesh_tasks_ext(1, 1, 1);
 
     command_buffer.end_rendering();
 
