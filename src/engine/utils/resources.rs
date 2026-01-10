@@ -2,7 +2,7 @@ use vulkanite::vk::{rs::*, *};
 
 pub fn create_image_info<'a>(
     format: Format,
-    image_usage_flags: ImageUsageFlags,
+    usage_flags: ImageUsageFlags,
     extent: Extent3D,
     initial_layout: ImageLayout,
 ) -> ImageCreateInfo<'a> {
@@ -14,7 +14,7 @@ pub fn create_image_info<'a>(
         .array_layers(1)
         .samples(SampleCountFlags::Count1)
         .tiling(ImageTiling::Optimal)
-        .usage(image_usage_flags)
+        .usage(usage_flags)
         .sharing_mode(SharingMode::Exclusive)
         .initial_layout(initial_layout)
 }

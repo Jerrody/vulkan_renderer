@@ -99,6 +99,9 @@ impl Drop for Engine {
             let draw_image_desciptor_buffer = &renderer_resources.draw_image_descriptor_buffer;
             device.destroy_image_view(Some(renderer_resources.draw_image.image_view));
             device.destroy_image_view(Some(renderer_resources.depth_image.image_view));
+            device.destroy_image_view(Some(renderer_resources.white_image.image_view));
+
+            device.destroy_sampler(Some(renderer_resources.nearest_sampler));
 
             let pipeline_layout = renderer_resources
                 .draw_image_descriptor_buffer
@@ -156,7 +159,12 @@ impl Drop for Engine {
                 depth_image_raw,
                 &mut renderer_resources.depth_image.allocation,
             );
-
+            let white_image_raw =
+                vk::raw::Image::from_raw(renderer_resources.white_image.image.as_raw());
+            vulkan_context_resource.allocator.destroy_image(
+                white_image_raw,
+                &mut renderer_resources.white_image.allocation,
+            );
             drop(vulkan_context_resource.allocator);
 
             device.destroy_shader_ext(Some(

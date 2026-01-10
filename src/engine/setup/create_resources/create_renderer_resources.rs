@@ -1,8 +1,13 @@
 use std::mem::ManuallyDrop;
 
 use bevy_ecs::world::World;
+use glam::Vec4;
 use vma::{Alloc, AllocationCreateFlags, AllocationCreateInfo, Allocator, MemoryUsage};
-use vulkanite::vk::{rs::*, *};
+use vulkanite::{
+    Handle,
+    vk::{rs::*, *},
+};
+use winit::dpi::Pixel;
 
 use crate::engine::{
     Engine,
@@ -34,6 +39,22 @@ impl Engine {
                 | ImageUsageFlags::Storage
                 | ImageUsageFlags::ColorAttachment,
         );
+
+        let white_color = &Self::pack_unorm_4x8(Vec4::new(1.0, 1.0, 1.0, 1.0));
+        let white_image_extent = Extent3D {
+            width: 1,
+            height: 1,
+            depth: 1,
+        };
+        let white_image = Self::allocate_image(
+            device,
+            &allocator,
+            Format::R8G8B8A8Unorm,
+            white_image_extent,
+            ImageUsageFlags::Sampled | ImageUsageFlags::HostTransfer,
+        );
+        Self::transfer_data_to_image(device, &white_image, white_color as *const _ as _);
+
         let depth_image = Self::allocate_image(
             device,
             allocator,
@@ -93,9 +114,17 @@ impl Engine {
 
         let model_loader = ModelLoader::new();
 
+        let nearest_sampler_create_info = SamplerCreateInfo {
+            mag_filter: Filter::Nearest,
+            min_filter: Filter::Nearest,
+            ..Default::default()
+        };
+        let nearest_sampler = device.create_sampler(&nearest_sampler_create_info).unwrap();
+
         RendererResources {
             draw_image,
             depth_image,
+            white_image,
             draw_image_descriptor_buffer,
             gradient_compute_shader_object: created_shaders[0],
             mesh_shader_object: created_shaders[1],
@@ -104,6 +133,7 @@ impl Engine {
             mesh_buffers: Default::default(),
             mesh_pipeline_layout,
             mesh_push_constant: Default::default(),
+            nearest_sampler,
         }
     }
 
@@ -143,7 +173,52 @@ impl Engine {
             allocation,
             extent,
             format,
+            subresource_range: image_view_create_info.subresource_range,
         }
+    }
+
+    fn transfer_data_to_image(
+        device: &Device,
+        allocated_image: &AllocatedImage,
+        data: *const std::ffi::c_void,
+    ) {
+        let host_image_layout_transition_info = [HostImageLayoutTransitionInfo {
+            image: Some(allocated_image.image.borrow()),
+            old_layout: ImageLayout::Undefined,
+            new_layout: ImageLayout::General,
+            subresource_range: allocated_image.subresource_range,
+            ..Default::default()
+        }];
+
+        device
+            .transition_image_layout(&host_image_layout_transition_info)
+            .unwrap();
+
+        let memory_to_image_copy = MemoryToImageCopy {
+            p_host_pointer: data,
+            image_subresource: ImageSubresourceLayers {
+                aspect_mask: allocated_image.subresource_range.aspect_mask,
+                mip_level: Default::default(),
+                base_array_layer: Default::default(),
+                layer_count: 1,
+            },
+            image_extent: allocated_image.extent,
+            ..Default::default()
+        };
+
+        let regions = [memory_to_image_copy];
+        let copy_memory_to_image_info = CopyMemoryToImageInfo {
+            flags: HostImageCopyFlags::Memcpy,
+            dst_image: Some(allocated_image.image.borrow()),
+            dst_image_layout: ImageLayout::General,
+            region_count: regions.len() as _,
+            p_regions: regions.as_ptr() as *const _,
+            ..Default::default()
+        };
+
+        device
+            .copy_memory_to_image(&copy_memory_to_image_info)
+            .unwrap();
     }
 
     fn create_descriptors(world: &World, draw_image: &AllocatedImage) -> AllocatedDescriptorBuffer {
@@ -314,5 +389,21 @@ impl Engine {
         let shader = shaders[0];
 
         ShaderObject::new(shader, shader_info.stage)
+    }
+
+    pub fn pack_unorm_4x8(v: Vec4) -> u32 {
+        let v = v.clamp(Vec4::ZERO, Vec4::ONE) * 255.0;
+
+        // 3. Round to nearest integer and cast to u8
+        // Note: using arrays + map is often cleaner than manual bit shifting
+        let [x, y, z, w] = v.to_array().map(|c| c.round() as u8);
+
+        // 4. Pack into u32 using Little Endian (x is LSB, w is MSB)
+        // This matches the GLSL behavior:
+        // Bits 0-7:   x
+        // Bits 8-15:  y
+        // Bits 16-23: z
+        // Bits 24-31: w
+        u32::from_le_bytes([x, y, z, w])
     }
 }

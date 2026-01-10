@@ -1,14 +1,12 @@
 pub mod allocation;
 pub mod model_loader;
 
-use std::{cell::RefCell, sync::RwLock};
-
 use bevy_ecs::resource::Resource;
 use glam::{Mat4, Vec2, Vec3};
 use vma::Allocation;
 use vulkanite::vk::{
-    DeviceAddress, Extent3D, Format, ShaderStageFlags,
-    rs::{Buffer, DescriptorSetLayout, Image, ImageView, PipelineLayout, ShaderEXT},
+    DeviceAddress, Extent3D, Format, ImageSubresourceRange, ShaderStageFlags,
+    rs::{Buffer, DescriptorSetLayout, Image, ImageView, PipelineLayout, Sampler, ShaderEXT},
 };
 
 use crate::engine::{id::Id, resources::render_resources::model_loader::ModelLoader};
@@ -55,6 +53,7 @@ pub struct AllocatedImage {
     pub allocation: Allocation,
     pub extent: Extent3D,
     pub format: Format,
+    pub subresource_range: ImageSubresourceRange,
 }
 
 pub struct AllocatedBuffer {
@@ -88,6 +87,7 @@ impl ShaderObject {
 pub struct RendererResources {
     pub draw_image: AllocatedImage,
     pub depth_image: AllocatedImage,
+    pub white_image: AllocatedImage,
     pub draw_image_descriptor_buffer: AllocatedDescriptorBuffer,
     pub gradient_compute_shader_object: ShaderObject,
     pub mesh_shader_object: ShaderObject,
@@ -96,6 +96,7 @@ pub struct RendererResources {
     pub mesh_buffers: Vec<MeshBuffer>,
     pub mesh_pipeline_layout: PipelineLayout,
     pub mesh_push_constant: MeshPushConstant,
+    pub nearest_sampler: Sampler,
 }
 
 impl<'a> RendererResources {

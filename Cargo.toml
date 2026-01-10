@@ -19,7 +19,6 @@ vulkanite = { git = "https://github.com/Jerrody/vulkanite", features = [
     "ext_swapchain",
     "ext_shader_object",
     "ext_debug_utils",
-    "ext_synchronization2",
     "ext_mesh_shader",
 ] }
 vma = { package = "vk-mem", git = "https://github.com/Jerrody/vulkanite-mem-rs", branch = "vulkanite" }

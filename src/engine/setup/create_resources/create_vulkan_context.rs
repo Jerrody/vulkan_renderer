@@ -308,6 +308,7 @@ impl Engine {
             PhysicalDeviceVulkan13Features::default()
                 .synchronization2(true)
                 .dynamic_rendering(true),
+            PhysicalDeviceVulkan14Features::default().host_image_copy(true),
             PhysicalDeviceUnifiedImageLayoutsFeaturesKHR::default().unified_image_layouts(true),
             PhysicalDeviceDescriptorBufferFeaturesEXT::default().descriptor_buffer(true),
             PhysicalDeviceShaderObjectFeaturesEXT::default().shader_object(true),
