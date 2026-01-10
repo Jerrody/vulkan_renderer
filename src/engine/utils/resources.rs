@@ -4,6 +4,7 @@ pub fn create_image_info<'a>(
     format: Format,
     image_usage_flags: ImageUsageFlags,
     extent: Extent3D,
+    initial_layout: ImageLayout,
 ) -> ImageCreateInfo<'a> {
     ImageCreateInfo::default()
         .image_type(ImageType::Type2D)
@@ -15,7 +16,7 @@ pub fn create_image_info<'a>(
         .tiling(ImageTiling::Optimal)
         .usage(image_usage_flags)
         .sharing_mode(SharingMode::Exclusive)
-        .initial_layout(ImageLayout::Undefined)
+        .initial_layout(initial_layout)
 }
 
 pub fn create_image_view_info<'a>(

@@ -33,17 +33,28 @@ pub fn render(
     let image_index = frame_context.swapchain_image_index as usize;
     let swapchain_image = render_context.images[image_index];
     let draw_image = renderer_resources.draw_image.image;
-    transition_image(
-        command_buffer,
-        draw_image,
-        ImageLayout::Undefined,
-        ImageLayout::General,
-    );
+    let depth_image = renderer_resources.depth_image.image;
+
     transition_image(
         command_buffer,
         swapchain_image,
         ImageLayout::Undefined,
         ImageLayout::General,
+        ImageAspectFlags::Color,
+    );
+    transition_image(
+        command_buffer,
+        draw_image,
+        ImageLayout::Undefined,
+        ImageLayout::General,
+        ImageAspectFlags::Color,
+    );
+    transition_image(
+        command_buffer,
+        depth_image,
+        ImageLayout::Undefined,
+        ImageLayout::General,
+        ImageAspectFlags::Depth,
     );
 
     let draw_image_extent3d = renderer_resources.draw_image.image_extent;
@@ -190,6 +201,7 @@ pub fn render(
         swapchain_image,
         ImageLayout::General,
         ImageLayout::PresentSrcKHR,
+        ImageAspectFlags::Color,
     );
 
     command_buffer.end().unwrap();

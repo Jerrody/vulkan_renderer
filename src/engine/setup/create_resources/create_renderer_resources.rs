@@ -41,8 +41,12 @@ impl Engine {
             | ImageUsageFlags::TransferDst
             | ImageUsageFlags::Storage
             | ImageUsageFlags::ColorAttachment;
-        let draw_image_create_info =
-            create_image_info(draw_image_format, draw_image_usage_flags, draw_image_extent);
+        let draw_image_create_info = create_image_info(
+            draw_image_format,
+            draw_image_usage_flags,
+            draw_image_extent,
+            ImageLayout::Undefined,
+        );
 
         let draw_image = Self::allocate_image(
             device,
@@ -59,6 +63,7 @@ impl Engine {
             depth_image_format,
             depth_image_usage_flags,
             draw_image_extent,
+            ImageLayout::Undefined,
         );
 
         let depth_image = Self::allocate_image(
