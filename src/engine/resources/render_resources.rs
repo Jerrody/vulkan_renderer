@@ -21,7 +21,7 @@ pub struct Meshlet {
     pub triangle_count: u32,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Default, Clone, Copy)]
 #[repr(C, align(4))]
 pub struct Vertex {
     pub position: Vec3,

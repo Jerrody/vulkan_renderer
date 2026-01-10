@@ -2,7 +2,11 @@ use std::{mem::ManuallyDrop, os::raw::c_void};
 
 use bevy_ecs::world::World;
 use glam::{Vec2, Vec3};
-use meshopt::{VertexDataAdapter, build_meshlets, typed_to_bytes};
+use meshopt::{
+    VertexDataAdapter, build_meshlets, optimize_overdraw_in_place, optimize_vertex_cache,
+    optimize_vertex_cache_in_place, optimize_vertex_fetch, optimize_vertex_fetch_remap,
+    remap_index_buffer, remap_vertex_buffer, typed_to_bytes,
+};
 use vma::{Alloc, AllocationCreateFlags, AllocationCreateInfo, Allocator, MemoryUsage};
 use vulkanite::vk::{rs::*, *};
 
@@ -145,7 +149,7 @@ impl Engine {
                 }
             }
 
-            let vertices = mesh
+            let mut vertices = mesh
                 .vertices_iter()
                 .zip(
                     mesh.normals()
@@ -167,8 +171,22 @@ impl Engine {
                 })
                 .collect::<Vec<Vertex>>();
 
+            let remap = optimize_vertex_fetch_remap(&indices, vertices.len());
+            indices = remap_index_buffer(Some(&indices), vertices.len(), &remap);
+            vertices = remap_vertex_buffer(&vertices, vertices.len(), &remap);
+
+            let position_offset = std::mem::offset_of!(Vertex, position);
+            let vertex_stride = std::mem::size_of::<Vertex>();
+            let vertex_data = typed_to_bytes(&vertices);
+
+            let vertex_data_adapter =
+                VertexDataAdapter::new(&vertex_data, vertex_stride, position_offset).unwrap();
+
+            optimize_vertex_cache_in_place(&mut indices, vertices.len());
+            optimize_vertex_fetch(&mut indices, &vertices);
+
             let (meshlets, vertex_indices, triangles) =
-                Self::generate_meshlets(&indices, &vertices);
+                Self::generate_meshlets(&indices, &vertex_data_adapter);
 
             let device = &vulkan_context.device;
             let allocator = &vulkan_context.allocator;
@@ -246,26 +264,14 @@ impl Engine {
 
     fn generate_meshlets(
         indices: &[u32],
-        vertices: &[Vertex],
+        vertices: &VertexDataAdapter,
     ) -> (Vec<Meshlet>, Vec<u32>, Vec<u8>) {
         let max_vertices = 64;
         let max_triangles = 124;
         let cone_weight = 0.0;
 
-        let position_offset = std::mem::offset_of!(Vertex, position);
-        let vertex_stride = std::mem::size_of::<Vertex>();
-        let vertex_data = typed_to_bytes(&vertices);
-
-        let vertex_data_adapter =
-            VertexDataAdapter::new(&vertex_data, vertex_stride, position_offset).unwrap();
-
-        let raw_meshlets = build_meshlets(
-            indices,
-            &vertex_data_adapter,
-            max_vertices,
-            max_triangles,
-            cone_weight,
-        );
+        let raw_meshlets =
+            build_meshlets(indices, vertices, max_vertices, max_triangles, cone_weight);
 
         let mut meshlets = Vec::new();
 
