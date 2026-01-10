@@ -109,8 +109,16 @@ impl Drop for Engine {
                         &mut mesh_buffer.vertex_buffer.allocation,
                     );
                     vulkan_context_resource.allocator.destroy_buffer(
-                        *mesh_buffer.index_buffer.buffer,
-                        &mut mesh_buffer.index_buffer.allocation,
+                        *mesh_buffer.vertex_indices_buffer.buffer,
+                        &mut mesh_buffer.vertex_indices_buffer.allocation,
+                    );
+                    vulkan_context_resource.allocator.destroy_buffer(
+                        *mesh_buffer.meshlets_buffer.buffer,
+                        &mut mesh_buffer.meshlets_buffer.allocation,
+                    );
+                    vulkan_context_resource.allocator.destroy_buffer(
+                        *mesh_buffer.local_indices_buffer.buffer,
+                        &mut mesh_buffer.local_indices_buffer.allocation,
                     );
                 });
             device.destroy_pipeline_layout(Some(renderer_resources.mesh_pipeline_layout));

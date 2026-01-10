@@ -13,7 +13,7 @@ pub fn create_buffer(
 ) -> AllocatedBuffer {
     let buffer_create_info = BufferCreateInfo {
         size: allocation_size as _,
-        usage: usage | BufferUsageFlags::ShaderDeviceAddress,
+        usage: usage | BufferUsageFlags::ShaderDeviceAddress | BufferUsageFlags::StorageBuffer,
         sharing_mode: vulkanite::vk::SharingMode::Exclusive,
         ..Default::default()
     };

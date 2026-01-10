@@ -1,6 +1,6 @@
-static const uint MAX_TRIS = 64;
-static const uint GROUP_SIZE = MAX_TRIS;
-static const uint MAX_VERTS_OUT = GROUP_SIZE * 3;
+static const uint MAX_VERTICES = 64;
+static const uint MAX_TRIANGLES = 124;
+static const uint GROUP_SIZE = MAX_VERTICES;
 
 struct Vertex
 {
@@ -16,12 +16,21 @@ struct VertexOutput
     float2 uv : TEXCOORD0;
 };
 
+struct Meshlet
+{
+    uint32_t vertex_offset;
+    uint32_t triangle_offset;
+    uint32_t vertex_count;
+    uint32_t triangle_count;
+}
+
 struct PushConstants
 {
     float4x4 render_matrix;
-    Vertex *vertexBuffer;
-    uint32_t *indexBuffer;
-    uint32_t triangle_count;
+    Meshlet *meshlets;
+    Vertex *vertices;
+    uint32_t *vertex_indices;
+    uint8_t *local_indices;
 };
 
 [[vk::push_constant]]
@@ -31,42 +40,33 @@ ConstantBuffer<PushConstants> pushConsts;
 [outputtopology("triangle")]
 [numthreads(GROUP_SIZE, 1, 1)]
 void main(
-    uint group_thread_id: SV_GroupThreadID,
     uint group_id: SV_GroupID,
-    OutputVertices<VertexOutput, MAX_VERTS_OUT> outVerts,
-    OutputIndices<uint3, MAX_TRIS> outIndices)
+    uint group_index: SV_GroupIndex,
+    OutputVertices<VertexOutput, MAX_VERTICES> outVerts,
+    OutputIndices<uint3, MAX_TRIANGLES> outIndices)
 {
-    uint triangle_index = (group_id * GROUP_SIZE) + group_thread_id;
+    let meshlet = pushConsts.meshlets[group_id];
 
-    if (triangle_index >= pushConsts.triangle_count)
+    SetMeshOutputCounts(meshlet.vertex_count, meshlet.triangle_count);
+
+    if (group_index < meshlet.vertex_count)
     {
-        return;
+        uint vertexLookupIndex = meshlet.vertex_offset + group_index;
+        uint globalVertexId = pushConsts.vertex_indices[vertexLookupIndex];
+
+        Vertex v = pushConsts.vertices[globalVertexId];
+        outVerts[group_index] = process_vertex(v, pushConsts.render_matrix);
     }
 
-    if (group_thread_id == 0)
+    if (group_index < meshlet.triangle_count)
     {
-        uint remaning_triangles = pushConsts.triangle_count - (group_id * GROUP_SIZE);
-        uint count = min(GROUP_SIZE, remaning_triangles);
+        uint triangleLookupIndex = meshlet.triangle_offset + (group_index * 3);
+        uint8_t i0 = pushConsts.local_indices[triangleLookupIndex + 0];
+        uint8_t i1 = pushConsts.local_indices[triangleLookupIndex + 1];
+        uint8_t i2 = pushConsts.local_indices[triangleLookupIndex + 2];
 
-        SetMeshOutputCounts(count * 3, count);
+        outIndices[group_index] = uint3(i0, i1, i2);
     }
-
-    uint index = triangle_index * 3;
-    uint i0 = pushConsts.indexBuffer[index + 0];
-    uint i1 = pushConsts.indexBuffer[index + 1];
-    uint i2 = pushConsts.indexBuffer[index + 2];
-
-    Vertex v0 = pushConsts.vertexBuffer[i0];
-    Vertex v1 = pushConsts.vertexBuffer[i1];
-    Vertex v2 = pushConsts.vertexBuffer[i2];
-
-    uint out_base = group_thread_id * 3;
-
-    outVerts[out_base + 0] = process_vertex(v0, pushConsts.render_matrix);
-    outVerts[out_base + 1] = process_vertex(v1, pushConsts.render_matrix);
-    outVerts[out_base + 2] = process_vertex(v2, pushConsts.render_matrix);
-
-    outIndices[group_thread_id] = uint3(out_base + 0, out_base + 1, out_base + 2);
 }
 
 [ForceInline]

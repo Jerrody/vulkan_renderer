@@ -2,6 +2,7 @@ use std::{mem::ManuallyDrop, os::raw::c_void};
 
 use bevy_ecs::world::World;
 use glam::{Vec2, Vec3};
+use meshopt::{VertexDataAdapter, build_meshlets, typed_to_bytes};
 use vma::{Alloc, AllocationCreateFlags, AllocationCreateInfo, Allocator, MemoryUsage};
 use vulkanite::vk::{rs::*, *};
 
@@ -10,8 +11,8 @@ use crate::engine::{
     descriptors::DescriptorSetLayoutBuilder,
     resources::{
         AllocatedBuffer, AllocatedDescriptorBuffer, AllocatedImage, DevicePropertiesResource,
-        MeshBuffer, MeshPushConstant, RendererContext, RendererResources, ShaderObject, Vertex,
-        VulkanContextResource, allocation::create_buffer, model_loader::ModelLoader,
+        MeshBuffer, MeshPushConstant, Meshlet, RendererContext, RendererResources, ShaderObject,
+        Vertex, VulkanContextResource, allocation::create_buffer, model_loader::ModelLoader,
     },
     utils::{
         ShaderInfo, create_image_info, create_image_view_info, get_device_address, load_shader,
@@ -137,7 +138,14 @@ impl Engine {
 
         let mut mesh_buffers = Vec::new();
         for mesh in meshes {
-            let verticies = mesh
+            let mut indices = Vec::new();
+            for face in mesh.faces() {
+                for index in face.indices() {
+                    indices.push(*index);
+                }
+            }
+
+            let vertices = mesh
                 .vertices_iter()
                 .zip(
                     mesh.normals()
@@ -159,47 +167,43 @@ impl Engine {
                 })
                 .collect::<Vec<Vertex>>();
 
-            let mut indices = Vec::new();
-            for face in mesh.faces() {
-                for index in face.indices() {
-                    indices.push(*index);
-                }
-            }
+            let (meshlets, vertex_indices, triangles) =
+                Self::generate_meshlets(&indices, &vertices);
 
-            let mut allocated_vertex_buffer = create_buffer(
-                &vulkan_context.device,
-                &vulkan_context.allocator,
-                verticies.len() * size_of::<Vertex>(),
-                BufferUsageFlags::TransferDst,
-            );
-            unsafe {
-                Self::transfer_data(
-                    &vulkan_context.allocator,
-                    &mut allocated_vertex_buffer,
-                    verticies.as_ptr() as _,
-                    verticies.len() * size_of::<Vertex>(),
-                );
-            }
+            let device = &vulkan_context.device;
+            let allocator = &vulkan_context.allocator;
 
-            let mut allocated_index_buffer = create_buffer(
-                &vulkan_context.device,
-                &vulkan_context.allocator,
-                indices.len() * size_of::<u32>(),
-                BufferUsageFlags::TransferDst,
+            let vertex_buffer = Self::create_buffer_and_update::<Vertex>(
+                device,
+                allocator,
+                vertices.as_ptr() as _,
+                vertices.len(),
             );
-            unsafe {
-                Self::transfer_data(
-                    &vulkan_context.allocator,
-                    &mut allocated_index_buffer,
-                    indices.as_ptr() as _,
-                    indices.len() * size_of::<u32>(),
-                );
-            }
+            let vertex_indices_buffer = Self::create_buffer_and_update::<u32>(
+                device,
+                allocator,
+                vertex_indices.as_ptr() as _,
+                vertex_indices.len(),
+            );
+            let meshlets_buffer = Self::create_buffer_and_update::<Meshlet>(
+                device,
+                allocator,
+                meshlets.as_ptr() as _,
+                meshlets.len(),
+            );
+            let local_indices_buffer = Self::create_buffer_and_update::<u8>(
+                device,
+                allocator,
+                triangles.as_ptr() as _,
+                triangles.len(),
+            );
 
             let mesh_buffer = MeshBuffer {
-                vertex_buffer: allocated_vertex_buffer,
-                index_buffer: allocated_index_buffer,
-                triangle_count: (indices.len() / 3) as u32,
+                vertex_buffer: vertex_buffer,
+                vertex_indices_buffer,
+                meshlets_buffer,
+                local_indices_buffer,
+                meshlets_count: meshlets.len(),
             };
 
             mesh_buffers.push(mesh_buffer);
@@ -215,6 +219,66 @@ impl Engine {
             mesh_buffers,
             mesh_pipeline_layout,
         }
+    }
+
+    fn create_buffer_and_update<T>(
+        device: &Device,
+        allocator: &Allocator,
+        data: *const c_void,
+        len: usize,
+    ) -> AllocatedBuffer
+    where
+        T: Sized,
+    {
+        let allocation_size = len * std::mem::size_of::<T>();
+        let mut allocated_buffer = create_buffer(
+            device,
+            allocator,
+            allocation_size,
+            BufferUsageFlags::TransferDst,
+        );
+        unsafe {
+            Self::transfer_data(&allocator, &mut allocated_buffer, data, allocation_size);
+        }
+
+        allocated_buffer
+    }
+
+    fn generate_meshlets(
+        indices: &[u32],
+        vertices: &[Vertex],
+    ) -> (Vec<Meshlet>, Vec<u32>, Vec<u8>) {
+        let max_vertices = 64;
+        let max_triangles = 124;
+        let cone_weight = 0.0;
+
+        let position_offset = std::mem::offset_of!(Vertex, position);
+        let vertex_stride = std::mem::size_of::<Vertex>();
+        let vertex_data = typed_to_bytes(&vertices);
+
+        let vertex_data_adapter =
+            VertexDataAdapter::new(&vertex_data, vertex_stride, position_offset).unwrap();
+
+        let raw_meshlets = build_meshlets(
+            indices,
+            &vertex_data_adapter,
+            max_vertices,
+            max_triangles,
+            cone_weight,
+        );
+
+        let mut meshlets = Vec::new();
+
+        for raw_meshlet in raw_meshlets.meshlets.iter() {
+            meshlets.push(Meshlet {
+                vertex_offset: raw_meshlet.vertex_offset as _,
+                triangle_offset: raw_meshlet.triangle_offset as _,
+                vertex_count: raw_meshlet.vertex_count as _,
+                triangle_count: raw_meshlet.triangle_count as _,
+            });
+        }
+
+        (meshlets, raw_meshlets.vertices, raw_meshlets.triangles)
     }
 
     fn create_descriptors(world: &World, draw_image: &AllocatedImage) -> AllocatedDescriptorBuffer {

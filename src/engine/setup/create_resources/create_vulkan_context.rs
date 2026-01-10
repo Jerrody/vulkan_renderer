@@ -5,11 +5,12 @@ use vma::{Allocator, AllocatorCreateFlags, AllocatorCreateInfo};
 use vulkanite::{
     DefaultAllocator, Dispatcher, DynamicDispatcher, flagbits, structure_chain,
     vk::{
-        self, EXT_DESCRIPTOR_BUFFER, EXT_MESH_SHADER, EXT_SHADER_OBJECT, KHR_UNIFIED_IMAGE_LAYOUTS,
+        self, EXT_DESCRIPTOR_BUFFER, EXT_MESH_SHADER, EXT_SHADER_OBJECT,
+        KHR_SHADER_NON_SEMANTIC_INFO, KHR_UNIFIED_IMAGE_LAYOUTS,
         PhysicalDeviceDescriptorBufferFeaturesEXT, PhysicalDeviceMeshShaderFeaturesEXT,
         PhysicalDeviceShaderObjectFeaturesEXT, PhysicalDeviceUnifiedImageLayoutsFeaturesKHR,
         PhysicalDeviceVulkan11Features, PhysicalDeviceVulkan12Features,
-        PhysicalDeviceVulkan13Features, SurfaceFormatKHR,
+        PhysicalDeviceVulkan13Features, PhysicalDeviceVulkan14Features, SurfaceFormatKHR,
         rs::{PhysicalDevice, SwapchainKHR},
     },
     window,
@@ -301,7 +302,9 @@ impl Engine {
             PhysicalDeviceVulkan11Features::default().shader_draw_parameters(true),
             PhysicalDeviceVulkan12Features::default()
                 .buffer_device_address(true)
-                .scalar_block_layout(true),
+                .scalar_block_layout(true)
+                .storage_push_constant8(true)
+                .shader_int8(true),
             PhysicalDeviceVulkan13Features::default()
                 .synchronization2(true)
                 .dynamic_rendering(true),

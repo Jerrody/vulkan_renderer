@@ -115,12 +115,13 @@ pub fn render(
     let color_component_flags = [ColorComponentFlags::all()];
     command_buffer.set_color_write_mask_ext(Default::default(), &color_component_flags);
 
-    let first_mesh = &renderer_resources.mesh_buffers[2];
+    let mesh = &renderer_resources.mesh_buffers[2];
     let mesh_push_constant = [MeshPushConstant {
         world_matrix: Mat4::IDENTITY,
-        vertex_buffer_device_adress: first_mesh.vertex_buffer.device_address,
-        index_buffer_device_address: first_mesh.index_buffer.device_address,
-        triangle_count: first_mesh.triangle_count,
+        vertex_buffer_device_adress: mesh.vertex_buffer.device_address,
+        vertex_indices_device_address: mesh.vertex_indices_buffer.device_address,
+        meshlets_device_address: mesh.meshlets_buffer.device_address,
+        local_indices_device_address: mesh.local_indices_buffer.device_address,
     }];
 
     command_buffer.push_constants(
@@ -163,10 +164,7 @@ pub fn render(
 
     command_buffer.bind_shaders_ext(shader_stages.as_slice(), shaders.as_slice());
 
-    let group_count = 64;
-    let group_count = (first_mesh.triangle_count + group_count - 1) / group_count;
-
-    command_buffer.draw_mesh_tasks_ext(group_count, 1, 1);
+    command_buffer.draw_mesh_tasks_ext(mesh.meshlets_count as _, 1, 1);
 
     command_buffer.end_rendering();
 

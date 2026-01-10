@@ -3,6 +3,7 @@ pub mod model_loader;
 
 use bevy_ecs::resource::Resource;
 use glam::{Mat4, Vec2, Vec3};
+use meshopt::VertexDataAdapter;
 use vma::Allocation;
 use vulkanite::vk::{
     DeviceAddress, Extent3D, Format, ShaderStageFlags,
@@ -10,6 +11,15 @@ use vulkanite::vk::{
 };
 
 use crate::engine::resources::render_resources::model_loader::ModelLoader;
+
+#[derive(Clone, Copy)]
+#[repr(C, align(4))]
+pub struct Meshlet {
+    pub vertex_offset: u32,
+    pub triangle_offset: u32,
+    pub vertex_count: u32,
+    pub triangle_count: u32,
+}
 
 #[derive(Clone, Copy)]
 #[repr(C, align(4))]
@@ -21,16 +31,19 @@ pub struct Vertex {
 
 pub struct MeshBuffer {
     pub vertex_buffer: AllocatedBuffer,
-    pub index_buffer: AllocatedBuffer,
-    pub triangle_count: u32,
+    pub vertex_indices_buffer: AllocatedBuffer,
+    pub meshlets_buffer: AllocatedBuffer,
+    pub local_indices_buffer: AllocatedBuffer,
+    pub meshlets_count: usize,
 }
 
 #[repr(C, align(4))]
 pub struct MeshPushConstant {
     pub world_matrix: Mat4,
+    pub meshlets_device_address: DeviceAddress,
     pub vertex_buffer_device_adress: DeviceAddress,
-    pub index_buffer_device_address: DeviceAddress,
-    pub triangle_count: u32,
+    pub vertex_indices_device_address: DeviceAddress,
+    pub local_indices_device_address: DeviceAddress,
 }
 
 pub struct AllocatedImage {
