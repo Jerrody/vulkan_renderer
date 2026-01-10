@@ -28,68 +28,51 @@ impl Engine {
         let vulkan_context = world.get_resource_ref::<VulkanContextResource>().unwrap();
         let render_context = world.get_resource_ref::<RendererContext>().unwrap();
 
+        let device = &vulkan_context.device;
+        let allocator = &vulkan_context.allocator;
+
         let draw_image_extent = Extent3D {
             width: render_context.draw_extent.width,
             height: render_context.draw_extent.height,
             depth: 1,
         };
-        let target_draw_image_format = Format::R16G16B16A16Sfloat;
-        let image_usage_flags = ImageUsageFlags::TransferSrc
+        let draw_image_format = Format::R16G16B16A16Sfloat;
+        let draw_image_usage_flags = ImageUsageFlags::TransferSrc
             | ImageUsageFlags::TransferDst
             | ImageUsageFlags::Storage
             | ImageUsageFlags::ColorAttachment;
+        let draw_image_create_info =
+            create_image_info(draw_image_format, draw_image_usage_flags, draw_image_extent);
 
-        let image_create_info = create_image_info(
-            target_draw_image_format,
-            image_usage_flags,
+        let draw_image = Self::allocate_image(
+            device,
+            allocator,
+            &draw_image_create_info,
+            draw_image_format,
             draw_image_extent,
-        );
-        let allocation_info = AllocationCreateInfo {
-            usage: MemoryUsage::Auto,
-            required_flags: MemoryPropertyFlags::DeviceLocal,
-            ..Default::default()
-        };
-
-        let (allocated_draw_image, allocation) = unsafe {
-            vulkan_context
-                .allocator
-                .create_image(&image_create_info, &allocation_info)
-                .unwrap()
-        };
-
-        let allocated_draw_image = rs::Image::from_inner(allocated_draw_image);
-        let image_view_create_info = create_image_view_info(
-            target_draw_image_format,
-            &allocated_draw_image,
             ImageAspectFlags::Color,
         );
-        let allocated_image_view = vulkan_context
-            .device
-            .create_image_view(&image_view_create_info)
-            .unwrap();
 
-        let draw_image = AllocatedImage {
-            image: allocated_draw_image,
-            image_view: allocated_image_view,
-            allocation,
-            image_extent: draw_image_extent,
-            format: Format::R16G16B16A16Sfloat,
-        };
+        let depth_image_format = Format::D32Sfloat;
+        let depth_image_usage_flags = ImageUsageFlags::DepthStencilAttachment;
+        let depth_image_create_info = create_image_info(
+            depth_image_format,
+            depth_image_usage_flags,
+            draw_image_extent,
+        );
+
+        let depth_image = Self::allocate_image(
+            device,
+            allocator,
+            &depth_image_create_info,
+            depth_image_format,
+            draw_image_extent,
+            ImageAspectFlags::Depth,
+        );
 
         let draw_image_descriptor_buffer = Self::create_descriptors(world, &draw_image);
 
         let gradient_descriptor_layouts = [draw_image_descriptor_buffer.descriptor_set_layout];
-
-        /* let gradient_shader_info = ShaderInfo {
-                   path: r"shaders\output\gradient.slang.spv",
-                   flags: ShaderCreateFlagsEXT::empty(),
-                   stage: ShaderStageFlags::Compute,
-                   next_stage: ShaderStageFlags::empty(),
-                   descriptor_layouts: &descriptor_layouts,
-               };
-        */
-        /*         let gradient_compute_shader_object =
-        Self::create_shader(&vulkan_context.device, gradient_shader_info); */
 
         let triangle_descriptor_set_layouts = [];
 
@@ -188,9 +171,6 @@ impl Engine {
             let (meshlets, vertex_indices, triangles) =
                 Self::generate_meshlets(&indices, &vertex_data_adapter);
 
-            let device = &vulkan_context.device;
-            let allocator = &vulkan_context.allocator;
-
             let vertex_buffer = Self::create_buffer_and_update::<Vertex>(
                 device,
                 allocator,
@@ -229,6 +209,7 @@ impl Engine {
 
         RendererResources {
             draw_image,
+            depth_image,
             draw_image_descriptor_buffer,
             gradient_compute_shader_object: created_shaders[0],
             mesh_shader_object: created_shaders[1],
@@ -236,6 +217,40 @@ impl Engine {
             model_loader,
             mesh_buffers,
             mesh_pipeline_layout,
+        }
+    }
+
+    fn allocate_image(
+        device: &Device,
+        allocator: &Allocator,
+        image_create_info: &ImageCreateInfo,
+        target_format: Format,
+        image_extent: Extent3D,
+        image_aspect_flags: ImageAspectFlags,
+    ) -> AllocatedImage {
+        let allocation_info = AllocationCreateInfo {
+            usage: MemoryUsage::Auto,
+            required_flags: MemoryPropertyFlags::DeviceLocal,
+            ..Default::default()
+        };
+
+        let (allocated_draw_image, allocation) = unsafe {
+            allocator
+                .create_image(&image_create_info, &allocation_info)
+                .unwrap()
+        };
+
+        let allocated_draw_image = rs::Image::from_inner(allocated_draw_image);
+        let image_view_create_info =
+            create_image_view_info(target_format, &allocated_draw_image, image_aspect_flags);
+        let allocated_image_view = device.create_image_view(&image_view_create_info).unwrap();
+
+        AllocatedImage {
+            image: allocated_draw_image,
+            image_view: allocated_image_view,
+            allocation,
+            image_extent,
+            format: target_format,
         }
     }
 

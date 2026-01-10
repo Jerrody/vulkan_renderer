@@ -84,6 +84,7 @@ impl ShaderObject {
 #[derive(Resource)]
 pub struct RendererResources {
     pub draw_image: AllocatedImage,
+    pub depth_image: AllocatedImage,
     pub draw_image_descriptor_buffer: AllocatedDescriptorBuffer,
     pub gradient_compute_shader_object: ShaderObject,
     pub mesh_shader_object: ShaderObject,

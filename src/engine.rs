@@ -78,6 +78,7 @@ impl Drop for Engine {
         unsafe {
             let draw_image_desciptor_buffer = &renderer_resources.draw_image_descriptor_buffer;
             device.destroy_image_view(Some(renderer_resources.draw_image.image_view));
+            device.destroy_image_view(Some(renderer_resources.depth_image.image_view));
 
             let pipeline_layout = renderer_resources
                 .draw_image_descriptor_buffer
@@ -129,6 +130,13 @@ impl Drop for Engine {
                 draw_image_raw,
                 &mut renderer_resources.draw_image.allocation,
             );
+            let depth_image_raw =
+                vk::raw::Image::from_raw(renderer_resources.depth_image.image.as_raw());
+            vulkan_context_resource.allocator.destroy_image(
+                depth_image_raw,
+                &mut renderer_resources.depth_image.allocation,
+            );
+
             drop(vulkan_context_resource.allocator);
 
             device.destroy_shader_ext(Some(
