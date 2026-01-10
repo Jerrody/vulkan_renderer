@@ -1,7 +1,3 @@
-pub mod prepare_frame;
-pub mod present;
-pub mod render;
+pub mod renderer;
 
-pub use prepare_frame::*;
-pub use present::*;
-pub use render::*;
+pub use renderer::*;
