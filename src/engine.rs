@@ -22,7 +22,10 @@ use winit::window::Window;
 use crate::engine::{
     events::LoadModelEvent,
     resources::{FrameContext, RendererContext, RendererResources, VulkanContextResource},
-    systems::{on_load_model::on_load_model, prepare_frame, present, render},
+    systems::{
+        begin_rendering, end_rendering, on_load_model, on_spawn_mesh, prepare_frame, present,
+        render_meshes,
+    },
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
@@ -54,13 +57,16 @@ impl Engine {
         let mut schedule = Schedule::new(ScheduleLabelUpdate);
         schedule.add_systems((
             prepare_frame::prepare_frame,
-            render::render.after(prepare_frame::prepare_frame),
-            present::present.after(render::render),
+            begin_rendering::begin_rendering.after(prepare_frame::prepare_frame),
+            render_meshes::render_meshes.after(begin_rendering::begin_rendering),
+            end_rendering::end_rendering.after(render_meshes::render_meshes),
+            present::present.after(render_meshes::render_meshes),
         ));
 
         world.add_schedule(schedule);
 
-        world.add_observer(on_load_model);
+        world.add_observer(on_load_model::on_load_model);
+        world.add_observer(on_spawn_mesh::on_spawn_mesh);
 
         // TODO: TEMP
         world.trigger(LoadModelEvent {
@@ -71,6 +77,7 @@ impl Engine {
     }
 
     pub fn update(&mut self) {
+        self.world.flush();
         self.world.run_schedule(ScheduleLabelUpdate);
     }
 }

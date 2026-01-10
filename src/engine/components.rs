@@ -1,1 +1,1 @@
-mod mesh;
+pub mod mesh;

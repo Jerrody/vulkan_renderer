@@ -3,7 +3,7 @@ use vulkanite::vk::BufferUsageFlags;
 
 use bevy_ecs::{
     observer::On,
-    system::{Res, ResMut},
+    system::{Commands, Res, ResMut},
 };
 use glam::{Vec2, Vec3};
 use meshopt::{
@@ -14,7 +14,7 @@ use vma::Allocator;
 use vulkanite::vk::rs::Device;
 
 use crate::engine::{
-    events::LoadModelEvent,
+    events::{LoadModelEvent, SpawnMeshEvent},
     id::Id,
     resources::{
         AllocatedBuffer, MeshBuffer, Meshlet, RendererResources, Vertex, VulkanContextResource,
@@ -24,6 +24,7 @@ use crate::engine::{
 
 pub fn on_load_model(
     load_model_event: On<LoadModelEvent>,
+    mut commands: Commands,
     vulkan_context: Res<VulkanContextResource>,
     mut renderer_resources: ResMut<RendererResources>,
 ) {
@@ -114,6 +115,10 @@ pub fn on_load_model(
             local_indices_buffer,
             meshlets_count: meshlets.len(),
         };
+
+        commands.trigger(SpawnMeshEvent {
+            mesh_buffer_id: mesh_buffer.id,
+        });
 
         mesh_buffers.push(mesh_buffer);
     }

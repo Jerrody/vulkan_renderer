@@ -9,21 +9,19 @@ use vulkanite::{
 };
 
 use crate::engine::{
-    resources::{
-        FrameContext, MeshPushConstant, RendererContext, RendererResources, VulkanContextResource,
-    },
-    utils::{self, copy_image_to_image, image_subresource_range, transition_image},
+    resources::{FrameContext, RendererContext, RendererResources},
+    utils::{self, image_subresource_range, transition_image},
 };
 
-pub fn render(
-    vulkan_context_resource: Res<VulkanContextResource>,
-    render_context: ResMut<RendererContext>,
+pub fn begin_rendering(
+    render_context: Res<RendererContext>,
     renderer_resources: Res<RendererResources>,
-    frame_context: Res<FrameContext>,
+    mut frame_context: ResMut<FrameContext>,
 ) {
     let frame_data = render_context.get_current_frame_data();
 
     let command_buffer = frame_data.command_buffer;
+    frame_context.command_buffer = Some(command_buffer);
 
     let command_buffer_begin_info =
         utils::create_command_buffer_begin_info(CommandBufferUsageFlags::OneTimeSubmit);
@@ -151,23 +149,7 @@ pub fn render(
         0.1,
     );
     projection.y_axis *= -1.0;
-
-    let mesh = &renderer_resources.mesh_buffers[2];
-    let mesh_push_constant = [MeshPushConstant {
-        world_matrix: projection * view,
-        vertex_buffer_device_adress: mesh.vertex_buffer.device_address,
-        vertex_indices_device_address: mesh.vertex_indices_buffer.device_address,
-        meshlets_device_address: mesh.meshlets_buffer.device_address,
-        local_indices_device_address: mesh.local_indices_buffer.device_address,
-    }];
-
-    command_buffer.push_constants(
-        renderer_resources.mesh_pipeline_layout,
-        ShaderStageFlags::MeshEXT,
-        Default::default(),
-        size_of::<MeshPushConstant>() as _,
-        mesh_push_constant.as_ptr() as _,
-    );
+    frame_context.world_matrix = projection * view;
 
     let vertex_bindings_descriptions = [];
     let vertex_attributes = [];
@@ -177,7 +159,7 @@ pub fn render(
     use vulkanite::Dispatcher;
 
     unsafe {
-        let dispatcher = vulkan_context_resource.device.get_dispatcher();
+        let dispatcher = command_buffer.get_dispatcher();
         let vulkan_command = dispatcher
             .get_command_dispatcher()
             .cmd_bind_shaders_ext
@@ -200,28 +182,6 @@ pub fn render(
     ];
 
     command_buffer.bind_shaders_ext(shader_stages.as_slice(), shaders.as_slice());
-
-    command_buffer.draw_mesh_tasks_ext(mesh.meshlets_count as _, 1, 1);
-
-    command_buffer.end_rendering();
-
-    copy_image_to_image(
-        command_buffer,
-        draw_image,
-        swapchain_image,
-        draw_image_extent2d,
-        render_context.draw_extent,
-    );
-
-    transition_image(
-        command_buffer,
-        swapchain_image,
-        ImageLayout::General,
-        ImageLayout::PresentSrcKHR,
-        ImageAspectFlags::Color,
-    );
-
-    command_buffer.end().unwrap();
 }
 
 fn draw_triangle(renderer_resources: &RendererResources, command_buffer: CommandBuffer) {
