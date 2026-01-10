@@ -1,27 +1,14 @@
-use std::{mem::ManuallyDrop, os::raw::c_void};
+use std::mem::ManuallyDrop;
 
 use bevy_ecs::world::World;
-use glam::{Vec2, Vec3};
-use meshopt::{
-    VertexDataAdapter, build_meshlets, optimize_overdraw_in_place, optimize_vertex_cache,
-    optimize_vertex_cache_in_place, optimize_vertex_fetch, optimize_vertex_fetch_remap,
-    remap_index_buffer, remap_vertex_buffer, typed_to_bytes,
-};
 use vma::{Alloc, AllocationCreateFlags, AllocationCreateInfo, Allocator, MemoryUsage};
 use vulkanite::vk::{rs::*, *};
 
 use crate::engine::{
     Engine,
     descriptors::DescriptorSetLayoutBuilder,
-    id::Id,
-    resources::{
-        AllocatedBuffer, AllocatedDescriptorBuffer, AllocatedImage, DevicePropertiesResource,
-        MeshBuffer, MeshPushConstant, Meshlet, RendererContext, RendererResources, ShaderObject,
-        Vertex, VulkanContextResource, allocation::create_buffer, model_loader::ModelLoader,
-    },
-    utils::{
-        ShaderInfo, create_image_info, create_image_view_info, get_device_address, load_shader,
-    },
+    resources::{model_loader::ModelLoader, *},
+    utils::*,
 };
 
 impl Engine {
@@ -37,43 +24,22 @@ impl Engine {
             height: render_context.draw_extent.height,
             depth: 1,
         };
-        let draw_image_format = Format::R16G16B16A16Sfloat;
-        let draw_image_usage_flags = ImageUsageFlags::TransferSrc
-            | ImageUsageFlags::TransferDst
-            | ImageUsageFlags::Storage
-            | ImageUsageFlags::ColorAttachment;
-        let draw_image_create_info = create_image_info(
-            draw_image_format,
-            draw_image_usage_flags,
-            draw_image_extent,
-            ImageLayout::Undefined,
-        );
 
         let draw_image = Self::allocate_image(
             device,
             allocator,
-            &draw_image_create_info,
-            draw_image_format,
+            Format::R16G16B16A16Sfloat,
             draw_image_extent,
-            ImageAspectFlags::Color,
+            ImageUsageFlags::TransferSrc
+                | ImageUsageFlags::Storage
+                | ImageUsageFlags::ColorAttachment,
         );
-
-        let depth_image_format = Format::D32Sfloat;
-        let depth_image_usage_flags = ImageUsageFlags::DepthStencilAttachment;
-        let depth_image_create_info = create_image_info(
-            depth_image_format,
-            depth_image_usage_flags,
-            draw_image_extent,
-            ImageLayout::Undefined,
-        );
-
         let depth_image = Self::allocate_image(
             device,
             allocator,
-            &depth_image_create_info,
-            depth_image_format,
+            Format::D32Sfloat,
             draw_image_extent,
-            ImageAspectFlags::Depth,
+            ImageUsageFlags::DepthStencilAttachment,
         );
 
         let draw_image_descriptor_buffer = Self::create_descriptors(world, &draw_image);
@@ -144,34 +110,39 @@ impl Engine {
     fn allocate_image(
         device: &Device,
         allocator: &Allocator,
-        image_create_info: &ImageCreateInfo,
-        target_format: Format,
-        image_extent: Extent3D,
-        image_aspect_flags: ImageAspectFlags,
+        format: Format,
+        extent: Extent3D,
+        usage_flags: ImageUsageFlags,
     ) -> AllocatedImage {
+        let mut aspect_flags = ImageAspectFlags::Color;
+        if format == Format::D32Sfloat {
+            aspect_flags = ImageAspectFlags::Depth;
+        }
+
         let allocation_info = AllocationCreateInfo {
             usage: MemoryUsage::Auto,
             required_flags: MemoryPropertyFlags::DeviceLocal,
             ..Default::default()
         };
 
-        let (allocated_draw_image, allocation) = unsafe {
+        let image_create_info =
+            create_image_info(format, usage_flags, extent, ImageLayout::Undefined);
+        let (allocated_image, allocation) = unsafe {
             allocator
                 .create_image(&image_create_info, &allocation_info)
                 .unwrap()
         };
 
-        let allocated_draw_image = rs::Image::from_inner(allocated_draw_image);
-        let image_view_create_info =
-            create_image_view_info(target_format, &allocated_draw_image, image_aspect_flags);
-        let allocated_image_view = device.create_image_view(&image_view_create_info).unwrap();
+        let image = rs::Image::from_inner(allocated_image);
+        let image_view_create_info = create_image_view_info(format, &image, aspect_flags);
+        let image_view = device.create_image_view(&image_view_create_info).unwrap();
 
         AllocatedImage {
-            image: allocated_draw_image,
-            image_view: allocated_image_view,
+            image,
+            image_view,
             allocation,
-            image_extent,
-            format: target_format,
+            extent,
+            format,
         }
     }
 

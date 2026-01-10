@@ -53,7 +53,7 @@ pub struct AllocatedImage {
     pub image: Image,
     pub image_view: ImageView,
     pub allocation: Allocation,
-    pub image_extent: Extent3D,
+    pub extent: Extent3D,
     pub format: Format,
 }
 

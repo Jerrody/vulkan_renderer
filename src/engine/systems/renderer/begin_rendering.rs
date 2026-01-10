@@ -55,7 +55,7 @@ pub fn begin_rendering(
         ImageAspectFlags::Depth,
     );
 
-    let draw_image_extent3d = renderer_resources.draw_image.image_extent;
+    let draw_image_extent3d = renderer_resources.draw_image.extent;
     let draw_image_extent2d = Extent2D {
         width: draw_image_extent3d.width,
         height: draw_image_extent3d.height,
