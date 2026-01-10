@@ -25,7 +25,7 @@ impl<'a> DescriptorSetLayoutBuilder<'a> {
 
     pub fn build(
         &mut self,
-        device: &Device,
+        device: Device,
         shader_stages: ShaderStageFlags,
         descriptor_set_layout_flags: DescriptorSetLayoutCreateFlags,
     ) -> DescriptorSetLayout {

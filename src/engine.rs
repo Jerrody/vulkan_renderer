@@ -1,10 +1,13 @@
 mod components;
 mod descriptors;
+mod events;
 mod id;
 mod resources;
 mod setup;
 mod systems;
 mod utils;
+
+use std::str::FromStr;
 
 use bevy_ecs::{
     schedule::{IntoScheduleConfigs, Schedule, ScheduleLabel},
@@ -17,8 +20,9 @@ use vulkanite::{
 use winit::window::Window;
 
 use crate::engine::{
+    events::LoadModelEvent,
     resources::{FrameContext, RendererContext, RendererResources, VulkanContextResource},
-    systems::{prepare_frame, present, render},
+    systems::{on_load_model::on_load_model, prepare_frame, present, render},
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
@@ -55,6 +59,13 @@ impl Engine {
         ));
 
         world.add_schedule(schedule);
+
+        world.add_observer(on_load_model);
+
+        // TODO: TEMP
+        world.trigger(LoadModelEvent {
+            path: String::from_str(r"assets/basicmesh.glb").unwrap(),
+        });
 
         Self { world }
     }

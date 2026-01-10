@@ -13,6 +13,7 @@ use vulkanite::vk::{rs::*, *};
 use crate::engine::{
     Engine,
     descriptors::DescriptorSetLayoutBuilder,
+    id::Id,
     resources::{
         AllocatedBuffer, AllocatedDescriptorBuffer, AllocatedImage, DevicePropertiesResource,
         MeshBuffer, MeshPushConstant, Meshlet, RendererContext, RendererResources, ShaderObject,
@@ -126,92 +127,6 @@ impl Engine {
 
         let model_loader = ModelLoader::new();
 
-        let meshes = model_loader.load_model(r"assets/basicmesh.glb");
-
-        let mut mesh_buffers = Vec::new();
-        for mesh in meshes {
-            let mut indices = Vec::new();
-            for face in mesh.faces() {
-                for index in face.indices() {
-                    indices.push(*index);
-                }
-            }
-
-            let mut vertices = mesh
-                .vertices_iter()
-                .zip(
-                    mesh.normals()
-                        .unwrap()
-                        .into_iter()
-                        .zip(mesh.texture_coords_iter(Default::default())),
-                )
-                .into_iter()
-                .map(|(position, (normal, uv))| {
-                    let position = Vec3::new(position.x, position.y, position.z);
-                    let normal = Vec3::new(normal.x, normal.y, normal.z);
-                    let uv = Vec2::new(uv.x, uv.y);
-
-                    Vertex {
-                        position,
-                        normal,
-                        uv,
-                    }
-                })
-                .collect::<Vec<Vertex>>();
-
-            let remap = optimize_vertex_fetch_remap(&indices, vertices.len());
-            indices = remap_index_buffer(Some(&indices), vertices.len(), &remap);
-            vertices = remap_vertex_buffer(&vertices, vertices.len(), &remap);
-
-            let position_offset = std::mem::offset_of!(Vertex, position);
-            let vertex_stride = std::mem::size_of::<Vertex>();
-            let vertex_data = typed_to_bytes(&vertices);
-
-            let vertex_data_adapter =
-                VertexDataAdapter::new(&vertex_data, vertex_stride, position_offset).unwrap();
-
-            optimize_vertex_cache_in_place(&mut indices, vertices.len());
-            optimize_vertex_fetch(&mut indices, &vertices);
-
-            let (meshlets, vertex_indices, triangles) =
-                Self::generate_meshlets(&indices, &vertex_data_adapter);
-
-            let vertex_buffer = Self::create_buffer_and_update::<Vertex>(
-                device,
-                allocator,
-                vertices.as_ptr() as _,
-                vertices.len(),
-            );
-            let vertex_indices_buffer = Self::create_buffer_and_update::<u32>(
-                device,
-                allocator,
-                vertex_indices.as_ptr() as _,
-                vertex_indices.len(),
-            );
-            let meshlets_buffer = Self::create_buffer_and_update::<Meshlet>(
-                device,
-                allocator,
-                meshlets.as_ptr() as _,
-                meshlets.len(),
-            );
-            let local_indices_buffer = Self::create_buffer_and_update::<u8>(
-                device,
-                allocator,
-                triangles.as_ptr() as _,
-                triangles.len(),
-            );
-
-            let mesh_buffer = MeshBuffer {
-                vertex_buffer: vertex_buffer,
-                vertex_indices_buffer,
-                meshlets_buffer,
-                local_indices_buffer,
-                meshlets_count: meshlets.len(),
-            };
-
-            mesh_buffers.push(mesh_buffer);
-        }
-
         RendererResources {
             draw_image,
             depth_image,
@@ -220,7 +135,7 @@ impl Engine {
             mesh_shader_object: created_shaders[1],
             fragment_shader_object: created_shaders[2],
             model_loader,
-            mesh_buffers,
+            mesh_buffers: Vec::new(),
             mesh_pipeline_layout,
         }
     }
@@ -259,60 +174,12 @@ impl Engine {
         }
     }
 
-    fn create_buffer_and_update<T>(
-        device: &Device,
-        allocator: &Allocator,
-        data: *const c_void,
-        len: usize,
-    ) -> AllocatedBuffer
-    where
-        T: Sized,
-    {
-        let allocation_size = len * std::mem::size_of::<T>();
-        let mut allocated_buffer = create_buffer(
-            device,
-            allocator,
-            allocation_size,
-            BufferUsageFlags::TransferDst,
-        );
-        unsafe {
-            Self::transfer_data(&allocator, &mut allocated_buffer, data, allocation_size);
-        }
-
-        allocated_buffer
-    }
-
-    fn generate_meshlets(
-        indices: &[u32],
-        vertices: &VertexDataAdapter,
-    ) -> (Vec<Meshlet>, Vec<u32>, Vec<u8>) {
-        let max_vertices = 64;
-        let max_triangles = 124;
-        let cone_weight = 0.0;
-
-        let raw_meshlets =
-            build_meshlets(indices, vertices, max_vertices, max_triangles, cone_weight);
-
-        let mut meshlets = Vec::new();
-
-        for raw_meshlet in raw_meshlets.meshlets.iter() {
-            meshlets.push(Meshlet {
-                vertex_offset: raw_meshlet.vertex_offset as _,
-                triangle_offset: raw_meshlet.triangle_offset as _,
-                vertex_count: raw_meshlet.vertex_count as _,
-                triangle_count: raw_meshlet.triangle_count as _,
-            });
-        }
-
-        (meshlets, raw_meshlets.vertices, raw_meshlets.triangles)
-    }
-
     fn create_descriptors(world: &World, draw_image: &AllocatedImage) -> AllocatedDescriptorBuffer {
         let vulkan_context_resource = world.get_resource_ref::<VulkanContextResource>().unwrap();
         let device_properties_resource = world
             .get_resource_ref::<DevicePropertiesResource>()
             .unwrap();
-        let device = &vulkan_context_resource.device;
+        let device = vulkan_context_resource.device;
 
         let mut descriptor_set_layout_builder = DescriptorSetLayoutBuilder::new();
         descriptor_set_layout_builder.add_binding(0, DescriptorType::StorageImage);
@@ -475,21 +342,5 @@ impl Engine {
         let shader = shaders[0];
 
         ShaderObject::new(shader, shader_info.stage)
-    }
-
-    unsafe fn transfer_data(
-        allocator: &Allocator,
-        allocated_buffer: &mut AllocatedBuffer,
-        src: *const c_void,
-        size: usize,
-    ) {
-        unsafe {
-            let p_mapped_memory = allocator
-                .map_memory(&mut allocated_buffer.allocation)
-                .unwrap();
-            std::ptr::copy_nonoverlapping(src, p_mapped_memory as _, size);
-
-            allocator.unmap_memory(&mut allocated_buffer.allocation);
-        }
     }
 }

@@ -3,14 +3,13 @@ pub mod model_loader;
 
 use bevy_ecs::resource::Resource;
 use glam::{Mat4, Vec2, Vec3};
-use meshopt::VertexDataAdapter;
 use vma::Allocation;
 use vulkanite::vk::{
     DeviceAddress, Extent3D, Format, ShaderStageFlags,
     rs::{Buffer, DescriptorSetLayout, Image, ImageView, PipelineLayout, ShaderEXT},
 };
 
-use crate::engine::resources::render_resources::model_loader::ModelLoader;
+use crate::engine::{id::Id, resources::render_resources::model_loader::ModelLoader};
 
 #[derive(Clone, Copy)]
 #[repr(C, align(4))]
@@ -30,6 +29,7 @@ pub struct Vertex {
 }
 
 pub struct MeshBuffer {
+    pub id: Id,
     pub vertex_buffer: AllocatedBuffer,
     pub vertex_indices_buffer: AllocatedBuffer,
     pub meshlets_buffer: AllocatedBuffer,

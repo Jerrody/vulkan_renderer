@@ -6,7 +6,7 @@ use crate::engine::resources::AllocatedBuffer;
 use crate::engine::utils::get_device_address;
 
 pub fn create_buffer(
-    device: &rs::Device,
+    device: rs::Device,
     allocator: &Allocator,
     allocation_size: usize,
     usage: BufferUsageFlags,
