@@ -77,15 +77,27 @@ pub fn render(
         store_op: AttachmentStoreOp::Store,
         ..Default::default()
     }];
+    let depth_attachment_info = &RenderingAttachmentInfo {
+        image_view: Some(renderer_resources.depth_image.image_view.borrow()),
+        image_layout: ImageLayout::General,
+        resolve_mode: ResolveModeFlags::None,
+        load_op: AttachmentLoadOp::Clear,
+        store_op: AttachmentStoreOp::Store,
+        clear_value: ClearValue {
+            depth_stencil: Default::default(),
+        },
+        ..Default::default()
+    };
 
     let rendering_info = RenderingInfo {
         render_area: Rect2D {
-            offset: Default::default(),
             extent: draw_image_extent2d,
+            ..Default::default()
         },
         layer_count: 1,
         color_attachment_count: color_attachment_infos.len() as _,
         p_color_attachments: color_attachment_infos.as_ptr(),
+        p_depth_attachment: depth_attachment_info as *const _,
         ..Default::default()
     };
 
@@ -93,10 +105,9 @@ pub fn render(
 
     let viewports = Viewport {
         width: draw_image_extent2d.width as _,
-        height: (draw_image_extent2d.height as f32),
+        height: draw_image_extent2d.height as _,
         min_depth: 0.0,
         max_depth: 1.0,
-        //y: draw_image_extent2d.height as _,
         ..Default::default()
     };
     let scissors = Rect2D {
@@ -106,18 +117,24 @@ pub fn render(
 
     command_buffer.set_viewport_with_count(&viewports);
     command_buffer.set_scissor_with_count(&scissors);
+
     command_buffer.set_cull_mode(CullModeFlags::Back);
     command_buffer.set_front_face(FrontFace::Clockwise);
-    command_buffer.set_depth_test_enable_ext(false);
-    command_buffer.set_depth_write_enable(false);
-    command_buffer.set_primitive_restart_enable(false);
-    command_buffer.set_rasterizer_discard_enable(false);
     command_buffer.set_primitive_topology(PrimitiveTopology::TriangleList);
     command_buffer.set_polygon_mode_ext(PolygonMode::Fill);
+    command_buffer.set_primitive_restart_enable(false);
+    command_buffer.set_rasterizer_discard_enable(false);
     command_buffer.set_rasterization_samples_ext(SampleCountFlags::Count1);
-    command_buffer.set_alpha_to_coverage_enable_ext(false);
+
+    command_buffer.set_depth_test_enable(true);
+    command_buffer.set_depth_write_enable(true);
     command_buffer.set_depth_bias_enable(false);
+    command_buffer.set_depth_compare_op(CompareOp::GreaterOrEqual);
+    command_buffer.set_depth_bounds_test_enable(false);
+    command_buffer.set_depth_bounds(0.0, 1.0);
     command_buffer.set_stencil_test_enable(false);
+
+    command_buffer.set_alpha_to_coverage_enable_ext(false);
     command_buffer.set_sample_mask_ext(SampleCountFlags::Count1, &[SampleMask::MAX]);
 
     let blend_enables = [Bool32::False];

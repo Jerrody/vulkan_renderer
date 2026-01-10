@@ -72,7 +72,7 @@ void main(
 [ForceInline]
 func process_vertex(const v: Vertex, const mat: float4x4)->VertexOutput
 {
-    let vertex_output : VertexOutput = VertexOutput(mul(mat, float4(v.position, 1.0)), v.position, v.uv);
+    let vertex_output : VertexOutput = VertexOutput(mul(mat, float4(v.position, 1.0)), v.normal, v.uv);
 
     return vertex_output;
 }
