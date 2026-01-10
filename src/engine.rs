@@ -1,4 +1,6 @@
+mod components;
 mod descriptors;
+mod id;
 mod resources;
 mod setup;
 mod systems;
