@@ -3,7 +3,6 @@ use vulkanite::vk::*;
 
 use crate::engine::{
     components::mesh::Mesh,
-    id::Id,
     resources::{FrameContext, MeshPushConstant, RendererResources},
 };
 
