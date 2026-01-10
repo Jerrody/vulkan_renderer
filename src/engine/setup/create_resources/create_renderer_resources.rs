@@ -135,8 +135,9 @@ impl Engine {
             mesh_shader_object: created_shaders[1],
             fragment_shader_object: created_shaders[2],
             model_loader,
-            mesh_buffers: Vec::new(),
+            mesh_buffers: Default::default(),
             mesh_pipeline_layout,
+            mesh_push_constant: Default::default(),
         }
     }
 

@@ -1,6 +1,8 @@
 pub mod allocation;
 pub mod model_loader;
 
+use std::{cell::RefCell, sync::RwLock};
+
 use bevy_ecs::resource::Resource;
 use glam::{Mat4, Vec2, Vec3};
 use vma::Allocation;
@@ -37,6 +39,7 @@ pub struct MeshBuffer {
     pub meshlets_count: usize,
 }
 
+#[derive(Default)]
 #[repr(C, align(4))]
 pub struct MeshPushConstant {
     pub world_matrix: Mat4,
@@ -92,4 +95,16 @@ pub struct RendererResources {
     pub model_loader: ModelLoader,
     pub mesh_buffers: Vec<MeshBuffer>,
     pub mesh_pipeline_layout: PipelineLayout,
+    pub mesh_push_constant: MeshPushConstant,
+}
+
+impl<'a> RendererResources {
+    pub fn get_mesh_buffer(&'a self, id: Id) -> *const MeshBuffer {
+        let found_mesh_buffer = self
+            .mesh_buffers
+            .iter()
+            .find(|&mesh_buffer| mesh_buffer.id == id);
+
+        found_mesh_buffer.unwrap()
+    }
 }
