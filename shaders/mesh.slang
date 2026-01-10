@@ -1,12 +1,12 @@
-static const uint MAX_VERTICES = 64;
-static const uint MAX_TRIANGLES = 124;
-static const uint GROUP_SIZE = MAX_VERTICES;
+static const let MAX_VERTICES : uint32_t = 64;
+static const let MAX_TRIANGLES : uint32_t = 124;
+static const let GROUP_SIZE : uint32_t = MAX_VERTICES;
 
 struct Vertex
 {
-    float3 position;
-    float3 normal;
-    float2 uv;
+    let position : float3;
+    let normal : float3;
+    let uv : float2;
 };
 
 struct VertexOutput
@@ -18,19 +18,19 @@ struct VertexOutput
 
 struct Meshlet
 {
-    uint32_t vertex_offset;
-    uint32_t triangle_offset;
-    uint32_t vertex_count;
-    uint32_t triangle_count;
+    let vertex_offset : uint32_t;
+    let triangle_offset : uint32_t;
+    let vertex_count : uint32_t;
+    let triangle_count : uint32_t;
 }
 
 struct PushConstants
 {
-    float4x4 render_matrix;
-    Meshlet *meshlets;
-    Vertex *vertices;
-    uint32_t *vertex_indices;
-    uint8_t *local_indices;
+    let render_matrix : float4x4;
+    let meshlets : Meshlet *;
+    let vertices : Vertex *;
+    let vertex_indices : uint32_t *;
+    let local_indices : uint8_t *;
 };
 
 [[vk::push_constant]]
@@ -54,28 +54,25 @@ void main(
         uint vertexLookupIndex = meshlet.vertex_offset + group_index;
         uint globalVertexId = pushConsts.vertex_indices[vertexLookupIndex];
 
-        Vertex v = pushConsts.vertices[globalVertexId];
+        let v = pushConsts.vertices[globalVertexId];
         outVerts[group_index] = process_vertex(v, pushConsts.render_matrix);
     }
 
     if (group_index < meshlet.triangle_count)
     {
         uint triangleLookupIndex = meshlet.triangle_offset + (group_index * 3);
-        uint8_t i0 = pushConsts.local_indices[triangleLookupIndex + 0];
-        uint8_t i1 = pushConsts.local_indices[triangleLookupIndex + 1];
-        uint8_t i2 = pushConsts.local_indices[triangleLookupIndex + 2];
+        let i0 = pushConsts.local_indices[triangleLookupIndex + 0];
+        let i1 = pushConsts.local_indices[triangleLookupIndex + 1];
+        let i2 = pushConsts.local_indices[triangleLookupIndex + 2];
 
-        outIndices[group_index] = uint3(i0, i1, i2);
+        outIndices[group_index] = uint32_t3(i0, i1, i2);
     }
 }
 
 [ForceInline]
-func process_vertex(v: Vertex, mat: float4x4)->VertexOutput
+func process_vertex(const v: Vertex, const mat: float4x4)->VertexOutput
 {
-    VertexOutput vertex_output;
-    vertex_output.position = mul(mat, float4(v.position, 1.0));
-    vertex_output.color = float3(v.position);
-    vertex_output.uv = v.uv;
+    let vertex_output : VertexOutput = VertexOutput(mul(mat, float4(v.position, 1.0)), v.position, v.uv);
 
     return vertex_output;
 }
