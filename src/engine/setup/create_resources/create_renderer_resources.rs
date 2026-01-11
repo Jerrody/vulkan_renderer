@@ -1,17 +1,14 @@
-use std::mem::ManuallyDrop;
-
 use bevy_ecs::world::World;
 use glam::Vec4;
-use vma::{Alloc, AllocationCreateFlags, AllocationCreateInfo, Allocator, MemoryUsage};
+use vma::{Alloc, AllocationCreateInfo, Allocator, MemoryUsage};
 use vulkanite::{
     Handle,
     vk::{rs::*, *},
 };
-use winit::dpi::Pixel;
 
 use crate::engine::{
     Engine,
-    descriptors::{AllocatedDescriptorSetBuffer, DescriptorSetBuilder},
+    descriptors::DescriptorSetBuilder,
     resources::{model_loader::ModelLoader, *},
     utils::*,
 };
