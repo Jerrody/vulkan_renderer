@@ -9,7 +9,10 @@ use vulkanite::vk::{
     rs::{Buffer, DescriptorSetLayout, Image, ImageView, PipelineLayout, Sampler, ShaderEXT},
 };
 
-use crate::engine::{id::Id, resources::render_resources::model_loader::ModelLoader};
+use crate::engine::{
+    descriptors::AllocatedDescriptorSetBuffer, id::Id,
+    resources::render_resources::model_loader::ModelLoader,
+};
 
 #[derive(Clone, Copy)]
 #[repr(C, align(4))]
@@ -62,15 +65,6 @@ pub struct AllocatedBuffer {
     pub device_address: DeviceAddress,
 }
 
-pub struct AllocatedDescriptorBuffer {
-    pub allocated_descriptor_buffer: AllocatedBuffer,
-    pub descriptor_buffer_offset: u64,
-    pub descriptor_buffer_size: u64,
-    pub descriptor_set_layout: DescriptorSetLayout,
-    pub address: DeviceAddress,
-    pub pipeline_layout: PipelineLayout,
-}
-
 #[derive(Clone, Copy)]
 pub struct ShaderObject {
     pub shader: ShaderEXT,
@@ -88,7 +82,7 @@ pub struct RendererResources {
     pub draw_image: AllocatedImage,
     pub depth_image: AllocatedImage,
     pub white_image: AllocatedImage,
-    pub draw_image_descriptor_buffer: AllocatedDescriptorBuffer,
+    pub draw_image_descriptor_buffer: AllocatedDescriptorSetBuffer,
     pub gradient_compute_shader_object: ShaderObject,
     pub mesh_shader_object: ShaderObject,
     pub fragment_shader_object: ShaderObject,
