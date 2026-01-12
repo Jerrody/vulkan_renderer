@@ -11,9 +11,9 @@ struct Vertex
 
 struct VertexOutput
 {
-    float4 position : SV_Position;
-    float3 color : COLOR0;
-    float2 uv : TEXCOORD0;
+    const float4 position : SV_Position;
+    const float3 color : COLOR0;
+    const float2 uv : TEXCOORD0;
 };
 
 struct Meshlet
@@ -40,8 +40,8 @@ ConstantBuffer<PushConstants> pushConsts;
 [outputtopology("triangle")]
 [numthreads(GROUP_SIZE, 1, 1)]
 void main(
-    uint group_id: SV_GroupID,
-    uint group_index: SV_GroupIndex,
+    const uint group_id: SV_GroupID,
+    const uint group_index: SV_GroupIndex,
     OutputVertices<VertexOutput, MAX_VERTICES> outVerts,
     OutputIndices<uint3, MAX_TRIANGLES> outIndices)
 {
@@ -51,8 +51,8 @@ void main(
 
     if (group_index < meshlet.vertex_count)
     {
-        uint vertexLookupIndex = meshlet.vertex_offset + group_index;
-        uint globalVertexId = pushConsts.vertex_indices[vertexLookupIndex];
+        let vertexLookupIndex = meshlet.vertex_offset + group_index;
+        let globalVertexId = pushConsts.vertex_indices[vertexLookupIndex];
 
         let v = pushConsts.vertices[globalVertexId];
         outVerts[group_index] = process_vertex(v, pushConsts.render_matrix);
@@ -60,7 +60,7 @@ void main(
 
     if (group_index < meshlet.triangle_count)
     {
-        uint triangleLookupIndex = meshlet.triangle_offset + (group_index * 3);
+        let triangleLookupIndex = meshlet.triangle_offset + (group_index * 3);
         let i0 = pushConsts.local_indices[triangleLookupIndex + 0];
         let i1 = pushConsts.local_indices[triangleLookupIndex + 1];
         let i2 = pushConsts.local_indices[triangleLookupIndex + 2];
@@ -82,7 +82,7 @@ SamplerState nearest_sampler;
 Texture2D<float4> image;
 
 [shader("fragment")]
-func main(VertexOutput vertex_output)->float4
+func main(const vertex_output: VertexOutput)->float4
 {
     let color = image.Sample(nearest_sampler, vertex_output.uv);
 

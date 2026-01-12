@@ -110,9 +110,10 @@ pub fn begin_rendering(
 
     let viewports = Viewport {
         width: draw_image_extent2d.width as _,
-        height: draw_image_extent2d.height as _,
+        height: -(draw_image_extent2d.height as f32),
         min_depth: 0.0,
         max_depth: 1.0,
+        y: draw_image_extent2d.height as _,
         ..Default::default()
     };
     let scissors = Rect2D {
@@ -155,7 +156,6 @@ pub fn begin_rendering(
         10000.0,
         0.1,
     );
-    projection.y_axis *= -1.0;
     frame_context.world_matrix = projection * view;
 
     let vertex_bindings_descriptions = [];
