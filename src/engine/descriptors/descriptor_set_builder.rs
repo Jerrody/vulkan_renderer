@@ -301,8 +301,6 @@ impl<'a> DescriptorSetBuilder<'a> {
 
             descriptor_buffer_address =
                 descriptor_buffer_address.add(descriptor_binding_offset as _);
-            descriptor_buffer_address =
-                descriptor_buffer_address.add(binding_index * descriptor_buffer_size as usize);
 
             descriptor_buffer_address
         };

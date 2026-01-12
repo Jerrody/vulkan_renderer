@@ -35,6 +35,13 @@ pub fn begin_rendering(
 
     transition_image(
         command_buffer,
+        renderer_resources.white_image.image,
+        ImageLayout::Undefined,
+        ImageLayout::General,
+        ImageAspectFlags::Color,
+    );
+    transition_image(
+        command_buffer,
         swapchain_image,
         ImageLayout::Undefined,
         ImageLayout::General,
@@ -181,9 +188,33 @@ pub fn begin_rendering(
         *renderer_resources.fragment_shader_object.shader,
     ];
 
+    let descriptor_binding_info = DescriptorBufferBindingInfoEXT::default()
+        .usage(BufferUsageFlags::ResourceDescriptorBufferEXT)
+        .address(
+            renderer_resources
+                .white_image_descriptor_set_handle
+                .buffer
+                .device_address,
+        );
+    let descriptor_binding_infos = [descriptor_binding_info];
+    command_buffer.bind_descriptor_buffers_ext(&descriptor_binding_infos);
+
+    let buffer_indices = [0];
+    let offsets = [0];
+    command_buffer.set_descriptor_buffer_offsets_ext(
+        PipelineBindPoint::Graphics,
+        renderer_resources
+            .white_image_descriptor_set_handle
+            .pipeline_layout,
+        Default::default(),
+        &buffer_indices,
+        &offsets,
+    );
+
     command_buffer.bind_shaders_ext(shader_stages.as_slice(), shaders.as_slice());
 }
 
+#[allow(unused)]
 fn draw_triangle(renderer_resources: &RendererResources, command_buffer: CommandBuffer) {
     let vertex_bindings_descriptions = [];
     let vertex_attributes = [];
@@ -219,7 +250,7 @@ fn draw_gradient(
         .usage(BufferUsageFlags::ResourceDescriptorBufferEXT)
         .address(
             renderer_resources
-                .draw_image_descriptor_buffer
+                .draw_image_descriptor_set_handle
                 .buffer
                 .device_address,
         );
@@ -231,7 +262,7 @@ fn draw_gradient(
     command_buffer.set_descriptor_buffer_offsets_ext(
         PipelineBindPoint::Compute,
         renderer_resources
-            .draw_image_descriptor_buffer
+            .draw_image_descriptor_set_handle
             .pipeline_layout,
         Default::default(),
         &buffer_indices,

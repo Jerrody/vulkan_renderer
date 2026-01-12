@@ -99,7 +99,9 @@ impl Drop for Engine {
         device.wait_idle().unwrap();
 
         unsafe {
-            let draw_image_desciptor_buffer = &renderer_resources.draw_image_descriptor_buffer;
+            let draw_image_desciptor_buffer = &renderer_resources.draw_image_descriptor_set_handle;
+            let white_image_desciptor_buffer =
+                &renderer_resources.white_image_descriptor_set_handle;
             device.destroy_image_view(Some(renderer_resources.draw_image.image_view));
             device.destroy_image_view(Some(renderer_resources.depth_image.image_view));
             device.destroy_image_view(Some(renderer_resources.white_image.image_view));
@@ -107,7 +109,12 @@ impl Drop for Engine {
             device.destroy_sampler(Some(renderer_resources.nearest_sampler));
 
             let pipeline_layout = renderer_resources
-                .draw_image_descriptor_buffer
+                .draw_image_descriptor_set_handle
+                .pipeline_layout;
+            device.destroy_pipeline_layout(Some(pipeline_layout));
+
+            let pipeline_layout = renderer_resources
+                .white_image_descriptor_set_handle
                 .pipeline_layout;
             device.destroy_pipeline_layout(Some(pipeline_layout));
 
@@ -115,14 +122,25 @@ impl Drop for Engine {
                 .descriptor_set_layout_handle
                 .descriptor_set_layout;
             device.destroy_descriptor_set_layout(Some(descriptor_set_layout));
+            let descriptor_set_layout = white_image_desciptor_buffer
+                .descriptor_set_layout_handle
+                .descriptor_set_layout;
+            device.destroy_descriptor_set_layout(Some(descriptor_set_layout));
 
             let draw_image_descriptor_buffer_raw =
                 vk::raw::Buffer::from_raw(draw_image_desciptor_buffer.buffer.buffer.as_raw());
-
             let mut allocation = draw_image_desciptor_buffer.buffer.allocation;
             vulkan_context_resource
                 .allocator
                 .destroy_buffer(draw_image_descriptor_buffer_raw, &mut allocation);
+
+            let white_image_descriptor_buffer_raw =
+                vk::raw::Buffer::from_raw(white_image_desciptor_buffer.buffer.buffer.as_raw());
+            let mut allocation = white_image_desciptor_buffer.buffer.allocation;
+            vulkan_context_resource
+                .allocator
+                .destroy_buffer(white_image_descriptor_buffer_raw, &mut allocation);
+
             renderer_resources
                 .mesh_buffers
                 .iter_mut()

@@ -9,8 +9,8 @@ use vulkanite::{
 use crate::engine::{
     Engine,
     descriptors::{
-        DescriptorKind, DescriptorSetBuilder, DescriptorSetHandle, DescriptorStorageImage,
-        descriptor_set_builder,
+        DescriptorCombinedImageSampler, DescriptorKind, DescriptorSetBuilder, DescriptorSetHandle,
+        DescriptorStorageImage, descriptor_set_builder,
     },
     resources::{model_loader::ModelLoader, *},
     utils::*,
@@ -40,7 +40,7 @@ impl Engine {
                 | ImageUsageFlags::ColorAttachment,
         );
 
-        let white_color = &Self::pack_unorm_4x8(Vec4::new(1.0, 1.0, 1.0, 1.0));
+        let white_color = &Self::pack_unorm_4x8(Vec4::new(1.0, 0.0, 0.0, 1.0));
         let white_image_extent = Extent3D {
             width: 1,
             height: 1,
@@ -63,13 +63,23 @@ impl Engine {
             ImageUsageFlags::DepthStencilAttachment,
         );
 
-        let draw_image_descriptor_set_handle = Self::create_descriptors(world, &draw_image);
+        let nearest_sampler_create_info = SamplerCreateInfo {
+            mag_filter: Filter::Nearest,
+            min_filter: Filter::Nearest,
+            ..Default::default()
+        };
+        let nearest_sampler = device.create_sampler(&nearest_sampler_create_info).unwrap();
 
+        let (draw_image_descriptor_set_handle, white_image_descriptor_set_handle) =
+            Self::create_descriptors(world, &draw_image, &white_image, nearest_sampler);
+
+        //let mesh_descriptor_set_layouts = [];
         let gradient_descriptor_layouts = [draw_image_descriptor_set_handle
             .descriptor_set_layout_handle
             .descriptor_set_layout];
-
-        let triangle_descriptor_set_layouts = [];
+        let fragment_descriptor_set_layouts = [white_image_descriptor_set_handle
+            .descriptor_set_layout_handle
+            .descriptor_set_layout];
 
         let push_constant_ranges = [PushConstantRange {
             stage_flags: ShaderStageFlags::MeshEXT,
@@ -99,7 +109,7 @@ impl Engine {
                 flags: ShaderCreateFlagsEXT::LinkStage | ShaderCreateFlagsEXT::NoTaskShader,
                 stage: ShaderStageFlags::MeshEXT,
                 next_stage: ShaderStageFlags::Fragment,
-                descriptor_layouts: &triangle_descriptor_set_layouts,
+                descriptor_layouts: &fragment_descriptor_set_layouts,
                 push_constant_ranges: Some(&push_constant_ranges),
             },
             ShaderInfo {
@@ -107,7 +117,7 @@ impl Engine {
                 flags: ShaderCreateFlagsEXT::LinkStage,
                 stage: ShaderStageFlags::Fragment,
                 next_stage: ShaderStageFlags::empty(),
-                descriptor_layouts: &triangle_descriptor_set_layouts,
+                descriptor_layouts: &fragment_descriptor_set_layouts,
                 push_constant_ranges: Some(&push_constant_ranges),
             },
         ];
@@ -116,18 +126,12 @@ impl Engine {
 
         let model_loader = ModelLoader::new();
 
-        let nearest_sampler_create_info = SamplerCreateInfo {
-            mag_filter: Filter::Nearest,
-            min_filter: Filter::Nearest,
-            ..Default::default()
-        };
-        let nearest_sampler = device.create_sampler(&nearest_sampler_create_info).unwrap();
-
         RendererResources {
             draw_image,
             depth_image,
             white_image,
-            draw_image_descriptor_buffer: draw_image_descriptor_set_handle,
+            draw_image_descriptor_set_handle,
+            white_image_descriptor_set_handle,
             gradient_compute_shader_object: created_shaders[0],
             mesh_shader_object: created_shaders[1],
             fragment_shader_object: created_shaders[2],
@@ -223,7 +227,12 @@ impl Engine {
             .unwrap();
     }
 
-    fn create_descriptors(world: &World, draw_image: &AllocatedImage) -> DescriptorSetHandle {
+    fn create_descriptors(
+        world: &World,
+        draw_image: &AllocatedImage,
+        white_image: &AllocatedImage,
+        sampler: Sampler,
+    ) -> (DescriptorSetHandle, DescriptorSetHandle) {
         let vulkan_context_resource = world.get_resource_ref::<VulkanContextResource>().unwrap();
         let device_properties_resource = world
             .get_resource_ref::<DevicePropertiesResource>()
@@ -244,7 +253,23 @@ impl Engine {
             ShaderStageFlags::Compute,
         );
 
-        storage_image_descriptor_set_handle
+        descriptor_set_builder.add_binding(DescriptorKind::CombinedImageSampler(
+            DescriptorCombinedImageSampler {
+                image_view: white_image.image_view,
+                sampler,
+            },
+        ));
+        let white_image_descriptor_set_handle = descriptor_set_builder.build(
+            device,
+            &vulkan_context_resource.allocator,
+            &device_properties_resource.descriptor_buffer_properties,
+            ShaderStageFlags::MeshEXT | ShaderStageFlags::Fragment,
+        );
+
+        (
+            storage_image_descriptor_set_handle,
+            white_image_descriptor_set_handle,
+        )
     }
 
     fn create_shaders(device: &Device, shader_infos: &[ShaderInfo]) -> Vec<ShaderObject> {

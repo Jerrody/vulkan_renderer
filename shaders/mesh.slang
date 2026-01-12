@@ -72,15 +72,19 @@ void main(
 [ForceInline]
 func process_vertex(const v: Vertex, const mat: float4x4)->VertexOutput
 {
-    let vertex_output : VertexOutput = VertexOutput(mul(mat, float4(v.position, 1.0)), v.normal, v.uv);
+    let position = mul(mat, float4(v.position, 1.0));
+    let vertex_output : VertexOutput = VertexOutput(position, v.normal, v.uv);
 
     return vertex_output;
 }
 
+SamplerState nearest_sampler;
+Texture2D<float4> image;
+
 [shader("fragment")]
 func main(VertexOutput vertex_output)->float4
 {
-    let color = float4(vertex_output.color, 1.0);
+    let color = image.Sample(nearest_sampler, vertex_output.uv);
 
     return color;
 }
