@@ -8,7 +8,10 @@ use vulkanite::{
 
 use crate::engine::{
     Engine,
-    descriptors::DescriptorSetBuilder,
+    descriptors::{
+        DescriptorKind, DescriptorSetBuilder, DescriptorSetHandle, DescriptorStorageImage,
+        descriptor_set_builder,
+    },
     resources::{model_loader::ModelLoader, *},
     utils::*,
 };
@@ -60,9 +63,11 @@ impl Engine {
             ImageUsageFlags::DepthStencilAttachment,
         );
 
-        let draw_image_descriptor_buffer = Self::create_descriptors(world, &draw_image);
+        let draw_image_descriptor_set_handle = Self::create_descriptors(world, &draw_image);
 
-        let gradient_descriptor_layouts = [draw_image_descriptor_buffer.descriptor_set_layout];
+        let gradient_descriptor_layouts = [draw_image_descriptor_set_handle
+            .descriptor_set_layout_handle
+            .descriptor_set_layout];
 
         let triangle_descriptor_set_layouts = [];
 
@@ -122,7 +127,7 @@ impl Engine {
             draw_image,
             depth_image,
             white_image,
-            draw_image_descriptor_buffer,
+            draw_image_descriptor_buffer: draw_image_descriptor_set_handle,
             gradient_compute_shader_object: created_shaders[0],
             mesh_shader_object: created_shaders[1],
             fragment_shader_object: created_shaders[2],
@@ -218,23 +223,28 @@ impl Engine {
             .unwrap();
     }
 
-    fn create_descriptors(
-        world: &World,
-        draw_image: &AllocatedImage,
-    ) -> AllocatedDescriptorSetBuffer {
+    fn create_descriptors(world: &World, draw_image: &AllocatedImage) -> DescriptorSetHandle {
         let vulkan_context_resource = world.get_resource_ref::<VulkanContextResource>().unwrap();
         let device_properties_resource = world
             .get_resource_ref::<DevicePropertiesResource>()
             .unwrap();
         let device = vulkan_context_resource.device;
 
-        let mut descriptor_set_layout_builder = DescriptorSetBuilder::new();
-        descriptor_set_layout_builder.add_binding(0, DescriptorType::StorageImage);
-        let descriptor_set_layout = descriptor_set_layout_builder.build(
+        let mut descriptor_set_builder = DescriptorSetBuilder::new();
+
+        let descriptor_storage_image = DescriptorStorageImage {
+            image_view: draw_image.image_view,
+        };
+
+        descriptor_set_builder.add_binding(DescriptorKind::StorageImage(descriptor_storage_image));
+        let storage_image_descriptor_set_handle = descriptor_set_builder.build(
             device,
+            &vulkan_context_resource.allocator,
+            &device_properties_resource.descriptor_buffer_properties,
             ShaderStageFlags::Compute,
-            DescriptorSetLayoutCreateFlags::DescriptorBufferEXT,
         );
+
+        storage_image_descriptor_set_handle
     }
 
     fn create_shaders(device: &Device, shader_infos: &[ShaderInfo]) -> Vec<ShaderObject> {

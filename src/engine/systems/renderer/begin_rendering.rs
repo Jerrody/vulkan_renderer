@@ -217,7 +217,12 @@ fn draw_gradient(
 
     let descriptor_binding_info = DescriptorBufferBindingInfoEXT::default()
         .usage(BufferUsageFlags::ResourceDescriptorBufferEXT)
-        .address(renderer_resources.draw_image_descriptor_buffer.address);
+        .address(
+            renderer_resources
+                .draw_image_descriptor_buffer
+                .buffer
+                .device_address,
+        );
     let descriptor_binding_infos = [descriptor_binding_info];
     command_buffer.bind_descriptor_buffers_ext(&descriptor_binding_infos);
 

@@ -111,19 +111,15 @@ impl Drop for Engine {
                 .pipeline_layout;
             device.destroy_pipeline_layout(Some(pipeline_layout));
 
-            let descriptor_set_layout = draw_image_desciptor_buffer.descriptor_set_layout;
+            let descriptor_set_layout = draw_image_desciptor_buffer
+                .descriptor_set_layout_handle
+                .descriptor_set_layout;
             device.destroy_descriptor_set_layout(Some(descriptor_set_layout));
 
-            let draw_image_descriptor_buffer_raw = vk::raw::Buffer::from_raw(
-                draw_image_desciptor_buffer
-                    .allocated_descriptor_buffer
-                    .buffer
-                    .as_raw(),
-            );
+            let draw_image_descriptor_buffer_raw =
+                vk::raw::Buffer::from_raw(draw_image_desciptor_buffer.buffer.buffer.as_raw());
 
-            let mut allocation = draw_image_desciptor_buffer
-                .allocated_descriptor_buffer
-                .allocation;
+            let mut allocation = draw_image_desciptor_buffer.buffer.allocation;
             vulkan_context_resource
                 .allocator
                 .destroy_buffer(draw_image_descriptor_buffer_raw, &mut allocation);
