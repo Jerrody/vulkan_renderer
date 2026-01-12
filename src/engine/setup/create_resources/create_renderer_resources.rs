@@ -40,10 +40,22 @@ impl Engine {
                 | ImageUsageFlags::ColorAttachment,
         );
 
-        let white_color = &Self::pack_unorm_4x8(Vec4::new(1.0, 0.0, 0.0, 1.0));
+        let magenta = &Self::pack_unorm_4x8(Vec4::new(1.0, 0.0, 1.0, 1.0));
+        let black = &Self::pack_unorm_4x8(Vec4::new(0.0, 0.0, 0.0, 0.0));
+        let mut pixels: Vec<u32> = vec![0; 16 * 16];
+        for x in 0..16 {
+            for y in 0..16 {
+                pixels[y * 16 + x] = if (x % 2) ^ (y % 2) == 0 {
+                    *magenta
+                } else {
+                    *black
+                };
+            }
+        }
+
         let white_image_extent = Extent3D {
-            width: 1,
-            height: 1,
+            width: 16,
+            height: 16,
             depth: 1,
         };
         let white_image = Self::allocate_image(
@@ -53,7 +65,7 @@ impl Engine {
             white_image_extent,
             ImageUsageFlags::Sampled | ImageUsageFlags::HostTransfer,
         );
-        Self::transfer_data_to_image(device, &white_image, white_color as *const _ as _);
+        Self::transfer_data_to_image(device, &white_image, pixels.as_ptr() as *const _ as _);
 
         let depth_image = Self::allocate_image(
             device,
@@ -214,7 +226,6 @@ impl Engine {
 
         let regions = [memory_to_image_copy];
         let copy_memory_to_image_info = CopyMemoryToImageInfo {
-            flags: HostImageCopyFlags::Memcpy,
             dst_image: Some(allocated_image.image.borrow()),
             dst_image_layout: ImageLayout::General,
             region_count: regions.len() as _,

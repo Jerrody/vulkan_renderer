@@ -32,7 +32,9 @@ pub fn on_load_model(
     let allocator = &vulkan_context.allocator;
     let model_loader = &renderer_resources.model_loader;
 
-    let meshes = model_loader.load_model(&load_model_event.path);
+    let mut meshes = model_loader.load_model(&load_model_event.path);
+    meshes.next();
+    meshes.next();
 
     let mut mesh_buffers = Vec::new();
     for mesh in meshes {

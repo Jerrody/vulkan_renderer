@@ -113,7 +113,7 @@ pub fn begin_rendering(
         height: -(draw_image_extent2d.height as f32),
         min_depth: 0.0,
         max_depth: 1.0,
-        y: draw_image_extent2d.height as _,
+        y: draw_image_extent2d.height as f32,
         ..Default::default()
     };
     let scissors = Rect2D {
@@ -125,7 +125,7 @@ pub fn begin_rendering(
     command_buffer.set_scissor_with_count(&scissors);
 
     command_buffer.set_cull_mode(CullModeFlags::Back);
-    command_buffer.set_front_face(FrontFace::Clockwise);
+    command_buffer.set_front_face(FrontFace::CounterClockwise);
     command_buffer.set_primitive_topology(PrimitiveTopology::TriangleList);
     command_buffer.set_polygon_mode_ext(PolygonMode::Fill);
     command_buffer.set_primitive_restart_enable(false);
@@ -156,6 +156,7 @@ pub fn begin_rendering(
         10000.0,
         0.1,
     );
+
     frame_context.world_matrix = projection * view;
 
     let vertex_bindings_descriptions = [];
