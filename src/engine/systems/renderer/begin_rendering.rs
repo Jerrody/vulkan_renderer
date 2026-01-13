@@ -143,7 +143,7 @@ pub fn begin_rendering(
     command_buffer.set_color_write_mask_ext(Default::default(), &color_component_flags);
 
     let view = Mat4::from_translation(Vec3::new(0.0, 0.0, -5.0));
-    let mut projection = Mat4::perspective_rh(
+    let projection = Mat4::perspective_rh(
         70.0_f32.to_radians(),
         draw_image_extent2d.width as f32 / draw_image_extent2d.height as f32,
         10000.0,

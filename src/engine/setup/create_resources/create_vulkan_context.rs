@@ -186,7 +186,7 @@ impl Engine {
     ) -> (vk::rs::Instance, Option<vk::rs::DebugUtilsMessengerEXT>) {
         const VALIDATION_LAYER: &CStr = c"VK_LAYER_KHRONOS_validation";
         let layers: Vec<_> = entry.enumerate_instance_layer_properties().unwrap();
-        let has_validation = layers
+        let mut has_validation = layers
             .into_iter()
             .any(|layer| layer.get_layer_name() == VALIDATION_LAYER);
         let enabled_layers = has_validation.then_some(VALIDATION_LAYER.as_ptr());
@@ -213,9 +213,9 @@ impl Engine {
         let debug_messenger = if has_validation {
             let debug_info = vk::DebugUtilsMessengerCreateInfoEXT::default()
                 .message_severity(
-                    flagbits!(vk::DebugUtilsMessageSeverityFlagsEXT::{Info | Warning | Error}),
+                    flagbits!(vk::DebugUtilsMessageSeverityFlagsEXT::{Info | Warning | Error | Verbose}),
                 )
-                .message_type(flagbits!(vk::DebugUtilsMessageTypeFlagsEXT::{General | Validation}))
+                .message_type(flagbits!(vk::DebugUtilsMessageTypeFlagsEXT::{General | Validation | Performance | DeviceAddressBinding}))
                 .pfn_user_callback(Some(debug_callback));
             Some(
                 instance
