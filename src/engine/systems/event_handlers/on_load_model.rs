@@ -146,6 +146,7 @@ where
         allocation_size,
         BufferUsageFlags::TransferDst,
     );
+
     unsafe {
         transfer_data(&allocator, &mut allocated_buffer, data, allocation_size);
     }
@@ -187,6 +188,7 @@ unsafe fn transfer_data(
         let p_mapped_memory = allocator
             .map_memory(&mut allocated_buffer.allocation)
             .unwrap();
+
         std::ptr::copy_nonoverlapping(src, p_mapped_memory as _, size);
 
         allocator.unmap_memory(&mut allocated_buffer.allocation);

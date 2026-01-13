@@ -35,13 +35,6 @@ pub fn begin_rendering(
 
     transition_image(
         command_buffer,
-        renderer_resources.white_image.image,
-        ImageLayout::Undefined,
-        ImageLayout::General,
-        ImageAspectFlags::Color,
-    );
-    transition_image(
-        command_buffer,
         swapchain_image,
         ImageLayout::Undefined,
         ImageLayout::General,
