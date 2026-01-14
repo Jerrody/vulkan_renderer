@@ -153,7 +153,7 @@ impl Engine {
             &window.window_handle().unwrap().as_raw(),
         )
         .unwrap();
-        let (physical_device, device, queue_family_index, graphics_queue) =
+        let (physical_device, device, queue_family_index, graphics_queue, transfer_queue) =
             Self::create_device(&instance, &surface);
 
         let mut allocator_create_info =
@@ -173,6 +173,7 @@ impl Engine {
             device,
             allocator,
             graphics_queue,
+            transfer_queue,
             queue_family_index,
             swapchain,
             surface_format,
@@ -232,7 +233,13 @@ impl Engine {
     pub fn create_device(
         instance: &vk::rs::Instance,
         surface: &vk::rs::SurfaceKHR,
-    ) -> (vk::rs::PhysicalDevice, vk::rs::Device, usize, vk::rs::Queue) {
+    ) -> (
+        vk::rs::PhysicalDevice,
+        vk::rs::Device,
+        usize,
+        vk::rs::Queue,
+        vk::rs::Queue,
+    ) {
         let physical_devices: Vec<PhysicalDevice> = instance.enumerate_physical_devices().unwrap();
 
         let compute_device_score = |physical_device: &vk::rs::PhysicalDevice| {
@@ -289,7 +296,7 @@ impl Engine {
             panic!("Detected unsupported extentions.");
         }
 
-        let queue_prio = 1.0f32;
+        let queue_prio = [1.0f32, 0.5f32];
         let queue_info = vk::DeviceQueueCreateInfo::default()
             .queue_family_index(queue_family_index as u32)
             .queue_priorities(&queue_prio);
@@ -316,9 +323,16 @@ impl Engine {
         );
 
         let device = physical_device.create_device(device_info.as_ref()).unwrap();
-        let queue = device.get_queue(queue_family_index as u32, 0);
+        let graphics_queue = device.get_queue(queue_family_index as u32, 0);
+        let transfer_queue = device.get_queue(queue_family_index as u32, 1);
 
-        (physical_device, device, queue_family_index, queue)
+        (
+            physical_device,
+            device,
+            queue_family_index,
+            graphics_queue,
+            transfer_queue,
+        )
     }
 
     fn create_swapchain(

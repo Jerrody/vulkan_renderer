@@ -190,12 +190,22 @@ impl Drop for Engine {
             device.destroy_shader_ext(Some(renderer_resources.mesh_shader_object.shader));
             device.destroy_shader_ext(Some(renderer_resources.fragment_shader_object.shader));
 
+            device.destroy_command_pool(Some(
+                render_context_resource
+                    .upload_context
+                    .command_group
+                    .command_pool,
+            ));
+            device.destroy_fence(Some(
+                render_context_resource.upload_context.command_group.fence,
+            ));
+
             render_context_resource
                 .frames_data
                 .iter()
                 .for_each(|frame_data| {
-                    device.destroy_command_pool(Some(frame_data.command_pool));
-                    device.destroy_fence(Some(frame_data.render_fence));
+                    device.destroy_command_pool(Some(frame_data.command_group.command_pool));
+                    device.destroy_fence(Some(frame_data.command_group.fence));
                     device.destroy_semaphore(Some(frame_data.render_semaphore));
                     device.destroy_semaphore(Some(frame_data.swapchain_semaphore));
                 });

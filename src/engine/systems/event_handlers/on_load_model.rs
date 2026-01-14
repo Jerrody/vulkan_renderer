@@ -178,7 +178,7 @@ fn generate_meshlets(
     (meshlets, raw_meshlets.vertices, raw_meshlets.triangles)
 }
 
-unsafe fn transfer_data(
+pub unsafe fn transfer_data(
     allocator: &Allocator,
     allocated_buffer: &mut AllocatedBuffer,
     src: *const c_void,

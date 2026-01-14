@@ -20,7 +20,7 @@ pub fn begin_rendering(
 ) {
     let frame_data = render_context.get_current_frame_data();
 
-    let command_buffer = frame_data.command_buffer;
+    let command_buffer = frame_data.command_group.command_buffer;
     frame_context.command_buffer = Some(command_buffer);
 
     let command_buffer_begin_info =

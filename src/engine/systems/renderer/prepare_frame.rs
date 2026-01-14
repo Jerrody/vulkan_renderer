@@ -10,7 +10,7 @@ pub fn prepare_frame(
 ) {
     let device = &vulkan_ctx.device;
     let frame_data = render_ctx.get_current_frame_data();
-    let fences = [frame_data.render_fence];
+    let fences = [frame_data.command_group.fence];
 
     device
         .wait_for_fences(fences.as_slice(), true, u64::MAX)
@@ -28,6 +28,7 @@ pub fn prepare_frame(
     frame_ctx.swapchain_image_index = swapchain_image_index;
 
     frame_data
+        .command_group
         .command_buffer
         .reset(CommandBufferResetFlags::ReleaseResources)
         .unwrap();

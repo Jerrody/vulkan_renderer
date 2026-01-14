@@ -19,7 +19,7 @@ pub fn create_buffer(
     };
 
     let allocation_create_info = AllocationCreateInfo {
-        flags: AllocationCreateFlags::Mapped | AllocationCreateFlags::HostAccessRandom,
+        flags: AllocationCreateFlags::Mapped | AllocationCreateFlags::HostAccessSequentialWrite,
         usage: MemoryUsage::AutoPreferDevice,
         required_flags: MemoryPropertyFlags::DeviceLocal,
         ..Default::default()

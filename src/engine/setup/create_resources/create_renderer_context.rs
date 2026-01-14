@@ -4,7 +4,7 @@ use winit::window::Window;
 
 use crate::engine::{
     Engine,
-    resources::{FrameData, RendererContext, VulkanContextResource},
+    resources::{CommandGroup, FrameData, RendererContext, UploadContext, VulkanContextResource},
 };
 
 impl Engine {
@@ -62,10 +62,13 @@ impl Engine {
                 let swapchain_semaphore = device.create_semaphore(&semaphore_create_info).unwrap();
                 let render_semaphore = device.create_semaphore(&semaphore_create_info).unwrap();
 
-                FrameData {
+                let command_group = CommandGroup {
                     command_pool,
                     command_buffer,
-                    render_fence,
+                    fence: render_fence,
+                };
+                FrameData {
+                    command_group,
                     swapchain_semaphore,
                     render_semaphore,
                 }
@@ -78,6 +81,29 @@ impl Engine {
             height: surface_size.height,
         };
 
+        let fence_info = FenceCreateInfo::default();
+        let fence = device.create_fence(&fence_info).unwrap();
+
+        let command_pool = device.create_command_pool(&command_pool_info).unwrap();
+
+        let command_buffer_allocate_info = CommandBufferAllocateInfo::default()
+            .command_pool(&command_pool)
+            .level(vulkanite::vk::CommandBufferLevel::Primary)
+            .command_buffer_count(1);
+
+        let command_buffers: Vec<CommandBuffer> = device
+            .allocate_command_buffers(&command_buffer_allocate_info)
+            .unwrap();
+        let command_buffer = command_buffers[0];
+
+        let upload_context = UploadContext {
+            command_group: CommandGroup {
+                command_pool,
+                command_buffer,
+                fence,
+            },
+        };
+
         RendererContext {
             images,
             image_views,
@@ -85,6 +111,7 @@ impl Engine {
             draw_extent,
             frames_data,
             frame_number: Default::default(),
+            upload_context,
         }
     }
 }

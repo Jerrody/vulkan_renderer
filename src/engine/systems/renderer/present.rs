@@ -13,7 +13,7 @@ pub fn present(
 ) {
     let _device = &vulkan_ctx.device;
     let frame_data = render_ctx.get_current_frame_data();
-    let command_buffer = frame_data.command_buffer;
+    let command_buffer = frame_data.command_group.command_buffer;
     let swapchain_image_index = frame_ctx.swapchain_image_index;
 
     let command_buffer_submit_infos = [command_buffer_submit_info(&command_buffer)];
@@ -36,7 +36,7 @@ pub fn present(
     let submit_infos = [submit_info];
     vulkan_ctx
         .graphics_queue
-        .submit2(&submit_infos, Some(frame_data.render_fence))
+        .submit2(&submit_infos, Some(frame_data.command_group.fence))
         .unwrap();
 
     let swapchains = [vulkan_ctx.swapchain];

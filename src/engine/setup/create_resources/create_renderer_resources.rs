@@ -63,9 +63,15 @@ impl Engine {
             &allocator,
             Format::R8G8B8A8Unorm,
             white_image_extent,
-            ImageUsageFlags::Sampled | ImageUsageFlags::HostTransfer,
+            ImageUsageFlags::Sampled | ImageUsageFlags::HostTransfer | ImageUsageFlags::TransferDst,
         );
-        Self::transfer_data_to_image(device, &white_image, pixels.as_ptr() as *const _ as _);
+
+        vulkan_context.transfer_data_to_image(
+            &white_image,
+            pixels.as_ptr() as *const _,
+            &render_context.upload_context,
+        );
+        //Self::transfer_data_to_image(device, &white_image, pixels.as_ptr() as *const _ as _);
 
         let depth_image = Self::allocate_image(
             device,
@@ -221,6 +227,8 @@ impl Engine {
                 layer_count: 1,
             },
             image_extent: allocated_image.extent,
+            memory_image_height: allocated_image.extent.height * 4,
+            memory_row_length: allocated_image.extent.width * allocated_image.extent.depth * 4,
             ..Default::default()
         };
 

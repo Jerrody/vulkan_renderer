@@ -5,11 +5,19 @@ use vulkanite::vk::{
 };
 
 pub struct FrameData {
-    pub command_pool: CommandPool,
-    pub command_buffer: CommandBuffer,
-    pub render_fence: Fence,
+    pub command_group: CommandGroup,
     pub swapchain_semaphore: Semaphore,
     pub render_semaphore: Semaphore,
+}
+
+pub struct CommandGroup {
+    pub command_pool: CommandPool,
+    pub command_buffer: CommandBuffer,
+    pub fence: Fence,
+}
+
+pub struct UploadContext {
+    pub command_group: CommandGroup,
 }
 
 #[derive(Resource)]
@@ -18,6 +26,7 @@ pub struct RendererContext {
     pub image_views: Vec<ImageView>,
     pub frame_overlap: usize,
     pub frames_data: Vec<FrameData>,
+    pub upload_context: UploadContext,
     pub frame_number: usize,
     pub draw_extent: Extent2D,
 }
