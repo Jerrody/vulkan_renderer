@@ -127,9 +127,9 @@ pub fn on_load_model(
         mesh_buffers.push(mesh_buffer);
     }
 
-    renderer_resources
-        .mesh_buffers
-        .extend(mesh_buffers.into_iter());
+    mesh_buffers.drain(..).into_iter().for_each(|mesh_buffer| {
+        renderer_resources.insert_mesh_buffer(mesh_buffer);
+    });
 }
 
 fn create_buffer_and_update<T>(

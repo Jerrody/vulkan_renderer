@@ -1,6 +1,7 @@
 pub mod allocation;
 pub mod model_loader;
 
+use ahash::HashMap;
 use bevy_ecs::resource::Resource;
 use glam::{Mat4, Vec2, Vec3};
 use vma::Allocation;
@@ -33,6 +34,7 @@ pub struct Vertex {
 
 pub struct MeshBuffer {
     pub id: Id,
+    pub index: usize,
     pub vertex_buffer: AllocatedBuffer,
     pub vertex_indices_buffer: AllocatedBuffer,
     pub meshlets_buffer: AllocatedBuffer,
@@ -51,6 +53,8 @@ pub struct MeshPushConstant {
 }
 
 pub struct AllocatedImage {
+    pub id: Id,
+    pub index: usize,
     pub image: Image,
     pub image_view: ImageView,
     pub allocation: Allocation,
@@ -77,6 +81,19 @@ impl ShaderObject {
     }
 }
 
+#[derive(Clone, Copy)]
+pub struct SamplerObject {
+    pub id: Id,
+    pub sampler: Sampler,
+}
+
+#[derive(Default)]
+pub struct ResourcesPool {
+    pub mesh_buffers: HashMap<Id, MeshBuffer>,
+    pub textures: HashMap<Id, AllocatedImage>,
+    pub samplers: HashMap<Id, SamplerObject>,
+}
+
 #[derive(Resource)]
 pub struct RendererResources {
     pub draw_image: AllocatedImage,
@@ -88,19 +105,40 @@ pub struct RendererResources {
     pub mesh_shader_object: ShaderObject,
     pub fragment_shader_object: ShaderObject,
     pub model_loader: ModelLoader,
-    pub mesh_buffers: Vec<MeshBuffer>,
+    pub resources_pool: ResourcesPool,
     pub mesh_pipeline_layout: PipelineLayout,
     pub mesh_push_constant: MeshPushConstant,
     pub nearest_sampler: Sampler,
 }
 
 impl<'a> RendererResources {
-    pub fn get_mesh_buffer(&'a self, id: Id) -> *const MeshBuffer {
-        let found_mesh_buffer = self
+    pub fn insert_mesh_buffer(&'a mut self, mesh_buffer: MeshBuffer) {
+        self.resources_pool
             .mesh_buffers
-            .iter()
-            .find(|&mesh_buffer| mesh_buffer.id == id);
+            .insert(mesh_buffer.id, mesh_buffer);
+    }
 
-        found_mesh_buffer.unwrap()
+    pub fn insert_texture(&'a mut self, allocated_image: AllocatedImage) {
+        self.resources_pool
+            .textures
+            .insert(allocated_image.id, allocated_image);
+    }
+
+    pub fn insert_sampler(&'a mut self, sampler_object: SamplerObject) {
+        self.resources_pool
+            .samplers
+            .insert(sampler_object.id, sampler_object);
+    }
+
+    pub fn get_mesh_buffer(&'a self, id: Id) -> *const MeshBuffer {
+        self.resources_pool.mesh_buffers.get(&id).unwrap()
+    }
+
+    pub fn get_texture(&'a self, id: Id) -> *const AllocatedImage {
+        self.resources_pool.textures.get(&id).unwrap()
+    }
+
+    pub fn get_sampler(&'a self, id: Id) -> SamplerObject {
+        *self.resources_pool.samplers.get(&id).unwrap()
     }
 }

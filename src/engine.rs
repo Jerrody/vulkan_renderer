@@ -141,27 +141,28 @@ impl Drop for Engine {
                 .allocator
                 .destroy_buffer(white_image_descriptor_buffer_raw, &mut allocation);
 
-            renderer_resources
-                .mesh_buffers
-                .iter_mut()
-                .for_each(|mesh_buffer| {
-                    vulkan_context_resource.allocator.destroy_buffer(
-                        *mesh_buffer.vertex_buffer.buffer,
-                        &mut mesh_buffer.vertex_buffer.allocation,
-                    );
-                    vulkan_context_resource.allocator.destroy_buffer(
-                        *mesh_buffer.vertex_indices_buffer.buffer,
-                        &mut mesh_buffer.vertex_indices_buffer.allocation,
-                    );
-                    vulkan_context_resource.allocator.destroy_buffer(
-                        *mesh_buffer.meshlets_buffer.buffer,
-                        &mut mesh_buffer.meshlets_buffer.allocation,
-                    );
-                    vulkan_context_resource.allocator.destroy_buffer(
-                        *mesh_buffer.local_indices_buffer.buffer,
-                        &mut mesh_buffer.local_indices_buffer.allocation,
-                    );
-                });
+            // TODO
+            /* renderer_resources
+            .mesh_buffers
+            .iter_mut()
+            .for_each(|mesh_buffer| {
+                vulkan_context_resource.allocator.destroy_buffer(
+                    *mesh_buffer.vertex_buffer.buffer,
+                    &mut mesh_buffer.vertex_buffer.allocation,
+                );
+                vulkan_context_resource.allocator.destroy_buffer(
+                    *mesh_buffer.vertex_indices_buffer.buffer,
+                    &mut mesh_buffer.vertex_indices_buffer.allocation,
+                );
+                vulkan_context_resource.allocator.destroy_buffer(
+                    *mesh_buffer.meshlets_buffer.buffer,
+                    &mut mesh_buffer.meshlets_buffer.allocation,
+                );
+                vulkan_context_resource.allocator.destroy_buffer(
+                    *mesh_buffer.local_indices_buffer.buffer,
+                    &mut mesh_buffer.local_indices_buffer.allocation,
+                );
+            }); */
             device.destroy_pipeline_layout(Some(renderer_resources.mesh_pipeline_layout));
 
             let draw_image_raw =

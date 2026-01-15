@@ -12,6 +12,7 @@ use crate::engine::{
         DescriptorCombinedImageSampler, DescriptorKind, DescriptorSetBuilder, DescriptorSetHandle,
         DescriptorStorageImage, descriptor_set_builder,
     },
+    id::Id,
     resources::{model_loader::ModelLoader, *},
     utils::*,
 };
@@ -88,8 +89,7 @@ impl Engine {
         };
         let nearest_sampler = device.create_sampler(&nearest_sampler_create_info).unwrap();
 
-        let (draw_image_descriptor_set_handle, white_image_descriptor_set_handle) =
-            Self::create_descriptors(world, &draw_image, &white_image, nearest_sampler);
+        let draw_image_descriptor_set_handle = Self::create_descriptors(world);
 
         //let mesh_descriptor_set_layouts = [];
         let gradient_descriptor_layouts = [draw_image_descriptor_set_handle
@@ -154,7 +154,7 @@ impl Engine {
             mesh_shader_object: created_shaders[1],
             fragment_shader_object: created_shaders[2],
             model_loader,
-            mesh_buffers: Default::default(),
+            resources_pool: Default::default(),
             mesh_pipeline_layout,
             mesh_push_constant: Default::default(),
             nearest_sampler,
@@ -192,6 +192,7 @@ impl Engine {
         let image_view = device.create_image_view(&image_view_create_info).unwrap();
 
         AllocatedImage {
+            id: Id::new(image.as_raw()),
             image,
             image_view,
             allocation,
@@ -246,12 +247,7 @@ impl Engine {
             .unwrap();
     }
 
-    fn create_descriptors(
-        world: &World,
-        draw_image: &AllocatedImage,
-        white_image: &AllocatedImage,
-        sampler: Sampler,
-    ) -> (DescriptorSetHandle, DescriptorSetHandle) {
+    fn create_descriptors(world: &World) -> DescriptorSetHandle {
         let vulkan_context_resource = world.get_resource_ref::<VulkanContextResource>().unwrap();
         let device_properties_resource = world
             .get_resource_ref::<DevicePropertiesResource>()
@@ -260,35 +256,32 @@ impl Engine {
 
         let mut descriptor_set_builder = DescriptorSetBuilder::new();
 
-        let descriptor_storage_image = DescriptorStorageImage {
-            image_view: draw_image.image_view,
-        };
+        descriptor_set_builder.add_binding(
+            DescriptorType::Sampler,
+            16,
+            DescriptorBindingFlags::default(),
+        );
+        descriptor_set_builder.add_binding(
+            DescriptorType::StorageImage,
+            1,
+            DescriptorBindingFlags::PartiallyBound,
+        );
+        descriptor_set_builder.add_binding(
+            DescriptorType::SampledImage,
+            128,
+            DescriptorBindingFlags::PartiallyBound
+                | DescriptorBindingFlags::VariableDescriptorCount
+                | DescriptorBindingFlags::UpdateAfterBind,
+        );
 
-        descriptor_set_builder.add_binding(DescriptorKind::StorageImage(descriptor_storage_image));
-        let storage_image_descriptor_set_handle = descriptor_set_builder.build(
+        let resources_descriptor_set_handle = descriptor_set_builder.build(
             device,
             &vulkan_context_resource.allocator,
             &device_properties_resource.descriptor_buffer_properties,
             ShaderStageFlags::Compute,
         );
 
-        descriptor_set_builder.add_binding(DescriptorKind::CombinedImageSampler(
-            DescriptorCombinedImageSampler {
-                image_view: white_image.image_view,
-                sampler,
-            },
-        ));
-        let white_image_descriptor_set_handle = descriptor_set_builder.build(
-            device,
-            &vulkan_context_resource.allocator,
-            &device_properties_resource.descriptor_buffer_properties,
-            ShaderStageFlags::MeshEXT | ShaderStageFlags::Fragment,
-        );
-
-        (
-            storage_image_descriptor_set_handle,
-            white_image_descriptor_set_handle,
-        )
+        resources_descriptor_set_handle
     }
 
     fn create_shaders(device: &Device, shader_infos: &[ShaderInfo]) -> Vec<ShaderObject> {
