@@ -1,9 +1,11 @@
-use bevy_ecs::component::Component;
+use bevy_ecs::{component::Component, name::Name};
 
-use crate::engine::id::Id;
+use crate::engine::{components::transform::Transform, id::Id};
 
 #[derive(Component)]
+#[require(Transform, Name)]
 pub struct Mesh {
+    pub id: Id,
     pub buffer_id: Id,
-    pub texture_id: Id,
+    pub material_id: Id,
 }

@@ -27,6 +27,7 @@ glam = { version = "0.30.10", features = ["fast-math", "bytemuck"] }
 bytemuck = "1.24.0"
 meshopt = "0.6.2"
 ahash = "0.8.12"
+uuid = { version = "1.19.0", default-features = false, features = ["v4"] }
 
 [profile.dev]
 opt-level = 2

@@ -1,4 +1,5 @@
-use std::ffi::c_void;
+use std::{ffi::c_void, str::FromStr};
+use uuid::Uuid;
 use vulkanite::vk::BufferUsageFlags;
 
 use bevy_ecs::{
@@ -109,8 +110,9 @@ pub fn on_load_model(
             triangles.len(),
         );
 
+        let uuid = Uuid::new_v4();
         let mesh_buffer = MeshBuffer {
-            id: Id::new(mesh.name()),
+            id: Id::new(uuid),
             vertex_buffer: vertex_buffer,
             vertex_indices_buffer,
             meshlets_buffer,
