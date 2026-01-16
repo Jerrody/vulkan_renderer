@@ -177,6 +177,7 @@ impl Engine {
         renderer_resources.nearest_sampler_id =
             renderer_resources.insert_sampler(nearest_sampler_object);
 
+        // TODO: Need to make this mess more ergonomic and simpler.
         let draw_image_ref = renderer_resources.get_texture_ref(renderer_resources.draw_image_id);
         let descriptor_draw_image = DescriptorKind::StorageImage(DescriptorStorageImage {
             image_view: draw_image_ref.image_view,
