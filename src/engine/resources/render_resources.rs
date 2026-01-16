@@ -2,6 +2,7 @@ pub mod allocation;
 pub mod model_loader;
 
 use ahash::HashMap;
+use asset_importer::utils::mesh;
 use bevy_ecs::resource::Resource;
 use glam::{Mat4, Vec2, Vec3};
 use vma::Allocation;
@@ -96,11 +97,9 @@ pub struct ResourcesPool {
 
 #[derive(Resource)]
 pub struct RendererResources {
-    pub draw_image: AllocatedImage,
     pub depth_image: AllocatedImage,
-    pub white_image: AllocatedImage,
-    pub draw_image_descriptor_set_handle: DescriptorSetHandle,
-    pub white_image_descriptor_set_handle: DescriptorSetHandle,
+    pub draw_image_id: Id,
+    pub resources_descriptor_set_handle: DescriptorSetHandle,
     pub gradient_compute_shader_object: ShaderObject,
     pub mesh_shader_object: ShaderObject,
     pub fragment_shader_object: ShaderObject,
@@ -112,22 +111,47 @@ pub struct RendererResources {
 }
 
 impl<'a> RendererResources {
-    pub fn insert_mesh_buffer(&'a mut self, mesh_buffer: MeshBuffer) {
-        self.resources_pool
+    pub fn insert_mesh_buffer(&'a mut self, mesh_buffer: MeshBuffer) -> Id {
+        let mesh_buffer_id = mesh_buffer.id;
+
+        let id = match self
+            .resources_pool
             .mesh_buffers
-            .insert(mesh_buffer.id, mesh_buffer);
+            .insert(mesh_buffer.id, mesh_buffer)
+        {
+            Some(already_presented_mesh_buffer) => already_presented_mesh_buffer.id,
+            None => mesh_buffer_id,
+        };
+
+        return id;
     }
 
-    pub fn insert_texture(&'a mut self, allocated_image: AllocatedImage) {
-        self.resources_pool
+    pub fn insert_texture(&'a mut self, allocated_image: AllocatedImage) -> Id {
+        let allocated_image_id = allocated_image.id;
+
+        let id = match self
+            .resources_pool
             .textures
-            .insert(allocated_image.id, allocated_image);
+            .insert(allocated_image.id, allocated_image)
+        {
+            Some(already_presented_allocated_image) => already_presented_allocated_image.id,
+            None => allocated_image_id,
+        };
+
+        return id;
     }
 
-    pub fn insert_sampler(&'a mut self, sampler_object: SamplerObject) {
-        self.resources_pool
+    pub fn insert_sampler(&'a mut self, sampler_object: SamplerObject) -> Id {
+        let id = match self
+            .resources_pool
             .samplers
-            .insert(sampler_object.id, sampler_object);
+            .insert(sampler_object.id, sampler_object)
+        {
+            Some(already_presented_sampler_object) => already_presented_sampler_object.id,
+            None => sampler_object.id,
+        };
+
+        return id;
     }
 
     pub fn get_mesh_buffer(&'a self, id: Id) -> *const MeshBuffer {

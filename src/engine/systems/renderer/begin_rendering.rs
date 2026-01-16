@@ -30,7 +30,9 @@ pub fn begin_rendering(
 
     let image_index = frame_context.swapchain_image_index as usize;
     let swapchain_image = render_context.images[image_index];
-    let draw_image = renderer_resources.draw_image.image;
+    let draw_image = unsafe { &*renderer_resources.get_texture(renderer_resources.draw_image_id) };
+    let draw_image_view = draw_image.image_view;
+
     let depth_image = renderer_resources.depth_image.image;
 
     transition_image(
@@ -42,7 +44,7 @@ pub fn begin_rendering(
     );
     transition_image(
         command_buffer,
-        draw_image,
+        draw_image.image,
         ImageLayout::Undefined,
         ImageLayout::General,
         ImageAspectFlags::Color,
@@ -55,7 +57,7 @@ pub fn begin_rendering(
         ImageAspectFlags::Depth,
     );
 
-    let draw_image_extent3d = renderer_resources.draw_image.extent;
+    let draw_image_extent3d = draw_image.extent;
     let draw_image_extent2d = Extent2D {
         width: draw_image_extent3d.width,
         height: draw_image_extent3d.height,
@@ -68,7 +70,7 @@ pub fn begin_rendering(
     );
 
     let color_attachment_infos = [RenderingAttachmentInfo {
-        image_view: Some(renderer_resources.draw_image.image_view.borrow()),
+        image_view: Some(draw_image_view.borrow()),
         image_layout: ImageLayout::General,
         resolve_mode: ResolveModeFlags::None,
         load_op: AttachmentLoadOp::Load,
@@ -186,7 +188,7 @@ pub fn begin_rendering(
         .usage(BufferUsageFlags::ResourceDescriptorBufferEXT)
         .address(
             renderer_resources
-                .white_image_descriptor_set_handle
+                .resources_descriptor_set_handle
                 .buffer
                 .device_address,
         );
@@ -198,7 +200,7 @@ pub fn begin_rendering(
     command_buffer.set_descriptor_buffer_offsets_ext(
         PipelineBindPoint::Graphics,
         renderer_resources
-            .white_image_descriptor_set_handle
+            .resources_descriptor_set_handle
             .pipeline_layout,
         Default::default(),
         &buffer_indices,
@@ -244,7 +246,7 @@ fn draw_gradient(
         .usage(BufferUsageFlags::ResourceDescriptorBufferEXT)
         .address(
             renderer_resources
-                .draw_image_descriptor_set_handle
+                .resources_descriptor_set_handle
                 .buffer
                 .device_address,
         );
@@ -256,7 +258,7 @@ fn draw_gradient(
     command_buffer.set_descriptor_buffer_offsets_ext(
         PipelineBindPoint::Compute,
         renderer_resources
-            .draw_image_descriptor_set_handle
+            .resources_descriptor_set_handle
             .pipeline_layout,
         Default::default(),
         &buffer_indices,

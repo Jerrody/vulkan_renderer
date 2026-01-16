@@ -99,7 +99,7 @@ impl Drop for Engine {
         device.wait_idle().unwrap();
 
         unsafe {
-            let draw_image_desciptor_buffer = &renderer_resources.draw_image_descriptor_set_handle;
+            /*             let draw_image_desciptor_buffer = &renderer_resources.draw_image_descriptor_set_handle;
             let white_image_desciptor_buffer =
                 &renderer_resources.white_image_descriptor_set_handle;
             device.destroy_image_view(Some(renderer_resources.draw_image.image_view));
@@ -116,8 +116,8 @@ impl Drop for Engine {
             let pipeline_layout = renderer_resources
                 .white_image_descriptor_set_handle
                 .pipeline_layout;
-            device.destroy_pipeline_layout(Some(pipeline_layout));
-
+            device.destroy_pipeline_layout(Some(pipeline_layout)); */
+            /*
             let descriptor_set_layout = draw_image_desciptor_buffer
                 .descriptor_set_layout_handle
                 .descriptor_set_layout;
@@ -139,7 +139,7 @@ impl Drop for Engine {
             let mut allocation = white_image_desciptor_buffer.buffer.allocation;
             vulkan_context_resource
                 .allocator
-                .destroy_buffer(white_image_descriptor_buffer_raw, &mut allocation);
+                .destroy_buffer(white_image_descriptor_buffer_raw, &mut allocation); */
 
             // TODO
             /* renderer_resources
@@ -165,7 +165,7 @@ impl Drop for Engine {
             }); */
             device.destroy_pipeline_layout(Some(renderer_resources.mesh_pipeline_layout));
 
-            let draw_image_raw =
+            /*    let draw_image_raw =
                 vk::raw::Image::from_raw(renderer_resources.draw_image.image.as_raw());
             vulkan_context_resource.allocator.destroy_image(
                 draw_image_raw,
@@ -182,7 +182,7 @@ impl Drop for Engine {
             vulkan_context_resource.allocator.destroy_image(
                 white_image_raw,
                 &mut renderer_resources.white_image.allocation,
-            );
+            ); */
             drop(vulkan_context_resource.allocator);
 
             device.destroy_shader_ext(Some(

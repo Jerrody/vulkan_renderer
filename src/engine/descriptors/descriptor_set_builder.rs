@@ -1,4 +1,4 @@
-use std::{collections::HashMap, hash::Hash};
+use std::collections::HashMap;
 
 use bevy_ecs::resource::Resource;
 use vma::*;
@@ -11,6 +11,25 @@ pub enum DescriptorKind {
     StorageImage(DescriptorStorageImage),
     SampledImage(DescriptorSampledImage),
     Sampler(DescriptorSampler),
+}
+
+impl DescriptorKind {
+    pub fn get_descriptor_type(&self) -> DescriptorType {
+        let descriptor_type = match self {
+            DescriptorKind::UniformBuffer(descriptor_uniform_buffer) => {
+                descriptor_uniform_buffer.get_descriptor_type()
+            }
+            DescriptorKind::StorageImage(descriptor_storage_image) => {
+                descriptor_storage_image.get_descriptor_type()
+            }
+            DescriptorKind::SampledImage(descriptor_sampled_image) => {
+                descriptor_sampled_image.get_descriptor_type()
+            }
+            DescriptorKind::Sampler(descriptor_sampler) => descriptor_sampler.get_descriptor_type(),
+        };
+
+        descriptor_type
+    }
 }
 
 struct DescriptorSetLayoutBindingInfo<'a> {
@@ -65,8 +84,9 @@ impl<'a> DescriptorSetBuilder<'a> {
             DescriptorSetLayoutCreateFlags::DescriptorBufferEXT,
         );
 
-        let mut bindings_infos: HashMap<u32, BindingInfo, std::hash::RandomState> =
-            HashMap::with_capacity(self.bindings_infos.len());
+        let mut bindings_infos: HashMap<u32, BindingInfo, ahash::RandomState> =
+            HashMap::with_hasher(ahash::RandomState::new());
+
         self.bindings_infos.iter().enumerate().for_each(
             |(binding_index, descriptor_set_layout_binding_info)| {
                 let binding_offset = device.get_descriptor_set_layout_binding_offset_ext(
@@ -77,9 +97,10 @@ impl<'a> DescriptorSetBuilder<'a> {
                 let binding_info = BindingInfo {
                     binding_index,
                     binding_offset,
+                    next_empty_slot_index: Default::default(),
                 };
                 bindings_infos.insert(
-                    descriptor_set_layout_binding_info.binding.descriptor_type as u32,
+                    descriptor_set_layout_binding_info.binding.descriptor_type as _,
                     binding_info,
                 );
             },

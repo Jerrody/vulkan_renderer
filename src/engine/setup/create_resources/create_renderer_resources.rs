@@ -9,8 +9,8 @@ use vulkanite::{
 use crate::engine::{
     Engine,
     descriptors::{
-        DescriptorCombinedImageSampler, DescriptorKind, DescriptorSetBuilder, DescriptorSetHandle,
-        DescriptorStorageImage, descriptor_set_builder,
+        DescriptorKind, DescriptorSampledImage, DescriptorSetBuilder, DescriptorSetHandle,
+        DescriptorStorageImage,
     },
     id::Id,
     resources::{model_loader::ModelLoader, *},
@@ -22,7 +22,7 @@ impl Engine {
         let vulkan_context = world.get_resource_ref::<VulkanContextResource>().unwrap();
         let render_context = world.get_resource_ref::<RendererContext>().unwrap();
 
-        let device = &vulkan_context.device;
+        let device = vulkan_context.device;
         let allocator = &vulkan_context.allocator;
 
         let draw_image_extent = Extent3D {
@@ -89,13 +89,13 @@ impl Engine {
         };
         let nearest_sampler = device.create_sampler(&nearest_sampler_create_info).unwrap();
 
-        let draw_image_descriptor_set_handle = Self::create_descriptors(world);
+        let resources_descriptor_set_handle = Self::create_descriptors(world);
 
         //let mesh_descriptor_set_layouts = [];
-        let gradient_descriptor_layouts = [draw_image_descriptor_set_handle
+        let gradient_descriptor_layouts = [resources_descriptor_set_handle
             .descriptor_set_layout_handle
             .descriptor_set_layout];
-        let fragment_descriptor_set_layouts = [white_image_descriptor_set_handle
+        let fragment_descriptor_set_layouts = [resources_descriptor_set_handle
             .descriptor_set_layout_handle
             .descriptor_set_layout];
 
@@ -144,12 +144,10 @@ impl Engine {
 
         let model_loader = ModelLoader::new();
 
-        RendererResources {
-            draw_image,
+        let mut renderer_resources = RendererResources {
             depth_image,
-            white_image,
-            draw_image_descriptor_set_handle,
-            white_image_descriptor_set_handle,
+            draw_image_id: Id::NULL,
+            resources_descriptor_set_handle,
             gradient_compute_shader_object: created_shaders[0],
             mesh_shader_object: created_shaders[1],
             fragment_shader_object: created_shaders[2],
@@ -158,11 +156,34 @@ impl Engine {
             mesh_pipeline_layout,
             mesh_push_constant: Default::default(),
             nearest_sampler,
-        }
+        };
+
+        renderer_resources.draw_image_id = renderer_resources.insert_texture(draw_image);
+        let white_image_id = renderer_resources.insert_texture(white_image);
+
+        let draw_image_ref =
+            unsafe { &*renderer_resources.get_texture(renderer_resources.draw_image_id) };
+        let white_image_ref = unsafe { &*renderer_resources.get_texture(white_image_id) };
+
+        let descriptor_draw_image = DescriptorKind::StorageImage(DescriptorStorageImage {
+            image_view: draw_image_ref.image_view,
+        });
+        let descriptor_white_image = DescriptorKind::SampledImage(DescriptorSampledImage {
+            image_view: white_image_ref.image_view,
+        });
+
+        renderer_resources
+            .resources_descriptor_set_handle
+            .update_binding(device, allocator, descriptor_draw_image);
+        renderer_resources
+            .resources_descriptor_set_handle
+            .update_binding(device, allocator, descriptor_white_image);
+
+        renderer_resources
     }
 
     fn allocate_image(
-        device: &Device,
+        device: Device,
         allocator: &Allocator,
         format: Format,
         extent: Extent3D,
@@ -193,6 +214,7 @@ impl Engine {
 
         AllocatedImage {
             id: Id::new(image.as_raw()),
+            index: usize::MIN,
             image,
             image_view,
             allocation,
@@ -263,12 +285,12 @@ impl Engine {
         );
         descriptor_set_builder.add_binding(
             DescriptorType::StorageImage,
-            1,
-            DescriptorBindingFlags::PartiallyBound,
+            128,
+            DescriptorBindingFlags::PartiallyBound | DescriptorBindingFlags::UpdateAfterBind,
         );
         descriptor_set_builder.add_binding(
             DescriptorType::SampledImage,
-            128,
+            4096,
             DescriptorBindingFlags::PartiallyBound
                 | DescriptorBindingFlags::VariableDescriptorCount
                 | DescriptorBindingFlags::UpdateAfterBind,

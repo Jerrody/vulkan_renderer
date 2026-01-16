@@ -1,9 +1,12 @@
 use std::mem::ManuallyDrop;
 
 use ahash::HashMap;
-use vma::{Allocation, Allocator};
+use vma::Allocator;
 
-use vulkanite::vk::{rs::*, *};
+use vulkanite::{
+    Handle,
+    vk::{rs::*, *},
+};
 
 use crate::engine::{descriptors::DescriptorKind, resources::AllocatedBuffer};
 
@@ -18,6 +21,7 @@ pub struct DescriptorSetBinding {
     pub offset: usize,
 }
 
+#[derive(Clone, Copy)]
 pub struct DescriptorsSizes {
     pub uniform_buffer_descriptor_size: usize,
     pub sampled_image_descriptor_size: usize,
@@ -26,9 +30,12 @@ pub struct DescriptorsSizes {
     pub storage_buffer_descriptor_size: usize,
 }
 
+#[derive(Clone, Copy)]
 pub struct BindingInfo {
     pub binding_index: usize,
     pub binding_offset: DeviceSize,
+    // TODO: Pick next free slot index for simplicity, in reality, we should take free slot based on slot occupancy.
+    pub next_empty_slot_index: usize,
 }
 
 pub struct DescriptorSetHandle {
@@ -42,37 +49,65 @@ pub struct DescriptorSetHandle {
 impl DescriptorSetHandle {
     pub fn update_binding(
         &mut self,
-        binding_index: u32,
-        element_index: u32,
+        device: Device,
+        allocator: &Allocator,
         descriptor_kind: DescriptorKind,
     ) {
-        let mut allocation = &mut self.buffer.allocation;
+        let descriptor_type = descriptor_kind.get_descriptor_type();
+
+        let descriptors_sizes = self.descriptors_sizes;
+        let descriptor_size = match descriptor_type {
+            DescriptorType::UniformBuffer => descriptors_sizes.uniform_buffer_descriptor_size,
+            DescriptorType::SampledImage => descriptors_sizes.sampled_image_descriptor_size,
+            DescriptorType::StorageImage => descriptors_sizes.storage_image_descriptor_size,
+            DescriptorType::Sampler => descriptors_sizes.sampled_image_descriptor_size,
+            unsupported_descriptor_type => panic!(
+                "Unsupported Descriptor Type found: {:?}",
+                unsupported_descriptor_type
+            ),
+        };
+
+        let descriptor_type_raw = descriptor_type as u32;
+        let binding_info = self.bindings_infos[&descriptor_type_raw];
+
+        let base_binding_offset = binding_info.binding_offset;
+        let binding_offset = base_binding_offset
+            + (binding_info.next_empty_slot_index as u64 * descriptor_size as u64);
+
+        let allocation = &mut self.buffer.allocation;
+        let descriptor_buffer_address = unsafe { allocator.map_memory(allocation).unwrap() };
+
+        let target_descriptor_buffer_address =
+            unsafe { descriptor_buffer_address.add(binding_offset as usize) };
+
         let mut descriptor_data = DescriptorDataEXT::default();
+        let mut descriptor_get_info = DescriptorGetInfoEXT::default();
 
         match descriptor_kind {
             DescriptorKind::UniformBuffer(descriptor_uniform_buffer) => {
-                let uniform_descriptor_address_info = DescriptorAddressInfoEXT {
+                let uniform_buffer_descriptor_address_info = DescriptorAddressInfoEXT {
                     address: descriptor_uniform_buffer.address,
                     range: descriptor_uniform_buffer.size,
                     format: Format::Undefined,
                     ..Default::default()
                 };
 
-                let p_uniform_descriptor_address_info =
-                    ManuallyDrop::new(&uniform_descriptor_address_info as *const _ as _);
+                let mut p_uniform_descriptor_address_info =
+                    ManuallyDrop::new(&uniform_buffer_descriptor_address_info as *const _ as _);
                 descriptor_data.p_uniform_buffer = p_uniform_descriptor_address_info;
 
-                Self::get_descriptor(
-                    device,
-                    allocator,
-                    descriptor_buffer_allocation,
-                    descriptor_uniform_buffer.get_descriptor_type(),
-                    descriptor_data,
+                descriptor_get_info.ty = DescriptorType::UniformBuffer;
+                descriptor_get_info.data = descriptor_data;
+
+                device.get_descriptor_ext(
+                    &descriptor_get_info,
                     descriptor_size,
-                    binding_info.binding_offset,
+                    target_descriptor_buffer_address as _,
                 );
 
-                drop(p_uniform_descriptor_address_info);
+                unsafe {
+                    ManuallyDrop::drop(&mut p_uniform_descriptor_address_info);
+                }
             }
             DescriptorKind::StorageImage(descriptor_storage_image) => {
                 let storage_image_descriptor_info = DescriptorImageInfo {
@@ -81,21 +116,22 @@ impl DescriptorSetHandle {
                     ..Default::default()
                 };
 
-                let p_storage_image_descriptor_info =
+                let mut p_storage_image_descriptor_info =
                     ManuallyDrop::new(&storage_image_descriptor_info as *const _ as _);
                 descriptor_data.p_storage_image = p_storage_image_descriptor_info;
 
-                Self::get_descriptor(
-                    device,
-                    allocator,
-                    descriptor_buffer_allocation,
-                    descriptor_storage_image.get_descriptor_type(),
-                    descriptor_data,
+                descriptor_get_info.ty = DescriptorType::StorageImage;
+                descriptor_get_info.data = descriptor_data;
+
+                device.get_descriptor_ext(
+                    &descriptor_get_info,
                     descriptor_size,
-                    binding_info.binding_offset,
+                    target_descriptor_buffer_address as _,
                 );
 
-                drop(p_storage_image_descriptor_info);
+                unsafe {
+                    ManuallyDrop::drop(&mut p_storage_image_descriptor_info);
+                }
             }
             DescriptorKind::SampledImage(descriptor_sampled_image) => {
                 let sampled_image_descriptor_info = DescriptorImageInfo {
@@ -104,74 +140,44 @@ impl DescriptorSetHandle {
                     ..Default::default()
                 };
 
-                let p_sampled_image_descriptor_info =
+                let mut p_sampled_image_descriptor_info =
                     ManuallyDrop::new(&sampled_image_descriptor_info as *const _ as _);
                 descriptor_data.p_sampled_image = p_sampled_image_descriptor_info;
 
-                Self::get_descriptor(
-                    device,
-                    allocator,
-                    descriptor_buffer_allocation,
-                    descriptor_sampled_image.get_descriptor_type(),
-                    descriptor_data,
+                descriptor_get_info.ty = DescriptorType::SampledImage;
+                descriptor_get_info.data = descriptor_data;
+
+                device.get_descriptor_ext(
+                    &descriptor_get_info,
                     descriptor_size,
-                    binding_info.binding_offset,
+                    target_descriptor_buffer_address as _,
                 );
 
-                drop(p_sampled_image_descriptor_info);
+                unsafe {
+                    ManuallyDrop::drop(&mut p_sampled_image_descriptor_info);
+                }
             }
             DescriptorKind::Sampler(descriptor_sampler) => {
-                let p_sampler = ManuallyDrop::new(&descriptor_sampler.sampler as *const _ as _);
+                let mut p_sampler = ManuallyDrop::new(&descriptor_sampler.sampler as *const _ as _);
                 descriptor_data.p_sampler = p_sampler;
 
-                self.get_descriptor(
-                    device,
-                    allocator,
-                    descriptor_buffer_allocation,
-                    descriptor_sampler.get_descriptor_type(),
-                    descriptor_data,
+                descriptor_get_info.ty = DescriptorType::Sampler;
+                descriptor_get_info.data = descriptor_data;
+
+                device.get_descriptor_ext(
+                    &descriptor_get_info,
                     descriptor_size,
-                    binding_info.binding_offset,
+                    target_descriptor_buffer_address as _,
                 );
 
-                drop(p_sampler);
+                unsafe {
+                    ManuallyDrop::drop(&mut p_sampler);
+                }
             }
         };
-    }
-
-    fn get_descriptor(
-        &self,
-        device: Device,
-        allocator: &Allocator,
-        allocation: &mut Allocation,
-        descriptor_type: DescriptorType,
-        descriptor_data: DescriptorDataEXT<'_>,
-        descriptor_size: usize,
-        descriptor_binding_offset: u64,
-    ) {
-        let descriptor_get_info = DescriptorGetInfoEXT {
-            ty: descriptor_type,
-            data: descriptor_data,
-            ..Default::default()
-        };
-
-        let descriptor_buffer_address_with_offset = unsafe {
-            let mut descriptor_buffer_address = allocator.map_memory(allocation).unwrap();
-
-            descriptor_buffer_address =
-                descriptor_buffer_address.add(descriptor_binding_offset as _);
-
-            descriptor_buffer_address
-        };
-
-        device.get_descriptor_ext(
-            &descriptor_get_info,
-            descriptor_size,
-            descriptor_buffer_address_with_offset as _,
-        );
 
         unsafe {
-            allocator.unmap_memory(allocation);
+            allocator.unmap_memory(&mut *allocation);
         }
     }
 }

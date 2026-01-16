@@ -113,6 +113,7 @@ pub fn on_load_model(
         let uuid = Uuid::new_v4();
         let mesh_buffer = MeshBuffer {
             id: Id::new(uuid),
+            index: usize::MIN,
             vertex_buffer: vertex_buffer,
             vertex_indices_buffer,
             meshlets_buffer,
