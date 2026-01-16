@@ -32,7 +32,6 @@ pub struct DescriptorsSizes {
 
 #[derive(Clone, Copy)]
 pub struct BindingInfo {
-    pub binding_index: usize,
     pub binding_offset: DeviceSize,
     // TODO: Pick next free slot index for simplicity, in reality, we should take free slot based on slot occupancy.
     pub next_empty_slot_index: usize,

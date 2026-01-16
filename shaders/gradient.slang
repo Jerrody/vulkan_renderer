@@ -1,3 +1,4 @@
+[[vk::binding(1, 0)]]
 let image : RWTexture2D<float4>;
 
 [shader("compute")]

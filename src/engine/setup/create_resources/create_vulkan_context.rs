@@ -312,7 +312,9 @@ impl Engine {
                 .buffer_device_address(true)
                 .scalar_block_layout(true)
                 .storage_push_constant8(true)
-                .shader_int8(true),
+                .shader_int8(true)
+                .descriptor_binding_partially_bound(true)
+                .descriptor_binding_variable_descriptor_count(true),
             PhysicalDeviceVulkan13Features::default()
                 .synchronization2(true)
                 .dynamic_rendering(true),

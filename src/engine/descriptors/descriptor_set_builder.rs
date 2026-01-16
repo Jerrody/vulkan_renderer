@@ -95,7 +95,6 @@ impl<'a> DescriptorSetBuilder<'a> {
                 );
 
                 let binding_info = BindingInfo {
-                    binding_index,
                     binding_offset,
                     next_empty_slot_index: Default::default(),
                 };

@@ -286,21 +286,20 @@ impl Engine {
         descriptor_set_builder.add_binding(
             DescriptorType::StorageImage,
             128,
-            DescriptorBindingFlags::PartiallyBound | DescriptorBindingFlags::UpdateAfterBind,
+            DescriptorBindingFlags::PartiallyBound,
         );
         descriptor_set_builder.add_binding(
             DescriptorType::SampledImage,
             4096,
             DescriptorBindingFlags::PartiallyBound
-                | DescriptorBindingFlags::VariableDescriptorCount
-                | DescriptorBindingFlags::UpdateAfterBind,
+                | DescriptorBindingFlags::VariableDescriptorCount,
         );
 
         let resources_descriptor_set_handle = descriptor_set_builder.build(
             device,
             &vulkan_context_resource.allocator,
             &device_properties_resource.descriptor_buffer_properties,
-            ShaderStageFlags::Compute,
+            ShaderStageFlags::Compute | ShaderStageFlags::Fragment,
         );
 
         resources_descriptor_set_handle
