@@ -15,17 +15,25 @@ pub fn render_meshes(
 
     let mesh_pipeline_layout = renderer_resources.mesh_pipeline_layout;
     meshes.iter().for_each(|mesh| {
-        let p_mesh_buffer = renderer_resources.get_mesh_buffer(mesh.buffer_id);
-        let mesh_buffer = unsafe { &*p_mesh_buffer };
+        let mesh_buffer = renderer_resources.get_mesh_buffer_ref(mesh.buffer_id);
 
-        let mesh_push_constant = &mut renderer_resources.mesh_push_constant;
-        mesh_push_constant.world_matrix = frame_context.world_matrix;
-        mesh_push_constant.vertex_buffer_device_adress = mesh_buffer.vertex_buffer.device_address;
-        mesh_push_constant.vertex_indices_device_address =
-            mesh_buffer.vertex_indices_buffer.device_address;
-        mesh_push_constant.meshlets_device_address = mesh_buffer.meshlets_buffer.device_address;
-        mesh_push_constant.local_indices_device_address =
-            mesh_buffer.local_indices_buffer.device_address;
+        let texture_image_index = renderer_resources
+            .get_texture_ref(renderer_resources.draw_image_id)
+            .index;
+        let nearest_sampler_index = renderer_resources
+            .get_sampler(renderer_resources.nearest_sampler_id)
+            .index;
+
+        let mesh_push_constant = &MeshPushConstant {
+            world_matrix: frame_context.world_matrix,
+            vertex_buffer_device_adress: mesh_buffer.vertex_buffer.device_address,
+            vertex_indices_device_address: mesh_buffer.vertex_indices_buffer.device_address,
+            meshlets_device_address: mesh_buffer.meshlets_buffer.device_address,
+            local_indices_device_address: mesh_buffer.local_indices_buffer.device_address,
+            texture_image_index: texture_image_index as _,
+            sampler_index: nearest_sampler_index as _,
+            ..Default::default()
+        };
 
         let p_mesh_push_constant = mesh_push_constant as *const MeshPushConstant;
         command_buffer.push_constants(

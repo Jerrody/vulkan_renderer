@@ -1,6 +1,8 @@
 pub mod allocation;
 pub mod model_loader;
 
+use std::slice::Iter;
+
 use ahash::HashMap;
 use asset_importer::utils::mesh;
 use bevy_ecs::resource::Resource;
@@ -54,9 +56,9 @@ pub struct MeshPushConstant {
     pub vertex_buffer_device_adress: DeviceAddress,
     pub vertex_indices_device_address: DeviceAddress,
     pub local_indices_device_address: DeviceAddress,
-    pub sampler_index: DeviceSize,
-    pub texture_image_index: DeviceSize,
-    pub draw_image_index: DeviceSize,
+    pub sampler_index: u32,
+    pub texture_image_index: u32,
+    pub draw_image_index: u32,
 }
 
 pub struct AllocatedImage {
@@ -114,7 +116,7 @@ pub struct ResourcesPool {
 
 #[derive(Resource)]
 pub struct RendererResources {
-    pub depth_image: AllocatedImage,
+    pub depth_image_id: Id,
     pub draw_image_id: Id,
     pub white_image_id: Id,
     pub nearest_sampler_id: Id,
@@ -125,7 +127,6 @@ pub struct RendererResources {
     pub model_loader: ModelLoader,
     pub resources_pool: ResourcesPool,
     pub mesh_pipeline_layout: PipelineLayout,
-    pub mesh_push_constant: MeshPushConstant,
 }
 
 impl<'a> RendererResources {
@@ -143,6 +144,42 @@ impl<'a> RendererResources {
         };
 
         return id;
+    }
+
+    #[must_use]
+    pub fn get_mesh_buffers_iter(&'a self) -> std::collections::hash_map::Iter<'a, Id, MeshBuffer> {
+        self.resources_pool.mesh_buffers.iter()
+    }
+
+    #[must_use]
+    pub fn get_textures_iter(&'a self) -> std::collections::hash_map::Iter<'a, Id, AllocatedImage> {
+        self.resources_pool.textures.iter()
+    }
+
+    #[must_use]
+    pub fn get_samplers_iter(&'a self) -> std::collections::hash_map::Iter<'a, Id, SamplerObject> {
+        self.resources_pool.samplers.iter()
+    }
+
+    #[must_use]
+    pub fn get_mesh_buffers_iter_mut(
+        &'a mut self,
+    ) -> std::collections::hash_map::IterMut<'a, Id, MeshBuffer> {
+        self.resources_pool.mesh_buffers.iter_mut()
+    }
+
+    #[must_use]
+    pub fn get_textures_iter_mut(
+        &'a mut self,
+    ) -> std::collections::hash_map::IterMut<'a, Id, AllocatedImage> {
+        self.resources_pool.textures.iter_mut()
+    }
+
+    #[must_use]
+    pub fn get_samplers_iter_mut(
+        &'a mut self,
+    ) -> std::collections::hash_map::IterMut<'a, Id, SamplerObject> {
+        self.resources_pool.samplers.iter_mut()
     }
 
     #[must_use]
@@ -176,13 +213,13 @@ impl<'a> RendererResources {
     }
 
     #[must_use]
-    pub fn get_mesh_buffer(&'a self, id: Id) -> *const MeshBuffer {
-        self.resources_pool.mesh_buffers.get(&id).unwrap()
+    pub fn get_mesh_buffer_ref(&'a self, id: Id) -> &'a MeshBuffer {
+        unsafe { &*(self.resources_pool.mesh_buffers.get(&id).unwrap() as *const _) }
     }
 
     #[must_use]
-    pub fn get_texture(&'a self, id: Id) -> *const AllocatedImage {
-        self.resources_pool.textures.get(&id).unwrap()
+    pub fn get_texture_ref(&'a self, id: Id) -> &'a AllocatedImage {
+        unsafe { &*(self.resources_pool.textures.get(&id).unwrap() as *const _) }
     }
 
     #[must_use]
@@ -191,17 +228,17 @@ impl<'a> RendererResources {
     }
 
     #[must_use]
-    pub fn get_mesh_buffer_mut(&'a mut self, id: Id) -> *mut MeshBuffer {
-        self.resources_pool.mesh_buffers.get_mut(&id).unwrap()
+    pub fn get_mesh_buffer_mut(&'a mut self, id: Id) -> &'a mut MeshBuffer {
+        unsafe { &mut *(self.resources_pool.mesh_buffers.get_mut(&id).unwrap() as *mut _) }
     }
 
     #[must_use]
-    pub fn get_texture_ref_mut(&'a mut self, id: Id) -> *mut AllocatedImage {
-        self.resources_pool.textures.get_mut(&id).unwrap()
+    pub fn get_texture_ref_mut(&'a mut self, id: Id) -> &'a mut AllocatedImage {
+        unsafe { &mut *(self.resources_pool.textures.get_mut(&id).unwrap() as *mut _) }
     }
 
     #[must_use]
-    pub fn get_sampler_ref_mut(&'a mut self, id: Id) -> *mut SamplerObject {
-        self.resources_pool.samplers.get_mut(&id).unwrap()
+    pub fn get_sampler_ref_mut(&'a mut self, id: Id) -> &'a mut SamplerObject {
+        unsafe { &mut *(self.resources_pool.samplers.get_mut(&id).unwrap() as *mut _) }
     }
 }

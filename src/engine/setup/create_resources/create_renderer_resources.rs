@@ -54,6 +54,7 @@ impl Engine {
             }
         }
 
+        println!("1");
         let white_image_extent = Extent3D {
             width: 16,
             height: 16,
@@ -66,6 +67,7 @@ impl Engine {
             white_image_extent,
             ImageUsageFlags::Sampled | ImageUsageFlags::HostTransfer | ImageUsageFlags::TransferDst,
         );
+        println!("2");
 
         vulkan_context.transfer_data_to_image(
             &white_image,
@@ -156,7 +158,7 @@ impl Engine {
         let model_loader = ModelLoader::new();
 
         let mut renderer_resources = RendererResources {
-            depth_image,
+            depth_image_id: Id::NULL,
             draw_image_id: Id::NULL,
             white_image_id: Id::NULL,
             nearest_sampler_id: Id::NULL,
@@ -167,43 +169,46 @@ impl Engine {
             model_loader,
             resources_pool: Default::default(),
             mesh_pipeline_layout,
-            mesh_push_constant: Default::default(),
         };
 
         renderer_resources.draw_image_id = renderer_resources.insert_texture(draw_image);
+        renderer_resources.depth_image_id = renderer_resources.insert_texture(depth_image);
         renderer_resources.white_image_id = renderer_resources.insert_texture(white_image);
         renderer_resources.nearest_sampler_id =
             renderer_resources.insert_sampler(nearest_sampler_object);
 
-        let draw_image_ref_mut = unsafe {
-            &mut *renderer_resources.get_texture_ref_mut(renderer_resources.draw_image_id)
-        };
-        let white_image_ref_mut = unsafe {
-            &mut *renderer_resources.get_texture_ref_mut(renderer_resources.white_image_id)
-        };
-        let sampler_object_ref_mut = unsafe {
-            &mut *renderer_resources.get_sampler_ref_mut(renderer_resources.nearest_sampler_id)
-        };
-
+        let draw_image_ref = renderer_resources.get_texture_ref(renderer_resources.draw_image_id);
         let descriptor_draw_image = DescriptorKind::StorageImage(DescriptorStorageImage {
-            image_view: draw_image_ref_mut.image_view,
+            image_view: draw_image_ref.image_view,
         });
-        let descriptor_white_image = DescriptorKind::SampledImage(DescriptorSampledImage {
-            image_view: white_image_ref_mut.image_view,
-        });
-        let sampler_descriptor = DescriptorKind::Sampler(DescriptorSampler {
-            sampler: nearest_sampler_object.sampler,
-        });
-
-        draw_image_ref_mut.index = renderer_resources
+        let draw_image_index = renderer_resources
             .resources_descriptor_set_handle
             .update_binding(device, allocator, descriptor_draw_image);
-        white_image_ref_mut.index = renderer_resources
+        renderer_resources
+            .get_texture_ref_mut(renderer_resources.draw_image_id)
+            .index = draw_image_index;
+
+        let white_image_ref = renderer_resources.get_texture_ref(renderer_resources.white_image_id);
+        let descriptor_white_image = DescriptorKind::SampledImage(DescriptorSampledImage {
+            image_view: white_image_ref.image_view,
+        });
+        let white_image_index = renderer_resources
             .resources_descriptor_set_handle
             .update_binding(device, allocator, descriptor_white_image);
-        sampler_object_ref_mut.index = renderer_resources
+        renderer_resources
+            .get_texture_ref_mut(renderer_resources.white_image_id)
+            .index = white_image_index;
+
+        let sampler_object = renderer_resources.get_sampler(renderer_resources.nearest_sampler_id);
+        let sampler_descriptor = DescriptorKind::Sampler(DescriptorSampler {
+            sampler: sampler_object.sampler,
+        });
+        let sampler_object_index = renderer_resources
             .resources_descriptor_set_handle
             .update_binding(device, allocator, sampler_descriptor);
+        renderer_resources
+            .get_sampler_ref_mut(renderer_resources.nearest_sampler_id)
+            .index = sampler_object_index;
 
         renderer_resources
     }

@@ -31,9 +31,9 @@ struct PushConstants
     let vertices : Vertex *;
     let vertex_indices : uint32_t *;
     let local_indices : uint8_t *;
-    let sampler_index : uint64_t;
-    let texture_image_index : uint64_t;
-    let draw_image_index : uint64_t;
+    let sampler_index : uint32_t;
+    let texture_image_index : uint32_t;
+    let draw_image_index : uint32_t;
 };
 
 [[vk::push_constant]]

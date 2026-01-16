@@ -15,13 +15,16 @@ use bevy_ecs::{
 };
 use vulkanite::{
     Handle,
-    vk::{self},
+    vk::{self, rs::Device},
 };
 use winit::window::Window;
 
 use crate::engine::{
     events::LoadModelEvent,
-    resources::{FrameContext, RendererContext, RendererResources, VulkanContextResource},
+    resources::{
+        AllocatedBuffer, AllocatedImage, FrameContext, RendererContext, RendererResources,
+        VulkanContextResource,
+    },
     systems::{
         begin_rendering, end_rendering, on_load_model, on_spawn_mesh, prepare_frame, present,
         render_meshes,
@@ -83,6 +86,33 @@ impl Engine {
         self.world.flush();
         self.world.run_schedule(ScheduleLabelUpdate);
     }
+
+    unsafe fn destroy_buffer(
+        &self,
+        allocator: &vma::Allocator,
+        allocated_buffer: &mut AllocatedBuffer,
+    ) {
+        let allocation = &mut allocated_buffer.allocation;
+        unsafe {
+            let buffer_raw = vk::raw::Buffer::from_raw(allocated_buffer.buffer.as_raw());
+            allocator.destroy_buffer(buffer_raw, allocation);
+        }
+    }
+
+    unsafe fn destroy_image(
+        &self,
+        device: Device,
+        allocator: &vma::Allocator,
+        allocated_image: &mut AllocatedImage,
+    ) {
+        let allocation = &mut allocated_image.allocation;
+        unsafe {
+            device.destroy_image_view(Some(allocated_image.image_view));
+
+            let image_raw = vk::raw::Image::from_raw(allocated_image.image.as_raw());
+            allocator.destroy_image(image_raw, allocation);
+        }
+    }
 }
 
 impl Drop for Engine {
@@ -94,95 +124,62 @@ impl Drop for Engine {
         let render_context_resource = self.world.remove_resource::<RendererContext>().unwrap();
         let mut renderer_resources = self.world.remove_resource::<RendererResources>().unwrap();
 
-        let device = &mut vulkan_context_resource.device;
+        let device = vulkan_context_resource.device;
 
         device.wait_idle().unwrap();
 
         unsafe {
-            /*             let draw_image_desciptor_buffer = &renderer_resources.draw_image_descriptor_set_handle;
-            let white_image_desciptor_buffer =
-                &renderer_resources.white_image_descriptor_set_handle;
-            device.destroy_image_view(Some(renderer_resources.draw_image.image_view));
-            device.destroy_image_view(Some(renderer_resources.depth_image.image_view));
-            device.destroy_image_view(Some(renderer_resources.white_image.image_view));
+            self.destroy_buffer(
+                &vulkan_context_resource.allocator,
+                &mut renderer_resources.resources_descriptor_set_handle.buffer,
+            );
 
-            device.destroy_sampler(Some(renderer_resources.nearest_sampler));
+            device.destroy_pipeline_layout(Some(
+                renderer_resources
+                    .resources_descriptor_set_handle
+                    .pipeline_layout,
+            ));
 
-            let pipeline_layout = renderer_resources
-                .draw_image_descriptor_set_handle
-                .pipeline_layout;
-            device.destroy_pipeline_layout(Some(pipeline_layout));
+            device.destroy_descriptor_set_layout(Some(
+                renderer_resources
+                    .resources_descriptor_set_handle
+                    .descriptor_set_layout_handle
+                    .descriptor_set_layout,
+            ));
 
-            let pipeline_layout = renderer_resources
-                .white_image_descriptor_set_handle
-                .pipeline_layout;
-            device.destroy_pipeline_layout(Some(pipeline_layout)); */
-            /*
-            let descriptor_set_layout = draw_image_desciptor_buffer
-                .descriptor_set_layout_handle
-                .descriptor_set_layout;
-            device.destroy_descriptor_set_layout(Some(descriptor_set_layout));
-            let descriptor_set_layout = white_image_desciptor_buffer
-                .descriptor_set_layout_handle
-                .descriptor_set_layout;
-            device.destroy_descriptor_set_layout(Some(descriptor_set_layout));
+            renderer_resources
+                .get_samplers_iter()
+                .for_each(|(_, &sampler_object)| {
+                    device.destroy_sampler(Some(sampler_object.sampler));
+                });
+            renderer_resources
+                .get_textures_iter_mut()
+                .for_each(|(_, allocated_image)| {
+                    self.destroy_image(device, &vulkan_context_resource.allocator, allocated_image);
+                });
+            renderer_resources
+                .get_mesh_buffers_iter_mut()
+                .for_each(|(_, mesh_buffer)| {
+                    self.destroy_buffer(
+                        &vulkan_context_resource.allocator,
+                        &mut mesh_buffer.local_indices_buffer,
+                    );
+                    self.destroy_buffer(
+                        &vulkan_context_resource.allocator,
+                        &mut mesh_buffer.meshlets_buffer,
+                    );
+                    self.destroy_buffer(
+                        &vulkan_context_resource.allocator,
+                        &mut mesh_buffer.vertex_buffer,
+                    );
+                    self.destroy_buffer(
+                        &vulkan_context_resource.allocator,
+                        &mut mesh_buffer.vertex_indices_buffer,
+                    );
+                });
 
-            let draw_image_descriptor_buffer_raw =
-                vk::raw::Buffer::from_raw(draw_image_desciptor_buffer.buffer.buffer.as_raw());
-            let mut allocation = draw_image_desciptor_buffer.buffer.allocation;
-            vulkan_context_resource
-                .allocator
-                .destroy_buffer(draw_image_descriptor_buffer_raw, &mut allocation);
-
-            let white_image_descriptor_buffer_raw =
-                vk::raw::Buffer::from_raw(white_image_desciptor_buffer.buffer.buffer.as_raw());
-            let mut allocation = white_image_desciptor_buffer.buffer.allocation;
-            vulkan_context_resource
-                .allocator
-                .destroy_buffer(white_image_descriptor_buffer_raw, &mut allocation); */
-
-            // TODO
-            /* renderer_resources
-            .mesh_buffers
-            .iter_mut()
-            .for_each(|mesh_buffer| {
-                vulkan_context_resource.allocator.destroy_buffer(
-                    *mesh_buffer.vertex_buffer.buffer,
-                    &mut mesh_buffer.vertex_buffer.allocation,
-                );
-                vulkan_context_resource.allocator.destroy_buffer(
-                    *mesh_buffer.vertex_indices_buffer.buffer,
-                    &mut mesh_buffer.vertex_indices_buffer.allocation,
-                );
-                vulkan_context_resource.allocator.destroy_buffer(
-                    *mesh_buffer.meshlets_buffer.buffer,
-                    &mut mesh_buffer.meshlets_buffer.allocation,
-                );
-                vulkan_context_resource.allocator.destroy_buffer(
-                    *mesh_buffer.local_indices_buffer.buffer,
-                    &mut mesh_buffer.local_indices_buffer.allocation,
-                );
-            }); */
             device.destroy_pipeline_layout(Some(renderer_resources.mesh_pipeline_layout));
 
-            /*    let draw_image_raw =
-                vk::raw::Image::from_raw(renderer_resources.draw_image.image.as_raw());
-            vulkan_context_resource.allocator.destroy_image(
-                draw_image_raw,
-                &mut renderer_resources.draw_image.allocation,
-            );
-            let depth_image_raw =
-                vk::raw::Image::from_raw(renderer_resources.depth_image.image.as_raw());
-            vulkan_context_resource.allocator.destroy_image(
-                depth_image_raw,
-                &mut renderer_resources.depth_image.allocation,
-            );
-            let white_image_raw =
-                vk::raw::Image::from_raw(renderer_resources.white_image.image.as_raw());
-            vulkan_context_resource.allocator.destroy_image(
-                white_image_raw,
-                &mut renderer_resources.white_image.allocation,
-            ); */
             drop(vulkan_context_resource.allocator);
 
             device.destroy_shader_ext(Some(

@@ -9,7 +9,7 @@ use vulkanite::{
 };
 
 use crate::engine::{
-    resources::{FrameContext, RendererContext, RendererResources},
+    resources::{FrameContext, MeshPushConstant, RendererContext, RendererResources},
     utils::{self, image_subresource_range, transition_image},
 };
 
@@ -30,10 +30,11 @@ pub fn begin_rendering(
 
     let image_index = frame_context.swapchain_image_index as usize;
     let swapchain_image = render_context.images[image_index];
-    let draw_image = unsafe { &*renderer_resources.get_texture(renderer_resources.draw_image_id) };
+    let draw_image =
+        unsafe { &*renderer_resources.get_texture_ref(renderer_resources.draw_image_id) };
     let draw_image_view = draw_image.image_view;
 
-    let depth_image = renderer_resources.depth_image.image;
+    let depth_image = renderer_resources.get_texture_ref(renderer_resources.depth_image_id);
 
     transition_image(
         command_buffer,
@@ -51,7 +52,7 @@ pub fn begin_rendering(
     );
     transition_image(
         command_buffer,
-        depth_image,
+        depth_image.image,
         ImageLayout::Undefined,
         ImageLayout::General,
         ImageAspectFlags::Depth,
@@ -78,7 +79,7 @@ pub fn begin_rendering(
         ..Default::default()
     }];
     let depth_attachment_info = &RenderingAttachmentInfo {
-        image_view: Some(renderer_resources.depth_image.image_view.borrow()),
+        image_view: Some(depth_image.image_view.borrow()),
         image_layout: ImageLayout::General,
         resolve_mode: ResolveModeFlags::None,
         load_op: AttachmentLoadOp::Clear,
@@ -242,6 +243,22 @@ fn draw_gradient(
 
     command_buffer.bind_shaders_ext(stages.as_slice(), shaders.as_slice());
 
+    let draw_image_ref = renderer_resources.get_texture_ref(renderer_resources.draw_image_id);
+    let mesh_push_constant = &MeshPushConstant {
+        draw_image_index: draw_image_ref.index as _,
+        ..Default::default()
+    };
+
+    command_buffer.push_constants(
+        renderer_resources
+            .resources_descriptor_set_handle
+            .pipeline_layout,
+        ShaderStageFlags::Compute,
+        std::mem::offset_of!(MeshPushConstant, draw_image_index) as _,
+        std::mem::size_of::<DeviceSize>() as _,
+        mesh_push_constant as *const _ as _,
+    );
+
     let descriptor_binding_info = DescriptorBufferBindingInfoEXT::default()
         .usage(BufferUsageFlags::ResourceDescriptorBufferEXT)
         .address(
@@ -250,6 +267,7 @@ fn draw_gradient(
                 .buffer
                 .device_address,
         );
+
     let descriptor_binding_infos = [descriptor_binding_info];
     command_buffer.bind_descriptor_buffers_ext(&descriptor_binding_infos);
 

@@ -15,7 +15,8 @@ pub fn end_rendering(
 
     let swapchain_image = renderer_context.images[frame_context.swapchain_image_index as usize];
 
-    let draw_image = unsafe { &*renderer_resources.get_texture(renderer_resources.draw_image_id) };
+    let draw_image =
+        unsafe { &*renderer_resources.get_texture_ref(renderer_resources.draw_image_id) };
 
     let draw_image_extent3d = draw_image.extent;
     let draw_image_extent2d = Extent2D {
