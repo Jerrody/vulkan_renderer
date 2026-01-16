@@ -249,16 +249,6 @@ fn draw_gradient(
         ..Default::default()
     };
 
-    command_buffer.push_constants(
-        renderer_resources
-            .resources_descriptor_set_handle
-            .pipeline_layout,
-        ShaderStageFlags::Compute,
-        std::mem::offset_of!(MeshPushConstant, draw_image_index) as _,
-        std::mem::size_of::<DeviceSize>() as _,
-        mesh_push_constant as *const _ as _,
-    );
-
     let descriptor_binding_info = DescriptorBufferBindingInfoEXT::default()
         .usage(BufferUsageFlags::ResourceDescriptorBufferEXT)
         .address(
@@ -281,6 +271,16 @@ fn draw_gradient(
         Default::default(),
         &buffer_indices,
         &offsets,
+    );
+
+    command_buffer.push_constants(
+        renderer_resources
+            .resources_descriptor_set_handle
+            .pipeline_layout,
+        ShaderStageFlags::Compute,
+        std::mem::offset_of!(MeshPushConstant, draw_image_index) as _,
+        std::mem::size_of::<DeviceSize>() as _,
+        mesh_push_constant as *const _ as _,
     );
 
     command_buffer.dispatch(

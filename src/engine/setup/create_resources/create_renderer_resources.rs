@@ -54,7 +54,6 @@ impl Engine {
             }
         }
 
-        println!("1");
         let white_image_extent = Extent3D {
             width: 16,
             height: 16,
@@ -67,7 +66,6 @@ impl Engine {
             white_image_extent,
             ImageUsageFlags::Sampled | ImageUsageFlags::HostTransfer | ImageUsageFlags::TransferDst,
         );
-        println!("2");
 
         vulkan_context.transfer_data_to_image(
             &white_image,
@@ -105,7 +103,7 @@ impl Engine {
         let compute_push_constant_range = PushConstantRange {
             stage_flags: ShaderStageFlags::Compute,
             offset: std::mem::offset_of!(MeshPushConstant, draw_image_index) as _,
-            size: std::mem::size_of::<DeviceSize>() as _,
+            size: std::mem::size_of::<u32>() as _,
         };
         let mesh_push_constant_range = PushConstantRange {
             stage_flags: ShaderStageFlags::MeshEXT,
