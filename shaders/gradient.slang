@@ -1,11 +1,21 @@
+struct PushConstants
+{
+    let draw_image_index : uint64_t;
+};
+
+[[vk::push_constant]]
+ConstantBuffer<PushConstants> pushConsts;
+
 [[vk::binding(1, 0)]]
-let image : RWTexture2D<float4>;
+RWTexture2D<float4> images[128];
 
 [shader("compute")]
 [numthreads(16, 16, 1)]
 func main(uint3 dispatch_thread_id: SV_DispatchThreadID, uint3 group_thread_id: SV_GroupThreadID)
 {
     let texel_coord = dispatch_thread_id.xy;
+
+    let image = images[pushConsts.draw_image_index];
 
     var width : uint;
     var height : uint;

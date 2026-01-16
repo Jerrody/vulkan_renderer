@@ -46,12 +46,13 @@ pub struct DescriptorSetHandle {
 }
 
 impl DescriptorSetHandle {
+    #[must_use]
     pub fn update_binding(
         &mut self,
         device: Device,
         allocator: &Allocator,
         descriptor_kind: DescriptorKind,
-    ) {
+    ) -> usize {
         let descriptor_type = descriptor_kind.get_descriptor_type();
 
         let descriptors_sizes = self.descriptors_sizes;
@@ -67,11 +68,13 @@ impl DescriptorSetHandle {
         };
 
         let descriptor_type_raw = descriptor_type as u32;
-        let binding_info = self.bindings_infos[&descriptor_type_raw];
+        let binding_info = self.bindings_infos.get_mut(&descriptor_type_raw).unwrap();
 
+        let current_descriptor_slot_index = binding_info.next_empty_slot_index;
         let base_binding_offset = binding_info.binding_offset;
-        let binding_offset = base_binding_offset
-            + (binding_info.next_empty_slot_index as u64 * descriptor_size as u64);
+        let binding_offset =
+            base_binding_offset + (current_descriptor_slot_index as u64 * descriptor_size as u64);
+        binding_info.next_empty_slot_index += 1;
 
         let allocation = &mut self.buffer.allocation;
         let descriptor_buffer_address = unsafe { allocator.map_memory(allocation).unwrap() };
@@ -178,5 +181,7 @@ impl DescriptorSetHandle {
         unsafe {
             allocator.unmap_memory(&mut *allocation);
         }
+
+        current_descriptor_slot_index
     }
 }

@@ -6,9 +6,12 @@ use asset_importer::utils::mesh;
 use bevy_ecs::resource::Resource;
 use glam::{Mat4, Vec2, Vec3};
 use vma::Allocation;
-use vulkanite::vk::{
-    DeviceAddress, Extent3D, Format, ImageSubresourceRange, ShaderStageFlags,
-    rs::{Buffer, Image, ImageView, PipelineLayout, Sampler, ShaderEXT},
+use vulkanite::{
+    Handle,
+    vk::{
+        DeviceAddress, DeviceSize, Extent3D, Format, ImageSubresourceRange, ShaderStageFlags,
+        rs::{Buffer, Image, ImageView, PipelineLayout, Sampler, ShaderEXT},
+    },
 };
 
 use crate::engine::{
@@ -51,6 +54,9 @@ pub struct MeshPushConstant {
     pub vertex_buffer_device_adress: DeviceAddress,
     pub vertex_indices_device_address: DeviceAddress,
     pub local_indices_device_address: DeviceAddress,
+    pub sampler_index: DeviceSize,
+    pub texture_image_index: DeviceSize,
+    pub draw_image_index: DeviceSize,
 }
 
 pub struct AllocatedImage {
@@ -85,7 +91,18 @@ impl ShaderObject {
 #[derive(Clone, Copy)]
 pub struct SamplerObject {
     pub id: Id,
+    pub index: usize,
     pub sampler: Sampler,
+}
+
+impl SamplerObject {
+    pub fn new(sampler: Sampler) -> Self {
+        Self {
+            id: Id::new(sampler.as_raw()),
+            index: usize::MIN,
+            sampler: sampler,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -99,6 +116,8 @@ pub struct ResourcesPool {
 pub struct RendererResources {
     pub depth_image: AllocatedImage,
     pub draw_image_id: Id,
+    pub white_image_id: Id,
+    pub nearest_sampler_id: Id,
     pub resources_descriptor_set_handle: DescriptorSetHandle,
     pub gradient_compute_shader_object: ShaderObject,
     pub mesh_shader_object: ShaderObject,
@@ -107,10 +126,10 @@ pub struct RendererResources {
     pub resources_pool: ResourcesPool,
     pub mesh_pipeline_layout: PipelineLayout,
     pub mesh_push_constant: MeshPushConstant,
-    pub nearest_sampler: Sampler,
 }
 
 impl<'a> RendererResources {
+    #[must_use]
     pub fn insert_mesh_buffer(&'a mut self, mesh_buffer: MeshBuffer) -> Id {
         let mesh_buffer_id = mesh_buffer.id;
 
@@ -126,6 +145,7 @@ impl<'a> RendererResources {
         return id;
     }
 
+    #[must_use]
     pub fn insert_texture(&'a mut self, allocated_image: AllocatedImage) -> Id {
         let allocated_image_id = allocated_image.id;
 
@@ -141,6 +161,7 @@ impl<'a> RendererResources {
         return id;
     }
 
+    #[must_use]
     pub fn insert_sampler(&'a mut self, sampler_object: SamplerObject) -> Id {
         let id = match self
             .resources_pool
@@ -154,15 +175,33 @@ impl<'a> RendererResources {
         return id;
     }
 
+    #[must_use]
     pub fn get_mesh_buffer(&'a self, id: Id) -> *const MeshBuffer {
         self.resources_pool.mesh_buffers.get(&id).unwrap()
     }
 
+    #[must_use]
     pub fn get_texture(&'a self, id: Id) -> *const AllocatedImage {
         self.resources_pool.textures.get(&id).unwrap()
     }
 
+    #[must_use]
     pub fn get_sampler(&'a self, id: Id) -> SamplerObject {
         *self.resources_pool.samplers.get(&id).unwrap()
+    }
+
+    #[must_use]
+    pub fn get_mesh_buffer_mut(&'a mut self, id: Id) -> *mut MeshBuffer {
+        self.resources_pool.mesh_buffers.get_mut(&id).unwrap()
+    }
+
+    #[must_use]
+    pub fn get_texture_ref_mut(&'a mut self, id: Id) -> *mut AllocatedImage {
+        self.resources_pool.textures.get_mut(&id).unwrap()
+    }
+
+    #[must_use]
+    pub fn get_sampler_ref_mut(&'a mut self, id: Id) -> *mut SamplerObject {
+        self.resources_pool.samplers.get_mut(&id).unwrap()
     }
 }

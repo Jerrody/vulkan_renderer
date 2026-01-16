@@ -9,8 +9,8 @@ use vulkanite::{
 use crate::engine::{
     Engine,
     descriptors::{
-        DescriptorKind, DescriptorSampledImage, DescriptorSetBuilder, DescriptorSetHandle,
-        DescriptorStorageImage,
+        DescriptorKind, DescriptorSampledImage, DescriptorSampler, DescriptorSetBuilder,
+        DescriptorSetHandle, DescriptorStorageImage,
     },
     id::Id,
     resources::{model_loader::ModelLoader, *},
@@ -87,7 +87,8 @@ impl Engine {
             min_filter: Filter::Nearest,
             ..Default::default()
         };
-        let nearest_sampler = device.create_sampler(&nearest_sampler_create_info).unwrap();
+        let nearest_sampler_object =
+            SamplerObject::new(device.create_sampler(&nearest_sampler_create_info).unwrap());
 
         let resources_descriptor_set_handle = Self::create_descriptors(world);
 
@@ -99,11 +100,21 @@ impl Engine {
             .descriptor_set_layout_handle
             .descriptor_set_layout];
 
-        let push_constant_ranges = [PushConstantRange {
+        let compute_push_constant_range = PushConstantRange {
+            stage_flags: ShaderStageFlags::Compute,
+            offset: std::mem::offset_of!(MeshPushConstant, draw_image_index) as _,
+            size: std::mem::size_of::<DeviceSize>() as _,
+        };
+        let mesh_push_constant_range = PushConstantRange {
             stage_flags: ShaderStageFlags::MeshEXT,
             offset: Default::default(),
             size: size_of::<MeshPushConstant>() as _,
-        }];
+        };
+
+        let compute_push_constant_ranges = [compute_push_constant_range];
+        let mesh_push_constant_ranges = [mesh_push_constant_range];
+
+        let push_constant_ranges = [compute_push_constant_range, mesh_push_constant_range];
         let mesh_pipeline_layout_create_info = PipelineLayoutCreateInfo::default()
             .push_constant_ranges(push_constant_ranges.as_slice());
 
@@ -120,7 +131,7 @@ impl Engine {
                 stage: ShaderStageFlags::Compute,
                 next_stage: ShaderStageFlags::empty(),
                 descriptor_layouts: &gradient_descriptor_layouts,
-                push_constant_ranges: None,
+                push_constant_ranges: Some(&compute_push_constant_ranges),
             },
             ShaderInfo {
                 path: &mesh_shader_path,
@@ -128,7 +139,7 @@ impl Engine {
                 stage: ShaderStageFlags::MeshEXT,
                 next_stage: ShaderStageFlags::Fragment,
                 descriptor_layouts: &fragment_descriptor_set_layouts,
-                push_constant_ranges: Some(&push_constant_ranges),
+                push_constant_ranges: Some(&mesh_push_constant_ranges),
             },
             ShaderInfo {
                 path: mesh_shader_path,
@@ -136,7 +147,7 @@ impl Engine {
                 stage: ShaderStageFlags::Fragment,
                 next_stage: ShaderStageFlags::empty(),
                 descriptor_layouts: &fragment_descriptor_set_layouts,
-                push_constant_ranges: Some(&push_constant_ranges),
+                push_constant_ranges: Some(&mesh_push_constant_ranges),
             },
         ];
 
@@ -147,6 +158,8 @@ impl Engine {
         let mut renderer_resources = RendererResources {
             depth_image,
             draw_image_id: Id::NULL,
+            white_image_id: Id::NULL,
+            nearest_sampler_id: Id::NULL,
             resources_descriptor_set_handle,
             gradient_compute_shader_object: created_shaders[0],
             mesh_shader_object: created_shaders[1],
@@ -155,29 +168,42 @@ impl Engine {
             resources_pool: Default::default(),
             mesh_pipeline_layout,
             mesh_push_constant: Default::default(),
-            nearest_sampler,
         };
 
         renderer_resources.draw_image_id = renderer_resources.insert_texture(draw_image);
-        let white_image_id = renderer_resources.insert_texture(white_image);
+        renderer_resources.white_image_id = renderer_resources.insert_texture(white_image);
+        renderer_resources.nearest_sampler_id =
+            renderer_resources.insert_sampler(nearest_sampler_object);
 
-        let draw_image_ref =
-            unsafe { &*renderer_resources.get_texture(renderer_resources.draw_image_id) };
-        let white_image_ref = unsafe { &*renderer_resources.get_texture(white_image_id) };
+        let draw_image_ref_mut = unsafe {
+            &mut *renderer_resources.get_texture_ref_mut(renderer_resources.draw_image_id)
+        };
+        let white_image_ref_mut = unsafe {
+            &mut *renderer_resources.get_texture_ref_mut(renderer_resources.white_image_id)
+        };
+        let sampler_object_ref_mut = unsafe {
+            &mut *renderer_resources.get_sampler_ref_mut(renderer_resources.nearest_sampler_id)
+        };
 
         let descriptor_draw_image = DescriptorKind::StorageImage(DescriptorStorageImage {
-            image_view: draw_image_ref.image_view,
+            image_view: draw_image_ref_mut.image_view,
         });
         let descriptor_white_image = DescriptorKind::SampledImage(DescriptorSampledImage {
-            image_view: white_image_ref.image_view,
+            image_view: white_image_ref_mut.image_view,
+        });
+        let sampler_descriptor = DescriptorKind::Sampler(DescriptorSampler {
+            sampler: nearest_sampler_object.sampler,
         });
 
-        renderer_resources
+        draw_image_ref_mut.index = renderer_resources
             .resources_descriptor_set_handle
             .update_binding(device, allocator, descriptor_draw_image);
-        renderer_resources
+        white_image_ref_mut.index = renderer_resources
             .resources_descriptor_set_handle
             .update_binding(device, allocator, descriptor_white_image);
+        sampler_object_ref_mut.index = renderer_resources
+            .resources_descriptor_set_handle
+            .update_binding(device, allocator, sampler_descriptor);
 
         renderer_resources
     }

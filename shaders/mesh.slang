@@ -31,6 +31,9 @@ struct PushConstants
     let vertices : Vertex *;
     let vertex_indices : uint32_t *;
     let local_indices : uint8_t *;
+    let sampler_index : uint64_t;
+    let texture_image_index : uint64_t;
+    let draw_image_index : uint64_t;
 };
 
 [[vk::push_constant]]
@@ -78,14 +81,17 @@ func process_vertex(const v: Vertex, const mat: float4x4)->VertexOutput
     return vertex_output;
 }
 [[vk::binding(0, 0)]]
-SamplerState nearest_sampler;
+SamplerState samplers[16];
 [[vk::binding(2, 0)]]
-Texture2D<float4> image;
+Texture2D<float4> images[4096];
 
 [shader("fragment")]
 func main(const vertex_output: VertexOutput)->float4
 {
-    let color = image.Sample(nearest_sampler, vertex_output.uv);
+    let sampler = samplers[pushConsts.sampler_index];
+    let image = images[pushConsts.texture_image_index];
+
+    let color = image.Sample(sampler, vertex_output.uv);
 
     return color;
 }
