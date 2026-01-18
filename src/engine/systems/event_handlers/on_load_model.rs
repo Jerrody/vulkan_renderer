@@ -1,4 +1,5 @@
-use std::{ffi::c_void, str::FromStr};
+use asset_importer::{Matrix4x4, node::Node};
+use std::ffi::c_void;
 use uuid::Uuid;
 use vulkanite::vk::BufferUsageFlags;
 
@@ -6,7 +7,7 @@ use bevy_ecs::{
     observer::On,
     system::{Commands, Res, ResMut},
 };
-use glam::{Vec2, Vec3};
+use glam::{Mat4, Vec2, Vec3, Vec4};
 use meshopt::{
     VertexDataAdapter, build_meshlets, optimize_vertex_cache_in_place, optimize_vertex_fetch,
     optimize_vertex_fetch_remap, remap_index_buffer, remap_vertex_buffer, typed_to_bytes,
@@ -15,13 +16,72 @@ use vma::Allocator;
 use vulkanite::vk::rs::Device;
 
 use crate::engine::{
-    events::{LoadModelEvent, SpawnMeshEvent},
+    components::transform::{GlobalTransform, Transform},
+    events::{LoadModelEvent, SpawnEvent, SpawnEventRecord},
     id::Id,
     resources::{
         AllocatedBuffer, MeshBuffer, Meshlet, RendererResources, Vertex, VulkanContextResource,
         allocation::create_buffer,
     },
 };
+
+struct NodeData {
+    pub name: String,
+    pub index: usize,
+    pub parent_index: Option<usize>,
+    pub matrix: Mat4,
+    pub mesh_indices: Vec<usize>,
+}
+
+impl NodeData {
+    pub fn new(
+        name: String,
+        index: usize,
+        parent_index: Option<usize>,
+        transformation: Matrix4x4,
+        mesh_indices: Vec<usize>,
+    ) -> Self {
+        let matrix = Self::get_matrix(transformation);
+
+        Self {
+            name,
+            index,
+            parent_index,
+            matrix,
+            mesh_indices,
+        }
+    }
+
+    pub fn get_matrix(transformation: Matrix4x4) -> Mat4 {
+        let mut matrix = Mat4::default();
+        matrix.x_axis = Vec4::new(
+            transformation.x_axis.x,
+            transformation.x_axis.y,
+            transformation.x_axis.z,
+            transformation.x_axis.w,
+        );
+        matrix.y_axis = Vec4::new(
+            transformation.y_axis.x,
+            transformation.y_axis.y,
+            transformation.y_axis.z,
+            transformation.y_axis.w,
+        );
+        matrix.z_axis = Vec4::new(
+            transformation.z_axis.x,
+            transformation.z_axis.y,
+            transformation.z_axis.z,
+            transformation.z_axis.w,
+        );
+        matrix.w_axis = Vec4::new(
+            transformation.w_axis.x,
+            transformation.w_axis.y,
+            transformation.w_axis.z,
+            transformation.w_axis.w,
+        );
+
+        matrix
+    }
+}
 
 pub fn on_load_model(
     load_model_event: On<LoadModelEvent>,
@@ -33,105 +93,188 @@ pub fn on_load_model(
     let allocator = &vulkan_context.allocator;
     let model_loader = &renderer_resources.model_loader;
 
-    let mut meshes = model_loader.load_model(&load_model_event.path);
-    meshes.next();
-    meshes.next();
-
     let mut mesh_buffers = Vec::new();
-    for mesh in meshes {
-        let mut indices = Vec::new();
-        for face in mesh.faces() {
-            for index in face.indices() {
-                indices.push(*index);
+
+    let mut nodes = Vec::new();
+
+    let scene = model_loader.load_model(&load_model_event.path);
+    let root_node = scene.root_node().unwrap();
+
+    nodes.push(NodeData::new(
+        root_node.name(),
+        Default::default(),
+        None,
+        root_node.transformation(),
+        get_mesh_indices(&root_node, root_node.num_meshes()),
+    ));
+
+    let mut stack = Vec::new();
+    stack.push(root_node);
+
+    loop {
+        while let Some(parent_node) = stack.pop() {
+            let parent_index = nodes.len() - 1;
+            for (child_index, child_node) in parent_node.children().enumerate() {
+                stack.push(child_node.clone());
+
+                nodes.push(NodeData::new(
+                    child_node.name(),
+                    parent_index + child_index + 1,
+                    Some(parent_index),
+                    child_node.transformation(),
+                    get_mesh_indices(&child_node, child_node.num_meshes()),
+                ));
             }
         }
 
-        let mut vertices = mesh
-            .vertices_iter()
-            .zip(
-                mesh.normals()
-                    .unwrap()
-                    .into_iter()
-                    .zip(mesh.texture_coords_iter(Default::default())),
-            )
-            .into_iter()
-            .map(|(position, (normal, uv))| {
-                let position = Vec3::new(position.x, position.y, position.z);
-                let normal = Vec3::new(normal.x, normal.y, normal.z);
-                let uv = Vec2::new(uv.x, uv.y);
-
-                Vertex {
-                    position,
-                    normal,
-                    uv,
-                }
-            })
-            .collect::<Vec<Vertex>>();
-
-        let remap = optimize_vertex_fetch_remap(&indices, vertices.len());
-        indices = remap_index_buffer(Some(&indices), vertices.len(), &remap);
-        vertices = remap_vertex_buffer(&vertices, vertices.len(), &remap);
-
-        let position_offset = std::mem::offset_of!(Vertex, position);
-        let vertex_stride = std::mem::size_of::<Vertex>();
-        let vertex_data = typed_to_bytes(&vertices);
-
-        let vertex_data_adapter =
-            VertexDataAdapter::new(&vertex_data, vertex_stride, position_offset).unwrap();
-
-        optimize_vertex_cache_in_place(&mut indices, vertices.len());
-        optimize_vertex_fetch(&mut indices, &vertices);
-
-        let (meshlets, vertex_indices, triangles) =
-            generate_meshlets(&indices, &vertex_data_adapter);
-
-        let vertex_buffer = create_buffer_and_update::<Vertex>(
-            device,
-            allocator,
-            vertices.as_ptr() as _,
-            vertices.len(),
-        );
-        let vertex_indices_buffer = create_buffer_and_update::<u32>(
-            device,
-            allocator,
-            vertex_indices.as_ptr() as _,
-            vertex_indices.len(),
-        );
-        let meshlets_buffer = create_buffer_and_update::<Meshlet>(
-            device,
-            allocator,
-            meshlets.as_ptr() as _,
-            meshlets.len(),
-        );
-        let local_indices_buffer = create_buffer_and_update::<u8>(
-            device,
-            allocator,
-            triangles.as_ptr() as _,
-            triangles.len(),
-        );
-
-        let uuid = Uuid::new_v4();
-        let mesh_buffer = MeshBuffer {
-            id: Id::new(uuid),
-            index: usize::MIN,
-            vertex_buffer: vertex_buffer,
-            vertex_indices_buffer,
-            meshlets_buffer,
-            local_indices_buffer,
-            meshlets_count: meshlets.len(),
-        };
-
-        commands.trigger(SpawnMeshEvent {
-            mesh_buffer_id: mesh_buffer.id,
-        });
-
-        mesh_buffers.push(mesh_buffer);
+        if stack.len() == Default::default() {
+            break;
+        }
     }
+
+    let mut spawn_event = SpawnEvent::default();
+    let mut spawn_event_record = SpawnEventRecord::default();
+
+    let mut mesh_index_offset = usize::default();
+    for node_data in nodes.into_iter() {
+        let local_matrix = node_data.matrix;
+
+        let (local_scale, rotation, position) = local_matrix.to_scale_rotation_translation();
+        let transform = Transform {
+            position: position,
+            rotation,
+            local_scale,
+        };
+        spawn_event_record.name = node_data.name.clone();
+        spawn_event_record.parent_index = node_data.parent_index;
+        spawn_event_record.transform = transform;
+
+        spawn_event.spawn_records.push(spawn_event_record.clone());
+
+        if node_data.mesh_indices.len() > Default::default() {
+            for &mesh_index in node_data.mesh_indices.iter() {
+                let mesh = scene.mesh(mesh_index);
+                if let Some(mesh) = mesh {
+                    let mut indices = Vec::new();
+
+                    for face in mesh.faces() {
+                        for index in face.indices() {
+                            indices.push(*index);
+                        }
+                    }
+
+                    let mut vertices = mesh
+                        .vertices_iter()
+                        .zip(
+                            mesh.normals()
+                                .unwrap()
+                                .into_iter()
+                                .zip(mesh.texture_coords_iter(Default::default())),
+                        )
+                        .into_iter()
+                        .map(|(position, (normal, uv))| {
+                            let position = Vec3::new(position.x, position.y, position.z);
+                            let normal = Vec3::new(normal.x, normal.y, normal.z);
+                            let uv = Vec2::new(uv.x, uv.y);
+
+                            Vertex {
+                                position,
+                                normal,
+                                uv,
+                            }
+                        })
+                        .collect::<Vec<Vertex>>();
+
+                    let remap = optimize_vertex_fetch_remap(&indices, vertices.len());
+                    indices = remap_index_buffer(Some(&indices), vertices.len(), &remap);
+                    vertices = remap_vertex_buffer(&vertices, vertices.len(), &remap);
+
+                    let position_offset = std::mem::offset_of!(Vertex, position);
+                    let vertex_stride = std::mem::size_of::<Vertex>();
+                    let vertex_data = typed_to_bytes(&vertices);
+
+                    let vertex_data_adapter =
+                        VertexDataAdapter::new(&vertex_data, vertex_stride, position_offset)
+                            .unwrap();
+
+                    optimize_vertex_cache_in_place(&mut indices, vertices.len());
+                    optimize_vertex_fetch(&mut indices, &vertices);
+
+                    let (meshlets, vertex_indices, triangles) =
+                        generate_meshlets(&indices, &vertex_data_adapter);
+
+                    let vertex_buffer = create_buffer_and_update::<Vertex>(
+                        device,
+                        allocator,
+                        vertices.as_ptr() as _,
+                        vertices.len(),
+                    );
+                    let vertex_indices_buffer = create_buffer_and_update::<u32>(
+                        device,
+                        allocator,
+                        vertex_indices.as_ptr() as _,
+                        vertex_indices.len(),
+                    );
+                    let meshlets_buffer = create_buffer_and_update::<Meshlet>(
+                        device,
+                        allocator,
+                        meshlets.as_ptr() as _,
+                        meshlets.len(),
+                    );
+                    let local_indices_buffer = create_buffer_and_update::<u8>(
+                        device,
+                        allocator,
+                        triangles.as_ptr() as _,
+                        triangles.len(),
+                    );
+
+                    let uuid = Uuid::new_v4();
+                    let mesh_buffer = MeshBuffer {
+                        id: Id::new(uuid),
+                        index: usize::MIN,
+                        vertex_buffer: vertex_buffer,
+                        vertex_indices_buffer,
+                        meshlets_buffer,
+                        local_indices_buffer,
+                        meshlets_count: meshlets.len(),
+                    };
+
+                    spawn_event_record.name = mesh.name();
+                    spawn_event_record.parent_index = Some(node_data.index + mesh_index_offset);
+                    spawn_event_record.mesh_buffer_id = mesh_buffer.id;
+                    spawn_event_record.transform = transform;
+
+                    spawn_event.spawn_records.push(spawn_event_record.clone());
+
+                    mesh_buffers.push(mesh_buffer);
+                }
+            }
+
+            mesh_index_offset = node_data.mesh_indices.len();
+        } else {
+            mesh_index_offset = Default::default();
+        }
+
+        spawn_event_record.mesh_buffer_id = Id::NULL;
+    }
+
+    commands.trigger(spawn_event);
 
     mesh_buffers.drain(..).into_iter().for_each(|mesh_buffer| {
         // TODO
         renderer_resources.insert_mesh_buffer(mesh_buffer);
     });
+}
+
+fn get_mesh_indices(node: &Node, num_meshes: usize) -> Vec<usize> {
+    let mut mesh_indices = Vec::with_capacity(num_meshes);
+    if num_meshes > Default::default() {
+        for mesh_index in node.mesh_indices() {
+            mesh_indices.push(mesh_index);
+        }
+    }
+
+    mesh_indices
 }
 
 fn create_buffer_and_update<T>(

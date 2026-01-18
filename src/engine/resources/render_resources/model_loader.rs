@@ -1,4 +1,6 @@
-use asset_importer::{Importer, mesh::Mesh, postprocess::PostProcessSteps, scene::MeshIterator};
+use asset_importer::{
+    Importer, Scene, mesh::Mesh, postprocess::PostProcessSteps, scene::MeshIterator,
+};
 use bevy_ecs::entity::{hash_set::IntoIter, index_set::Iter};
 
 pub struct MeshAsset {}
@@ -16,14 +18,14 @@ impl ModelLoader {
         }
     }
 
-    pub fn load_model<'a>(&self, path: &'a str) -> MeshIterator {
-        let model = self
+    pub fn load_model<'a>(&self, path: &'a str) -> Scene {
+        let scene = self
             .importer
             .read_file(path)
             .with_post_process(PostProcessSteps::REALTIME)
             .import()
             .unwrap();
 
-        model.meshes().into_iter()
+        scene
     }
 }

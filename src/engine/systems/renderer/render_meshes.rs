@@ -1,22 +1,42 @@
-use bevy_ecs::system::{Query, Res, ResMut};
+use bevy_ecs::{
+    entity::Entity,
+    name::Name,
+    system::{Commands, Query, Res, ResMut},
+};
 use vulkanite::vk::*;
 
 use crate::engine::{
-    components::mesh::Mesh,
+    components::{mesh::Mesh, transform::Parent},
     resources::{FrameContext, MeshPushConstant, RendererResources},
 };
 
 pub fn render_meshes(
-    meshes: Query<&Mesh>,
+    graphics_entities: Query<(&Name, &Parent, &Mesh)>,
+    entities: Query<(Entity, &Name)>,
+    entities_with_parent: Query<&Parent>,
     mut renderer_resources: ResMut<RendererResources>,
     frame_context: Res<FrameContext>,
 ) {
     let command_buffer = frame_context.command_buffer.unwrap();
 
+    if !renderer_resources.is_printed_scene_hierarchy {
+        println!("=====================================");
+
+        for (entity, name) in entities.iter() {
+            if let Ok(parent) = entities_with_parent.get(entity) {
+                println!("Entity: {} | Name: {} | Parent: {}", entity, name, parent.0);
+            } else {
+                println!("Entity: {} | Name: {}", entity, name);
+            }
+        }
+
+        println!("=====================================");
+    }
+
     let mesh_pipeline_layout = renderer_resources
         .resources_descriptor_set_handle
         .pipeline_layout;
-    meshes.iter().for_each(|mesh| {
+    graphics_entities.iter().for_each(|(name, parent, mesh)| {
         let mesh_buffer = renderer_resources.get_mesh_buffer_ref(mesh.buffer_id);
 
         let texture_image_index = renderer_resources
@@ -49,4 +69,6 @@ pub fn render_meshes(
 
         command_buffer.draw_mesh_tasks_ext(mesh_buffer.meshlets_count as _, 1, 1);
     });
+
+    renderer_resources.is_printed_scene_hierarchy = true;
 }

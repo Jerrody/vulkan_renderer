@@ -150,6 +150,7 @@ impl Engine {
             fragment_shader_object: created_shaders[2],
             model_loader,
             resources_pool: Default::default(),
+            is_printed_scene_hierarchy: false,
         };
 
         renderer_resources.draw_image_id = renderer_resources.insert_texture(draw_image);
