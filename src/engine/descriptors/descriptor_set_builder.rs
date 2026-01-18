@@ -76,6 +76,7 @@ impl<'a> DescriptorSetBuilder<'a> {
         device: Device,
         allocator: &Allocator,
         descriptor_buffer_properties: &PhysicalDeviceDescriptorBufferPropertiesEXT,
+        push_constant_ranges: &[PushConstantRange],
         shader_stages: ShaderStageFlags,
     ) -> DescriptorSetHandle {
         let descriptor_set_layout_handle = self.create_descriptor_set_layout(
@@ -114,8 +115,9 @@ impl<'a> DescriptorSetBuilder<'a> {
             self.create_descriptor_buffer(device, allocator, descriptor_buffer_size);
 
         let descriptor_set_layouts = [descriptor_set_layout_handle.descriptor_set_layout];
-        let pipeline_layout_info =
-            PipelineLayoutCreateInfo::default().set_layouts(descriptor_set_layouts.as_slice());
+        let pipeline_layout_info = PipelineLayoutCreateInfo::default()
+            .set_layouts(descriptor_set_layouts.as_slice())
+            .push_constant_ranges(push_constant_ranges);
         let pipeline_layout = device
             .create_pipeline_layout(&pipeline_layout_info)
             .unwrap();

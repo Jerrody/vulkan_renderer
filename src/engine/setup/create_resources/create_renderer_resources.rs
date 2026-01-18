@@ -90,38 +90,22 @@ impl Engine {
         let nearest_sampler_object =
             SamplerObject::new(device.create_sampler(&nearest_sampler_create_info).unwrap());
 
-        let resources_descriptor_set_handle = Self::create_descriptors(world);
-
-        //let mesh_descriptor_set_layouts = [];
-        let gradient_descriptor_layouts = [resources_descriptor_set_handle
-            .descriptor_set_layout_handle
-            .descriptor_set_layout];
-        let fragment_descriptor_set_layouts = [resources_descriptor_set_handle
-            .descriptor_set_layout_handle
-            .descriptor_set_layout];
-
-        let compute_push_constant_range = PushConstantRange {
-            stage_flags: ShaderStageFlags::Compute,
-            offset: std::mem::offset_of!(MeshPushConstant, draw_image_index) as _,
-            size: std::mem::size_of::<u32>() as _,
-        };
-        let mesh_push_constant_range = PushConstantRange {
-            stage_flags: ShaderStageFlags::MeshEXT,
+        let push_constant_range = PushConstantRange {
+            stage_flags: ShaderStageFlags::MeshEXT
+                | ShaderStageFlags::Fragment
+                | ShaderStageFlags::Compute,
             offset: Default::default(),
-            size: size_of::<MeshPushConstant>() as _,
+            size: std::mem::size_of::<MeshPushConstant>() as _,
         };
 
-        let compute_push_constant_ranges = [compute_push_constant_range];
-        let mesh_push_constant_ranges = [mesh_push_constant_range];
+        let push_constant_ranges = [push_constant_range];
 
-        let push_constant_ranges = [compute_push_constant_range, mesh_push_constant_range];
-        let mesh_pipeline_layout_create_info = PipelineLayoutCreateInfo::default()
-            .push_constant_ranges(push_constant_ranges.as_slice());
+        let resources_descriptor_set_handle =
+            Self::create_descriptors(world, &push_constant_ranges);
 
-        let mesh_pipeline_layout = vulkan_context
-            .device
-            .create_pipeline_layout(&mesh_pipeline_layout_create_info)
-            .unwrap();
+        let descriptor_set_layouts = [resources_descriptor_set_handle
+            .descriptor_set_layout_handle
+            .descriptor_set_layout];
 
         let mesh_shader_path = r"shaders\output\mesh.slang.spv";
         let shaders_info = [
@@ -130,24 +114,24 @@ impl Engine {
                 flags: ShaderCreateFlagsEXT::empty(),
                 stage: ShaderStageFlags::Compute,
                 next_stage: ShaderStageFlags::empty(),
-                descriptor_layouts: &gradient_descriptor_layouts,
-                push_constant_ranges: Some(&compute_push_constant_ranges),
+                descriptor_layouts: &descriptor_set_layouts,
+                push_constant_ranges: Some(&push_constant_ranges),
             },
             ShaderInfo {
                 path: &mesh_shader_path,
                 flags: ShaderCreateFlagsEXT::LinkStage | ShaderCreateFlagsEXT::NoTaskShader,
                 stage: ShaderStageFlags::MeshEXT,
                 next_stage: ShaderStageFlags::Fragment,
-                descriptor_layouts: &fragment_descriptor_set_layouts,
-                push_constant_ranges: Some(&mesh_push_constant_ranges),
+                descriptor_layouts: &descriptor_set_layouts,
+                push_constant_ranges: Some(&push_constant_ranges),
             },
             ShaderInfo {
                 path: mesh_shader_path,
                 flags: ShaderCreateFlagsEXT::LinkStage,
                 stage: ShaderStageFlags::Fragment,
                 next_stage: ShaderStageFlags::empty(),
-                descriptor_layouts: &fragment_descriptor_set_layouts,
-                push_constant_ranges: Some(&mesh_push_constant_ranges),
+                descriptor_layouts: &descriptor_set_layouts,
+                push_constant_ranges: Some(&push_constant_ranges),
             },
         ];
 
@@ -166,7 +150,6 @@ impl Engine {
             fragment_shader_object: created_shaders[2],
             model_loader,
             resources_pool: Default::default(),
-            mesh_pipeline_layout,
         };
 
         renderer_resources.draw_image_id = renderer_resources.insert_texture(draw_image);
@@ -299,7 +282,10 @@ impl Engine {
             .unwrap();
     }
 
-    fn create_descriptors(world: &World) -> DescriptorSetHandle {
+    fn create_descriptors(
+        world: &World,
+        push_constants_ranges: &[PushConstantRange],
+    ) -> DescriptorSetHandle {
         let vulkan_context_resource = world.get_resource_ref::<VulkanContextResource>().unwrap();
         let device_properties_resource = world
             .get_resource_ref::<DevicePropertiesResource>()
@@ -329,6 +315,7 @@ impl Engine {
             device,
             &vulkan_context_resource.allocator,
             &device_properties_resource.descriptor_buffer_properties,
+            push_constants_ranges,
             ShaderStageFlags::Compute | ShaderStageFlags::Fragment,
         );
 

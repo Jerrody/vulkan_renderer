@@ -178,8 +178,6 @@ impl Drop for Engine {
                     );
                 });
 
-            device.destroy_pipeline_layout(Some(renderer_resources.mesh_pipeline_layout));
-
             drop(vulkan_context_resource.allocator);
 
             device.destroy_shader_ext(Some(

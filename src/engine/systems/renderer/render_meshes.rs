@@ -13,7 +13,9 @@ pub fn render_meshes(
 ) {
     let command_buffer = frame_context.command_buffer.unwrap();
 
-    let mesh_pipeline_layout = renderer_resources.mesh_pipeline_layout;
+    let mesh_pipeline_layout = renderer_resources
+        .resources_descriptor_set_handle
+        .pipeline_layout;
     meshes.iter().for_each(|mesh| {
         let mesh_buffer = renderer_resources.get_mesh_buffer_ref(mesh.buffer_id);
 
@@ -38,9 +40,10 @@ pub fn render_meshes(
         let p_mesh_push_constant = mesh_push_constant as *const MeshPushConstant;
         command_buffer.push_constants(
             mesh_pipeline_layout,
-            ShaderStageFlags::MeshEXT,
+            ShaderStageFlags::MeshEXT | ShaderStageFlags::Fragment | ShaderStageFlags::Compute,
             Default::default(),
-            size_of::<MeshPushConstant>() as _,
+            size_of::<MeshPushConstant>() as u32
+                - std::mem::size_of_val(&mesh_push_constant.draw_image_index) as u32,
             p_mesh_push_constant as _,
         );
 

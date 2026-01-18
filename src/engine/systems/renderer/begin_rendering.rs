@@ -243,12 +243,6 @@ fn draw_gradient(
 
     command_buffer.bind_shaders_ext(stages.as_slice(), shaders.as_slice());
 
-    let draw_image_ref = renderer_resources.get_texture_ref(renderer_resources.draw_image_id);
-    let mesh_push_constant = &MeshPushConstant {
-        draw_image_index: draw_image_ref.index as _,
-        ..Default::default()
-    };
-
     let descriptor_binding_info = DescriptorBufferBindingInfoEXT::default()
         .usage(BufferUsageFlags::ResourceDescriptorBufferEXT)
         .address(
@@ -273,13 +267,19 @@ fn draw_gradient(
         &offsets,
     );
 
+    let draw_image_ref = renderer_resources.get_texture_ref(renderer_resources.draw_image_id);
+    let mesh_push_constant = &MeshPushConstant {
+        draw_image_index: draw_image_ref.index as _,
+        ..Default::default()
+    };
+
     command_buffer.push_constants(
         renderer_resources
             .resources_descriptor_set_handle
             .pipeline_layout,
-        ShaderStageFlags::Compute,
+        ShaderStageFlags::Compute | ShaderStageFlags::Fragment | ShaderStageFlags::MeshEXT,
         std::mem::offset_of!(MeshPushConstant, draw_image_index) as _,
-        std::mem::size_of::<DeviceSize>() as _,
+        std::mem::size_of_val(&draw_image_ref.index) as _,
         mesh_push_constant as *const _ as _,
     );
 

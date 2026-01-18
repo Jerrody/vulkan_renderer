@@ -126,7 +126,6 @@ pub struct RendererResources {
     pub fragment_shader_object: ShaderObject,
     pub model_loader: ModelLoader,
     pub resources_pool: ResourcesPool,
-    pub mesh_pipeline_layout: PipelineLayout,
 }
 
 impl<'a> RendererResources {
