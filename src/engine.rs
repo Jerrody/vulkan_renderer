@@ -27,12 +27,15 @@ use crate::engine::{
     },
     systems::{
         begin_rendering, end_rendering, on_load_model, on_spawn_mesh, prepare_frame, present,
-        render_meshes,
+        propogate_transforms, render_meshes,
     },
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
-struct ScheduleLabelUpdate;
+struct ScheduleWorldUpdate;
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
+struct ScheduleRendererUpdate;
 
 pub struct Engine {
     world: World,
@@ -60,8 +63,11 @@ impl Engine {
         let frame_context = FrameContext::default();
         world.insert_resource(frame_context);
 
-        let mut schedule = Schedule::new(ScheduleLabelUpdate);
-        schedule.add_systems((
+        let mut world_schedule = Schedule::new(ScheduleWorldUpdate);
+        world_schedule.add_systems((propogate_transforms,));
+
+        let mut renderer_schedule = Schedule::new(ScheduleRendererUpdate);
+        renderer_schedule.add_systems((
             prepare_frame::prepare_frame,
             begin_rendering::begin_rendering.after(prepare_frame::prepare_frame),
             render_meshes::render_meshes.after(begin_rendering::begin_rendering),
@@ -69,7 +75,8 @@ impl Engine {
             present::present.after(render_meshes::render_meshes),
         ));
 
-        world.add_schedule(schedule);
+        world.add_schedule(world_schedule);
+        world.add_schedule(renderer_schedule);
 
         world.add_observer(on_load_model::on_load_model);
         world.add_observer(on_spawn_mesh::on_spawn_mesh);
@@ -84,7 +91,8 @@ impl Engine {
 
     pub fn update(&mut self) {
         self.world.flush();
-        self.world.run_schedule(ScheduleLabelUpdate);
+        self.world.run_schedule(ScheduleWorldUpdate);
+        self.world.run_schedule(ScheduleRendererUpdate);
     }
 
     unsafe fn destroy_buffer(
@@ -117,7 +125,7 @@ impl Engine {
 
 impl Drop for Engine {
     fn drop(&mut self) {
-        let mut vulkan_context_resource = self
+        let vulkan_context_resource = self
             .world
             .remove_resource::<VulkanContextResource>()
             .unwrap();
