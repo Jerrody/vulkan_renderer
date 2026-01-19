@@ -320,7 +320,7 @@ impl Engine {
             DescriptorBindingFlags::default(),
         );
         // Sampled Images (aka Textures), we can resize count of descriptors, we pre-alllocate 4096 descriptors,
-        // but we specify that count is unbourd (aka variable)
+        // but we specify that count as unbound (aka variable)
         descriptor_set_builder.add_binding(
             DescriptorType::SampledImage,
             4096,
