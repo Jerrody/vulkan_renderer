@@ -19,7 +19,7 @@ use crate::engine::{
 };
 
 #[derive(Clone, Copy)]
-#[repr(C, align(4))]
+#[repr(C)]
 pub struct Meshlet {
     pub vertex_offset: u32,
     pub triangle_offset: u32,
@@ -27,8 +27,8 @@ pub struct Meshlet {
     pub triangle_count: u32,
 }
 
+#[repr(C)]
 #[derive(Default, Clone, Copy)]
-#[repr(C, align(4))]
 pub struct Vertex {
     pub position: Vec3,
     pub normal: Vec3,
@@ -36,24 +36,29 @@ pub struct Vertex {
 }
 
 pub struct MeshBuffer {
-    pub instance_object_index: usize,
-    pub vertex_buffer: AllocatedBuffer,
-    pub vertex_indices_buffer: AllocatedBuffer,
-    pub meshlets_buffer: AllocatedBuffer,
-    pub local_indices_buffer: AllocatedBuffer,
+    pub vertex_buffer: Id,
+    pub vertex_indices_buffer: Id,
+    pub meshlets_buffer: Id,
+    pub local_indices_buffer: Id,
     pub meshlets_count: usize,
+}
+
+#[repr(C)]
+pub struct MeshObject {
+    pub vertex_buffer_address: DeviceAddress,
+    pub vertex_indices_buffer_address: DeviceAddress,
+    pub meshlets_buffer_address: DeviceAddress,
+    pub local_indices_buffer_address: DeviceAddress,
 }
 
 #[repr(C)]
 pub struct InstanceObject {
     pub model_matrix: Mat4,
     pub mesh_index: u32,
-    pub texture_index: u32, // TODO: Temp solution, later we will move to the material system.
-                            //pub material_index: u32,
 }
 
+#[repr(C)]
 #[derive(Default)]
-#[repr(C, align(4))]
 pub struct MeshPushConstant {
     pub world_matrix: Mat4,
     pub meshlets_device_address: DeviceAddress,
@@ -140,7 +145,7 @@ pub struct RendererResources {
 impl<'a> RendererResources {
     #[must_use]
     pub fn insert_mesh_buffer(&'a mut self, mesh_buffer: MeshBuffer) -> Id {
-        let mesh_buffer_id = Id::new(mesh_buffer.vertex_buffer.device_address);
+        let mesh_buffer_id = Id::new(mesh_buffer.vertex_buffer.value());
 
         let id = match self
             .resources_pool

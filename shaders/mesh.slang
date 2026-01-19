@@ -36,7 +36,6 @@ struct InstanceObject
 {
     const let model_matrix : float4x4;
     const let mesh_index : uint32_t;
-    const let texture_index : uint32_t;
 }
 
 struct GraphicsPushConstants
