@@ -333,7 +333,7 @@ impl Engine {
             &vulkan_context_resource.allocator,
             &device_properties_resource.descriptor_buffer_properties,
             push_constants_ranges,
-            ShaderStageFlags::Compute | ShaderStageFlags::Fragment,
+            ShaderStageFlags::Compute | ShaderStageFlags::Fragment | ShaderStageFlags::MeshEXT,
         );
 
         resources_descriptor_set_handle
