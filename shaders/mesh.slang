@@ -51,7 +51,7 @@ struct GraphicsPushConstants
 readonly ConstantBuffer<GraphicsPushConstants> graphics_push_constants;
 
 [[vk::binding(2, 0)]]
-readonly const MeshObject mesh_objects[4096];
+readonly const StructuredBuffer<MeshObject> mesh_objects;
 [[vk::binding(3, 0)]]
 readonly const StructuredBuffer<InstanceObject> instance_objects;
 

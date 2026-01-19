@@ -295,26 +295,32 @@ impl Engine {
 
         let mut descriptor_set_builder = DescriptorSetBuilder::new();
 
+        // Samplers
         descriptor_set_builder.add_binding(
             DescriptorType::Sampler,
             16,
             DescriptorBindingFlags::default(),
         );
+        // Storage Images (aka Draw Image)
         descriptor_set_builder.add_binding(
             DescriptorType::StorageImage,
             128,
             DescriptorBindingFlags::PartiallyBound,
         );
-        descriptor_set_builder.add_binding(
-            DescriptorType::StorageBuffer,
-            4096,
-            DescriptorBindingFlags::PartiallyBound,
-        );
+        // Buffer of Mesh Buffers (size is uniform, because we hold pointers to the actual buffers)
         descriptor_set_builder.add_binding(
             DescriptorType::StorageBuffer,
             1,
             DescriptorBindingFlags::default(),
         );
+        // Buffer of Instance Objects (size is uniform, because we just hold indices to the required resources)
+        descriptor_set_builder.add_binding(
+            DescriptorType::StorageBuffer,
+            1,
+            DescriptorBindingFlags::default(),
+        );
+        // Sampled Images (aka Textures), we can resize count of descriptors, we pre-alllocate 4096 descriptors,
+        // but we specify that count is unbourd (aka variable)
         descriptor_set_builder.add_binding(
             DescriptorType::SampledImage,
             4096,
