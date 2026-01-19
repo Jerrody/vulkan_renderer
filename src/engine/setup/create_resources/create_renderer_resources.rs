@@ -307,6 +307,11 @@ impl Engine {
         );
         descriptor_set_builder.add_binding(
             DescriptorType::StorageBuffer,
+            4096,
+            DescriptorBindingFlags::PartiallyBound,
+        );
+        descriptor_set_builder.add_binding(
+            DescriptorType::StorageBuffer,
             1,
             DescriptorBindingFlags::default(),
         );

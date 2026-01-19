@@ -49,7 +49,7 @@ pub struct InstanceObject {
     pub model_matrix: Mat4,
     pub mesh_index: u32,
     pub texture_index: u32, // TODO: Temp solution, later we will move to the material system.
-    pub material_index: u32,
+                            //pub material_index: u32,
 }
 
 #[derive(Default)]

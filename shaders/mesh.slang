@@ -2,11 +2,26 @@ static const let MAX_VERTICES : uint32_t = 64;
 static const let MAX_TRIANGLES : uint32_t = 124;
 static const let GROUP_SIZE : uint32_t = MAX_VERTICES;
 
+struct MeshObject
+{
+    const let meshlets : Ptr<Meshlet *, Access.Read>;
+    const let vertices : Ptr<Vertex *, Access.Read>;
+    const let vertex_indices : Ptr<uint32_t *, Access.Read>;
+    const let local_indices : Ptr<uint8_t *, Access.Read>;
+}
+
+struct InstanceObject
+{
+    const let model_matrix : float4x4;
+    const let mesh_index : uint32_t;
+    const let texture_index : uint32_t;
+}
+
 struct Vertex
 {
-    let position : float3;
-    let normal : float3;
-    let uv : float2;
+    const let position : float3;
+    const let normal : float3;
+    const let uv : float2;
 };
 
 struct VertexOutput
@@ -18,26 +33,27 @@ struct VertexOutput
 
 struct Meshlet
 {
-    let vertex_offset : uint32_t;
-    let triangle_offset : uint32_t;
-    let vertex_count : uint32_t;
-    let triangle_count : uint32_t;
+    const let vertex_offset : uint32_t;
+    const let triangle_offset : uint32_t;
+    const let vertex_count : uint32_t;
+    const let triangle_count : uint32_t;
 }
 
 struct PushConstants
 {
-    let render_matrix : float4x4;
-    let meshlets : Meshlet *;
-    let vertices : Vertex *;
-    let vertex_indices : uint32_t *;
-    let local_indices : uint8_t *;
-    let sampler_index : uint32_t;
-    let texture_image_index : uint32_t;
-    let draw_image_index : uint32_t;
+    const let instance_object_index : uint32_t;
+    const let sampler_index : uint32_t;
+    const let texture_image_index : uint32_t;
+    const let draw_image_index : uint32_t;
 };
 
 [[vk::push_constant]]
 ConstantBuffer<PushConstants> pushConsts;
+
+[[vk::binding(2, 0)]]
+readonly const StructuredBuffer<> samplersx[16];
+[[vk::binding(3, 0)]]
+Texture2D<float4> imagesx[4096];
 
 [shader("mesh")]
 [outputtopology("triangle")]
@@ -80,10 +96,13 @@ func process_vertex(const v: Vertex, const mat: float4x4)->VertexOutput
 
     return vertex_output;
 }
+
+///////////////////////////////////////////////////// FRAGMENT //////////////////////////////////////////////////////////////
+
 [[vk::binding(0, 0)]]
-SamplerState samplers[16];
-[[vk::binding(3, 0)]]
-Texture2D<float4> images[4096];
+readonly const SamplerState samplers[16];
+[[vk::binding(4, 0)]]
+readonly const Texture2D<float4> images[4096];
 
 [shader("fragment")]
 func main(const vertex_output: VertexOutput)->float4
