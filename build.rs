@@ -45,6 +45,7 @@ fn main() -> io::Result<()> {
             .arg("spirv_1_6")
             .arg("-fvk-use-scalar-layout")
             .arg("-emit-spirv-directly")
+            .arg("-matrix-layout-column-major")
             .arg("-O3")
             .arg("-o")
             .arg(&output_filename)
