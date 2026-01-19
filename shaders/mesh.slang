@@ -2,21 +2,6 @@ static const let MAX_VERTICES : uint32_t = 64;
 static const let MAX_TRIANGLES : uint32_t = 124;
 static const let GROUP_SIZE : uint32_t = MAX_VERTICES;
 
-struct MeshObject
-{
-    const let meshlets : Ptr<Meshlet, Access.Read>;
-    const let vertices : Ptr<Vertex, Access.Read>;
-    const let vertex_indices : Ptr<uint32_t, Access.Read>;
-    const let local_indices : Ptr<uint8_t, Access.Read>;
-}
-
-struct InstanceObject
-{
-    const let model_matrix : float4x4;
-    const let mesh_index : uint32_t;
-    const let texture_index : uint32_t;
-}
-
 struct Vertex
 {
     const let position : float3;
@@ -39,17 +24,31 @@ struct Meshlet
     const let triangle_count : uint32_t;
 }
 
+struct MeshObject
+{
+    const let meshlets : Ptr<Meshlet, Access.Read>;
+    const let vertices : Ptr<Vertex, Access.Read>;
+    const let vertex_indices : Ptr<uint32_t, Access.Read>;
+    const let local_indices : Ptr<uint8_t, Access.Read>;
+}
+
+struct InstanceObject
+{
+    const let model_matrix : float4x4;
+    const let mesh_index : uint32_t;
+    const let texture_index : uint32_t;
+}
+
 struct GraphicsPushConstants
 {
     const let view_projection_matrix : float4x4;
     const let instance_object_index : uint32_t;
     const let sampler_index : uint32_t;
     const let texture_image_index : uint32_t;
-    const let draw_image_index : uint32_t;
 };
 
 [[vk::push_constant]]
-ConstantBuffer<GraphicsPushConstants> graphics_push_constants;
+readonly ConstantBuffer<GraphicsPushConstants> graphics_push_constants;
 
 [[vk::binding(2, 0)]]
 readonly const MeshObject mesh_objects[4096];
