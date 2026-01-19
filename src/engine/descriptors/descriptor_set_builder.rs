@@ -4,13 +4,16 @@ use bevy_ecs::resource::Resource;
 use vma::*;
 use vulkanite::vk::{rs::*, *};
 
-use crate::engine::{descriptors::*, resources::AllocatedBuffer, utils::get_device_address};
+use crate::engine::{
+    descriptors::*, id::Id, resources::AllocatedBuffer, utils::get_device_address,
+};
 
 pub enum DescriptorKind {
     UniformBuffer(DescriptorUniformBuffer),
     StorageImage(DescriptorStorageImage),
     SampledImage(DescriptorSampledImage),
     Sampler(DescriptorSampler),
+    StorageBuffer(DescriptorStorageBuffer),
 }
 
 impl DescriptorKind {
@@ -26,6 +29,9 @@ impl DescriptorKind {
                 descriptor_sampled_image.get_descriptor_type()
             }
             DescriptorKind::Sampler(descriptor_sampler) => descriptor_sampler.get_descriptor_type(),
+            DescriptorKind::StorageBuffer(descriptor_storage_buffer) => {
+                descriptor_storage_buffer.get_descriptor_type()
+            }
         };
 
         descriptor_type
@@ -175,10 +181,13 @@ impl<'a> DescriptorSetBuilder<'a> {
         };
         let descriptor_buffer = Buffer::from_inner(descriptor_buffer_raw);
 
+        let buffer_device_address = get_device_address(device, &descriptor_buffer);
         AllocatedBuffer {
+            id: Id::new(buffer_device_address),
             buffer: descriptor_buffer,
             allocation,
-            device_address: get_device_address(device, &descriptor_buffer),
+            device_address: buffer_device_address,
+            size: descriptor_buffer_size,
         }
     }
 

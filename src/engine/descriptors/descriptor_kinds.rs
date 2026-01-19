@@ -1,6 +1,18 @@
 use vulkanite::vk::{rs::*, *};
 
 #[derive(Clone, Copy)]
+pub struct DescriptorStorageBuffer {
+    pub address: DeviceAddress,
+    pub size: u64,
+}
+
+impl DescriptorStorageBuffer {
+    pub fn get_descriptor_type(&self) -> DescriptorType {
+        DescriptorType::StorageBuffer
+    }
+}
+
+#[derive(Clone, Copy)]
 pub struct DescriptorUniformBuffer {
     pub address: DeviceAddress,
     pub size: u64,

@@ -82,7 +82,7 @@ func process_vertex(const v: Vertex, const mat: float4x4)->VertexOutput
 }
 [[vk::binding(0, 0)]]
 SamplerState samplers[16];
-[[vk::binding(2, 0)]]
+[[vk::binding(3, 0)]]
 Texture2D<float4> images[4096];
 
 [shader("fragment")]

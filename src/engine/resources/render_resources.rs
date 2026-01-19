@@ -1,10 +1,7 @@
 pub mod allocation;
 pub mod model_loader;
 
-use std::slice::Iter;
-
 use ahash::HashMap;
-use asset_importer::utils::mesh;
 use bevy_ecs::resource::Resource;
 use glam::{Mat4, Vec2, Vec3};
 use vma::Allocation;
@@ -12,7 +9,7 @@ use vulkanite::{
     Handle,
     vk::{
         DeviceAddress, DeviceSize, Extent3D, Format, ImageSubresourceRange, ShaderStageFlags,
-        rs::{Buffer, Image, ImageView, PipelineLayout, Sampler, ShaderEXT},
+        rs::{Buffer, Image, ImageView, Sampler, ShaderEXT},
     },
 };
 
@@ -39,13 +36,20 @@ pub struct Vertex {
 }
 
 pub struct MeshBuffer {
-    pub id: Id,
-    pub index: usize,
+    pub instance_object_index: usize,
     pub vertex_buffer: AllocatedBuffer,
     pub vertex_indices_buffer: AllocatedBuffer,
     pub meshlets_buffer: AllocatedBuffer,
     pub local_indices_buffer: AllocatedBuffer,
     pub meshlets_count: usize,
+}
+
+#[repr(C)]
+pub struct InstanceObject {
+    pub model_matrix: Mat4,
+    pub mesh_index: u32,
+    pub texture_index: u32, // TODO: Temp solution, later we will move to the material system.
+    pub material_index: u32,
 }
 
 #[derive(Default)]
@@ -73,9 +77,11 @@ pub struct AllocatedImage {
 }
 
 pub struct AllocatedBuffer {
+    pub id: Id,
     pub buffer: Buffer,
     pub allocation: Allocation,
     pub device_address: DeviceAddress,
+    pub size: DeviceSize,
 }
 
 #[derive(Clone, Copy)]
@@ -110,6 +116,7 @@ impl SamplerObject {
 #[derive(Default)]
 pub struct ResourcesPool {
     pub mesh_buffers: HashMap<Id, MeshBuffer>,
+    pub storage_buffers: HashMap<Id, AllocatedBuffer>,
     pub textures: HashMap<Id, AllocatedImage>,
     pub samplers: HashMap<Id, SamplerObject>,
 }
@@ -120,6 +127,7 @@ pub struct RendererResources {
     pub draw_image_id: Id,
     pub white_image_id: Id,
     pub nearest_sampler_id: Id,
+    pub insatance_objects_buffers_ids: Vec<Id>,
     pub resources_descriptor_set_handle: DescriptorSetHandle,
     pub gradient_compute_shader_object: ShaderObject,
     pub mesh_shader_object: ShaderObject,
@@ -132,15 +140,31 @@ pub struct RendererResources {
 impl<'a> RendererResources {
     #[must_use]
     pub fn insert_mesh_buffer(&'a mut self, mesh_buffer: MeshBuffer) -> Id {
-        let mesh_buffer_id = mesh_buffer.id;
+        let mesh_buffer_id = Id::new(mesh_buffer.vertex_buffer.device_address);
 
         let id = match self
             .resources_pool
             .mesh_buffers
-            .insert(mesh_buffer.id, mesh_buffer)
+            .insert(mesh_buffer_id, mesh_buffer)
         {
-            Some(already_presented_mesh_buffer) => already_presented_mesh_buffer.id,
+            Some(_) => mesh_buffer_id,
             None => mesh_buffer_id,
+        };
+
+        return id;
+    }
+
+    #[must_use]
+    pub fn insert_storage_buffer(&'a mut self, allocated_buffer: AllocatedBuffer) -> Id {
+        let allocated_buffer_id = allocated_buffer.id;
+
+        let id = match self
+            .resources_pool
+            .storage_buffers
+            .insert(allocated_buffer.id, allocated_buffer)
+        {
+            Some(already_presented_storage_buffer) => already_presented_storage_buffer.id,
+            None => allocated_buffer_id,
         };
 
         return id;
@@ -149,6 +173,12 @@ impl<'a> RendererResources {
     #[must_use]
     pub fn get_mesh_buffers_iter(&'a self) -> std::collections::hash_map::Iter<'a, Id, MeshBuffer> {
         self.resources_pool.mesh_buffers.iter()
+    }
+
+    pub fn get_storage_buffers_iter(
+        &'a self,
+    ) -> std::collections::hash_map::Iter<'a, Id, AllocatedBuffer> {
+        self.resources_pool.storage_buffers.iter()
     }
 
     #[must_use]
@@ -166,6 +196,13 @@ impl<'a> RendererResources {
         &'a mut self,
     ) -> std::collections::hash_map::IterMut<'a, Id, MeshBuffer> {
         self.resources_pool.mesh_buffers.iter_mut()
+    }
+
+    #[must_use]
+    pub fn get_storage_buffers_iter_mut(
+        &'a mut self,
+    ) -> std::collections::hash_map::IterMut<'a, Id, AllocatedBuffer> {
+        self.resources_pool.storage_buffers.iter_mut()
     }
 
     #[must_use]
@@ -218,6 +255,11 @@ impl<'a> RendererResources {
     }
 
     #[must_use]
+    pub fn get_storage_buffer_ref(&'a self, id: Id) -> &'a AllocatedBuffer {
+        unsafe { &*(self.resources_pool.storage_buffers.get(&id).unwrap() as *const _) }
+    }
+
+    #[must_use]
     pub fn get_texture_ref(&'a self, id: Id) -> &'a AllocatedImage {
         unsafe { &*(self.resources_pool.textures.get(&id).unwrap() as *const _) }
     }
@@ -228,8 +270,13 @@ impl<'a> RendererResources {
     }
 
     #[must_use]
-    pub fn get_mesh_buffer_mut(&'a mut self, id: Id) -> &'a mut MeshBuffer {
+    pub fn get_mesh_buffer_ref_mut(&'a mut self, id: Id) -> &'a mut MeshBuffer {
         unsafe { &mut *(self.resources_pool.mesh_buffers.get_mut(&id).unwrap() as *mut _) }
+    }
+
+    #[must_use]
+    pub fn get_storage_buffer_ref_mut(&'a mut self, id: Id) -> &'a mut AllocatedBuffer {
+        unsafe { &mut *(self.resources_pool.storage_buffers.get_mut(&id).unwrap() as *mut _) }
     }
 
     #[must_use]

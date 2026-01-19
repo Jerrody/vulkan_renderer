@@ -10,10 +10,10 @@ use crate::engine::{
     Engine,
     descriptors::{
         DescriptorKind, DescriptorSampledImage, DescriptorSampler, DescriptorSetBuilder,
-        DescriptorSetHandle, DescriptorStorageImage,
+        DescriptorSetHandle, DescriptorStorageBuffer, DescriptorStorageImage,
     },
     id::Id,
-    resources::{model_loader::ModelLoader, *},
+    resources::{allocation::create_buffer, model_loader::ModelLoader, *},
     utils::*,
 };
 
@@ -144,6 +144,7 @@ impl Engine {
             draw_image_id: Id::NULL,
             white_image_id: Id::NULL,
             nearest_sampler_id: Id::NULL,
+            insatance_objects_buffers_ids: Vec::new(),
             resources_descriptor_set_handle,
             gradient_compute_shader_object: created_shaders[0],
             mesh_shader_object: created_shaders[1],
@@ -153,11 +154,55 @@ impl Engine {
             is_printed_scene_hierarchy: false,
         };
 
+        let mut instance_objects_buffers = Vec::with_capacity(render_context.frame_overlap);
+
+        for _ in 0..render_context.frame_overlap {
+            let instance_objects_buffer = create_buffer(
+                device,
+                allocator,
+                std::mem::size_of::<InstanceObject>() * 1024,
+                BufferUsageFlags::StorageBuffer
+                    | BufferUsageFlags::ShaderDeviceAddress
+                    | BufferUsageFlags::TransferDst,
+            );
+
+            instance_objects_buffers.push(instance_objects_buffer);
+        }
+
         renderer_resources.draw_image_id = renderer_resources.insert_texture(draw_image);
         renderer_resources.depth_image_id = renderer_resources.insert_texture(depth_image);
         renderer_resources.white_image_id = renderer_resources.insert_texture(white_image);
         renderer_resources.nearest_sampler_id =
             renderer_resources.insert_sampler(nearest_sampler_object);
+
+        let mut instance_objects_buffers_ids = Vec::with_capacity(instance_objects_buffers.len());
+        instance_objects_buffers
+            .drain(..)
+            .for_each(|instance_object_buffer| {
+                instance_objects_buffers_ids
+                    .push(renderer_resources.insert_storage_buffer(instance_object_buffer));
+            });
+
+        instance_objects_buffers_ids
+            .iter()
+            .for_each(|&instance_objects_buffer_id| {
+                let instance_objects_buffer =
+                    renderer_resources.get_storage_buffer_ref(instance_objects_buffer_id);
+
+                let storage_buffer_descriptor_kind =
+                    DescriptorKind::StorageBuffer(DescriptorStorageBuffer {
+                        address: instance_objects_buffer.device_address,
+                        size: instance_objects_buffer.size,
+                    });
+
+                // TODO: Make an API more ergonomic, in case of when we use only one descriptor slot,
+                // for example, when we use Storage Buffers.
+                #[allow(unused)]
+                renderer_resources
+                    .resources_descriptor_set_handle
+                    .update_binding(device, allocator, storage_buffer_descriptor_kind);
+            });
+        renderer_resources.insatance_objects_buffers_ids = instance_objects_buffers_ids;
 
         // TODO: Need to make this mess more ergonomic and simpler.
         let draw_image_ref = renderer_resources.get_texture_ref(renderer_resources.draw_image_id);
@@ -169,7 +214,7 @@ impl Engine {
             .update_binding(device, allocator, descriptor_draw_image);
         renderer_resources
             .get_texture_ref_mut(renderer_resources.draw_image_id)
-            .index = draw_image_index;
+            .index = draw_image_index.unwrap();
 
         let white_image_ref = renderer_resources.get_texture_ref(renderer_resources.white_image_id);
         let descriptor_white_image = DescriptorKind::SampledImage(DescriptorSampledImage {
@@ -180,7 +225,7 @@ impl Engine {
             .update_binding(device, allocator, descriptor_white_image);
         renderer_resources
             .get_texture_ref_mut(renderer_resources.white_image_id)
-            .index = white_image_index;
+            .index = white_image_index.unwrap();
 
         let sampler_object = renderer_resources.get_sampler(renderer_resources.nearest_sampler_id);
         let sampler_descriptor = DescriptorKind::Sampler(DescriptorSampler {
@@ -191,7 +236,7 @@ impl Engine {
             .update_binding(device, allocator, sampler_descriptor);
         renderer_resources
             .get_sampler_ref_mut(renderer_resources.nearest_sampler_id)
-            .index = sampler_object_index;
+            .index = sampler_object_index.unwrap();
 
         renderer_resources
     }
@@ -238,51 +283,6 @@ impl Engine {
         }
     }
 
-    fn transfer_data_to_image(
-        device: &Device,
-        allocated_image: &AllocatedImage,
-        data: *const std::ffi::c_void,
-    ) {
-        let host_image_layout_transition_info = [HostImageLayoutTransitionInfo {
-            image: Some(allocated_image.image.borrow()),
-            old_layout: ImageLayout::Undefined,
-            new_layout: ImageLayout::General,
-            subresource_range: allocated_image.subresource_range,
-            ..Default::default()
-        }];
-
-        device
-            .transition_image_layout(&host_image_layout_transition_info)
-            .unwrap();
-
-        let memory_to_image_copy = MemoryToImageCopy {
-            p_host_pointer: data,
-            image_subresource: ImageSubresourceLayers {
-                aspect_mask: allocated_image.subresource_range.aspect_mask,
-                mip_level: Default::default(),
-                base_array_layer: Default::default(),
-                layer_count: 1,
-            },
-            image_extent: allocated_image.extent,
-            memory_image_height: allocated_image.extent.height * 4,
-            memory_row_length: allocated_image.extent.width * allocated_image.extent.depth * 4,
-            ..Default::default()
-        };
-
-        let regions = [memory_to_image_copy];
-        let copy_memory_to_image_info = CopyMemoryToImageInfo {
-            dst_image: Some(allocated_image.image.borrow()),
-            dst_image_layout: ImageLayout::General,
-            region_count: regions.len() as _,
-            p_regions: regions.as_ptr() as *const _,
-            ..Default::default()
-        };
-
-        device
-            .copy_memory_to_image(&copy_memory_to_image_info)
-            .unwrap();
-    }
-
     fn create_descriptors(
         world: &World,
         push_constants_ranges: &[PushConstantRange],
@@ -304,6 +304,11 @@ impl Engine {
             DescriptorType::StorageImage,
             128,
             DescriptorBindingFlags::PartiallyBound,
+        );
+        descriptor_set_builder.add_binding(
+            DescriptorType::StorageBuffer,
+            1,
+            DescriptorBindingFlags::default(),
         );
         descriptor_set_builder.add_binding(
             DescriptorType::SampledImage,

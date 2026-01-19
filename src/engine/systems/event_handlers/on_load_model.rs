@@ -16,7 +16,7 @@ use vma::Allocator;
 use vulkanite::vk::rs::Device;
 
 use crate::engine::{
-    components::transform::{GlobalTransform, Transform},
+    components::transform::Transform,
     events::{LoadModelEvent, SpawnEvent, SpawnEventRecord},
     id::Id,
     resources::{
@@ -92,8 +92,6 @@ pub fn on_load_model(
     let device = vulkan_context.device;
     let allocator = &vulkan_context.allocator;
     let model_loader = &renderer_resources.model_loader;
-
-    let mut mesh_buffers = Vec::new();
 
     let mut nodes = Vec::new();
 
@@ -228,25 +226,22 @@ pub fn on_load_model(
                         triangles.len(),
                     );
 
-                    let uuid = Uuid::new_v4();
                     let mesh_buffer = MeshBuffer {
-                        id: Id::new(uuid),
-                        index: usize::MIN,
-                        vertex_buffer: vertex_buffer,
+                        instance_object_index: usize::MIN,
+                        vertex_buffer,
                         vertex_indices_buffer,
                         meshlets_buffer,
                         local_indices_buffer,
                         meshlets_count: meshlets.len(),
                     };
 
+                    let mesh_buffer_id = renderer_resources.insert_mesh_buffer(mesh_buffer);
                     spawn_event_record.name = mesh.name();
                     spawn_event_record.parent_index = Some(node_data.index + mesh_index_offset);
-                    spawn_event_record.mesh_buffer_id = mesh_buffer.id;
+                    spawn_event_record.mesh_buffer_id = mesh_buffer_id;
                     spawn_event_record.transform = transform;
 
                     spawn_event.spawn_records.push(spawn_event_record.clone());
-
-                    mesh_buffers.push(mesh_buffer);
                 }
             }
 
@@ -259,11 +254,6 @@ pub fn on_load_model(
     }
 
     commands.trigger(spawn_event);
-
-    mesh_buffers.drain(..).into_iter().for_each(|mesh_buffer| {
-        // TODO
-        renderer_resources.insert_mesh_buffer(mesh_buffer);
-    });
 }
 
 fn get_mesh_indices(node: &Node, num_meshes: usize) -> Vec<usize> {

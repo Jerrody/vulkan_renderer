@@ -15,12 +15,6 @@ pub struct DescriptorSetLayoutHandle {
     pub descriptor_set_layout_size: u64,
 }
 
-pub struct DescriptorSetBinding {
-    pub descriptor_binding_type: DescriptorType,
-    pub index: usize,
-    pub offset: usize,
-}
-
 #[derive(Clone, Copy)]
 pub struct DescriptorsSizes {
     pub uniform_buffer_descriptor_size: usize,
@@ -52,7 +46,7 @@ impl DescriptorSetHandle {
         device: Device,
         allocator: &Allocator,
         descriptor_kind: DescriptorKind,
-    ) -> usize {
+    ) -> Option<usize> {
         let descriptor_type = descriptor_kind.get_descriptor_type();
 
         let descriptors_sizes = self.descriptors_sizes;
@@ -61,6 +55,7 @@ impl DescriptorSetHandle {
             DescriptorType::SampledImage => descriptors_sizes.sampled_image_descriptor_size,
             DescriptorType::StorageImage => descriptors_sizes.storage_image_descriptor_size,
             DescriptorType::Sampler => descriptors_sizes.sampled_image_descriptor_size,
+            DescriptorType::StorageBuffer => descriptors_sizes.storage_buffer_descriptor_size,
             unsupported_descriptor_type => panic!(
                 "Unsupported Descriptor Type found: {:?}",
                 unsupported_descriptor_type
@@ -70,10 +65,14 @@ impl DescriptorSetHandle {
         let descriptor_type_raw = descriptor_type as u32;
         let binding_info = self.bindings_infos.get_mut(&descriptor_type_raw).unwrap();
 
-        let current_descriptor_slot_index = binding_info.next_empty_slot_index;
+        let current_descriptor_slot_index = if descriptor_type != DescriptorType::StorageBuffer {
+            Some(binding_info.next_empty_slot_index)
+        } else {
+            None
+        };
         let base_binding_offset = binding_info.binding_offset;
-        let binding_offset =
-            base_binding_offset + (current_descriptor_slot_index as u64 * descriptor_size as u64);
+        let binding_offset = base_binding_offset
+            + (current_descriptor_slot_index.unwrap_or_default() as u64 * descriptor_size as u64);
         binding_info.next_empty_slot_index += 1;
 
         let allocation = &mut self.buffer.allocation;
@@ -94,9 +93,9 @@ impl DescriptorSetHandle {
                     ..Default::default()
                 };
 
-                let mut p_uniform_descriptor_address_info =
+                let mut p_uniform_buffer_descriptor_address_info =
                     ManuallyDrop::new(&uniform_buffer_descriptor_address_info as *const _ as _);
-                descriptor_data.p_uniform_buffer = p_uniform_descriptor_address_info;
+                descriptor_data.p_uniform_buffer = p_uniform_buffer_descriptor_address_info;
 
                 descriptor_get_info.ty = DescriptorType::UniformBuffer;
                 descriptor_get_info.data = descriptor_data;
@@ -108,7 +107,32 @@ impl DescriptorSetHandle {
                 );
 
                 unsafe {
-                    ManuallyDrop::drop(&mut p_uniform_descriptor_address_info);
+                    ManuallyDrop::drop(&mut p_uniform_buffer_descriptor_address_info);
+                }
+            }
+            DescriptorKind::StorageBuffer(descriptor_storage_buffer) => {
+                let storage_buffer_descriptor_address_info = DescriptorAddressInfoEXT {
+                    address: descriptor_storage_buffer.address,
+                    range: descriptor_storage_buffer.size,
+                    format: Format::Undefined,
+                    ..Default::default()
+                };
+
+                let mut p_storage_buffer_descriptor_address_info =
+                    ManuallyDrop::new(&storage_buffer_descriptor_address_info as *const _ as _);
+                descriptor_data.p_storage_buffer = p_storage_buffer_descriptor_address_info;
+
+                descriptor_get_info.ty = DescriptorType::StorageBuffer;
+                descriptor_get_info.data = descriptor_data;
+
+                device.get_descriptor_ext(
+                    &descriptor_get_info,
+                    descriptor_size,
+                    target_descriptor_buffer_address as _,
+                );
+
+                unsafe {
+                    ManuallyDrop::drop(&mut p_storage_buffer_descriptor_address_info);
                 }
             }
             DescriptorKind::StorageImage(descriptor_storage_image) => {

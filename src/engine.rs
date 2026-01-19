@@ -185,6 +185,11 @@ impl Drop for Engine {
                         &mut mesh_buffer.vertex_indices_buffer,
                     );
                 });
+            renderer_resources
+                .get_storage_buffers_iter_mut()
+                .for_each(|(_, storage_buffer)| {
+                    self.destroy_buffer(&vulkan_context_resource.allocator, storage_buffer);
+                });
 
             drop(vulkan_context_resource.allocator);
 
