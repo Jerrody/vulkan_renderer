@@ -48,10 +48,10 @@ pub fn render_meshes(
 
         let mesh_push_constant = &GraphicsPushConstant {
             view_projection: frame_context.world_matrix,
-            vertex_buffer_device_adress: mesh_buffer.vertex_buffer.device_address,
-            vertex_indices_device_address: mesh_buffer.vertex_indices_buffer.device_address,
-            meshlets_device_address: mesh_buffer.meshlets_buffer.device_address,
-            local_indices_device_address: mesh_buffer.local_indices_buffer.device_address,
+            vertex_buffer_device_adress: mesh_buffer.vertex_buffer_id.device_address,
+            vertex_indices_device_address: mesh_buffer.vertex_indices_buffer_id.device_address,
+            meshlets_device_address: mesh_buffer.meshlets_buffer_id.device_address,
+            local_indices_device_address: mesh_buffer.local_indices_buffer_id.device_address,
             texture_image_index: texture_image_index as _,
             sampler_index: nearest_sampler_index as _,
             ..Default::default()
@@ -67,7 +67,7 @@ pub fn render_meshes(
             p_mesh_push_constant as _,
         );
 
-        command_buffer.draw_mesh_tasks_ext(mesh_buffer.meshlets_count as _, 1, 1);
+        command_buffer.draw_mesh_tasks_ext(mesh_buffer.meshlets_count_id as _, 1, 1);
     });
 
     renderer_resources.is_printed_scene_hierarchy = true;

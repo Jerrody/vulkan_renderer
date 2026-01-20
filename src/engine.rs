@@ -21,6 +21,7 @@ use winit::window::Window;
 
 use crate::engine::{
     events::LoadModelEvent,
+    id::Id,
     resources::{
         AllocatedBuffer, AllocatedImage, FrameContext, RendererContext, RendererResources,
         VulkanContextResource,
@@ -137,10 +138,8 @@ impl Drop for Engine {
         device.wait_idle().unwrap();
 
         unsafe {
-            self.destroy_buffer(
-                &vulkan_context_resource.allocator,
-                &mut renderer_resources.resources_descriptor_set_handle.buffer,
-            );
+            let allocated_buffer = &mut renderer_resources.resources_descriptor_set_handle.buffer;
+            self.destroy_buffer(&vulkan_context_resource.allocator, allocated_buffer);
 
             device.destroy_pipeline_layout(Some(
                 renderer_resources
@@ -157,37 +156,17 @@ impl Drop for Engine {
 
             renderer_resources
                 .get_samplers_iter()
-                .for_each(|(_, &sampler_object)| {
+                .for_each(|sampler_object| {
                     device.destroy_sampler(Some(sampler_object.sampler));
                 });
             renderer_resources
                 .get_textures_iter_mut()
-                .for_each(|(_, allocated_image)| {
+                .for_each(|allocated_image| {
                     self.destroy_image(device, &vulkan_context_resource.allocator, allocated_image);
                 });
             renderer_resources
-                .get_mesh_buffers_iter_mut()
-                .for_each(|(_, mesh_buffer)| {
-                    self.destroy_buffer(
-                        &vulkan_context_resource.allocator,
-                        &mut mesh_buffer.local_indices_buffer,
-                    );
-                    self.destroy_buffer(
-                        &vulkan_context_resource.allocator,
-                        &mut mesh_buffer.meshlets_buffer,
-                    );
-                    self.destroy_buffer(
-                        &vulkan_context_resource.allocator,
-                        &mut mesh_buffer.vertex_buffer,
-                    );
-                    self.destroy_buffer(
-                        &vulkan_context_resource.allocator,
-                        &mut mesh_buffer.vertex_indices_buffer,
-                    );
-                });
-            renderer_resources
                 .get_storage_buffers_iter_mut()
-                .for_each(|(_, storage_buffer)| {
+                .for_each(|storage_buffer| {
                     self.destroy_buffer(&vulkan_context_resource.allocator, storage_buffer);
                 });
 

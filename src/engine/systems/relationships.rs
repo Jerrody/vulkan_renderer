@@ -1,10 +1,9 @@
 use bevy_ecs::{
-    component::ComponentId,
     entity::Entity,
     lifecycle::HookContext,
     query::Without,
     system::{ParamSet, Query},
-    world::{self, DeferredWorld},
+    world::DeferredWorld,
 };
 use glam::Mat4;
 

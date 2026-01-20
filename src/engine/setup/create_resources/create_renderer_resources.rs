@@ -144,7 +144,8 @@ impl Engine {
             draw_image_id: Id::NULL,
             white_image_id: Id::NULL,
             nearest_sampler_id: Id::NULL,
-            insatance_objects_buffers_ids: Vec::new(),
+            instance_objects_buffers_ids: Vec::new(),
+            mesh_objects_buffers_ids: Vec::new(),
             resources_descriptor_set_handle,
             gradient_compute_shader_object: created_shaders[0],
             mesh_shader_object: created_shaders[1],
@@ -156,11 +157,11 @@ impl Engine {
 
         let mut instance_objects_buffers = Vec::with_capacity(render_context.frame_overlap);
 
-        for _ in 0..render_context.frame_overlap {
+        for _ in 0..instance_objects_buffers.capacity() {
             let instance_objects_buffer = create_buffer(
                 device,
                 allocator,
-                std::mem::size_of::<InstanceObject>() * 1024,
+                std::mem::size_of::<InstanceObject>() * 4096,
                 BufferUsageFlags::StorageBuffer
                     | BufferUsageFlags::ShaderDeviceAddress
                     | BufferUsageFlags::TransferDst,
@@ -169,12 +170,6 @@ impl Engine {
             instance_objects_buffers.push(instance_objects_buffer);
         }
 
-        renderer_resources.draw_image_id = renderer_resources.insert_texture(draw_image);
-        renderer_resources.depth_image_id = renderer_resources.insert_texture(depth_image);
-        renderer_resources.white_image_id = renderer_resources.insert_texture(white_image);
-        renderer_resources.nearest_sampler_id =
-            renderer_resources.insert_sampler(nearest_sampler_object);
-
         let mut instance_objects_buffers_ids = Vec::with_capacity(instance_objects_buffers.len());
         instance_objects_buffers
             .drain(..)
@@ -182,27 +177,37 @@ impl Engine {
                 instance_objects_buffers_ids
                     .push(renderer_resources.insert_storage_buffer(instance_object_buffer));
             });
+        renderer_resources.instance_objects_buffers_ids = instance_objects_buffers_ids;
 
-        instance_objects_buffers_ids
-            .iter()
-            .for_each(|&instance_objects_buffer_id| {
-                let instance_objects_buffer =
-                    renderer_resources.get_storage_buffer_ref(instance_objects_buffer_id);
+        let mut mesh_objects_buffers = Vec::with_capacity(render_context.frame_overlap);
 
-                let storage_buffer_descriptor_kind =
-                    DescriptorKind::StorageBuffer(DescriptorStorageBuffer {
-                        address: instance_objects_buffer.device_address,
-                        size: instance_objects_buffer.size,
-                    });
+        for _ in 0..mesh_objects_buffers.capacity() {
+            let mesh_objcets_buffer = create_buffer(
+                device,
+                allocator,
+                std::mem::size_of::<MeshObject>() * 8192,
+                BufferUsageFlags::StorageBuffer
+                    | BufferUsageFlags::ShaderDeviceAddress
+                    | BufferUsageFlags::TransferDst,
+            );
 
-                // TODO: Make an API more ergonomic, in case of when we use only one descriptor slot,
-                // for example, when we use Storage Buffers.
-                #[allow(unused)]
-                renderer_resources
-                    .resources_descriptor_set_handle
-                    .update_binding(device, allocator, storage_buffer_descriptor_kind);
+            mesh_objects_buffers.push(mesh_objcets_buffer);
+        }
+
+        let mut mesh_objects_buffers_ids = Vec::with_capacity(mesh_objects_buffers.len());
+        mesh_objects_buffers
+            .drain(..)
+            .for_each(|mesh_object_buffer| {
+                mesh_objects_buffers_ids
+                    .push(renderer_resources.insert_storage_buffer(mesh_object_buffer));
             });
-        renderer_resources.insatance_objects_buffers_ids = instance_objects_buffers_ids;
+        renderer_resources.mesh_objects_buffers_ids = mesh_objects_buffers_ids;
+
+        renderer_resources.draw_image_id = renderer_resources.insert_texture(draw_image);
+        renderer_resources.depth_image_id = renderer_resources.insert_texture(depth_image);
+        renderer_resources.white_image_id = renderer_resources.insert_texture(white_image);
+        renderer_resources.nearest_sampler_id =
+            renderer_resources.insert_sampler(nearest_sampler_object);
 
         // TODO: Need to make this mess more ergonomic and simpler.
         let draw_image_ref = renderer_resources.get_texture_ref(renderer_resources.draw_image_id);

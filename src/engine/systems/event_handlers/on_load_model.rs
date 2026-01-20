@@ -228,11 +228,11 @@ pub fn on_load_model(
 
                     let mesh_buffer = MeshBuffer {
                         instance_object_index: usize::MIN,
-                        vertex_buffer,
-                        vertex_indices_buffer,
-                        meshlets_buffer,
-                        local_indices_buffer,
-                        meshlets_count: meshlets.len(),
+                        vertex_buffer_id: vertex_buffer,
+                        vertex_indices_buffer_id: vertex_indices_buffer,
+                        meshlets_buffer_id: meshlets_buffer,
+                        local_indices_buffer_id: local_indices_buffer,
+                        meshlets_count_id: meshlets.len(),
                     };
 
                     let mesh_buffer_id = renderer_resources.insert_mesh_buffer(mesh_buffer);
