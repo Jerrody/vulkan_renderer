@@ -7,7 +7,7 @@ use vulkanite::vk::*;
 
 use crate::engine::{
     components::{mesh::Mesh, transform::Parent},
-    resources::{FrameContext, MeshPushConstant, RendererResources},
+    resources::{FrameContext, GraphicsPushConstant, RendererResources},
 };
 
 pub fn render_meshes(
@@ -46,8 +46,8 @@ pub fn render_meshes(
             .get_sampler(renderer_resources.nearest_sampler_id)
             .index;
 
-        let mesh_push_constant = &MeshPushConstant {
-            world_matrix: frame_context.world_matrix,
+        let mesh_push_constant = &GraphicsPushConstant {
+            view_projection: frame_context.world_matrix,
             vertex_buffer_device_adress: mesh_buffer.vertex_buffer.device_address,
             vertex_indices_device_address: mesh_buffer.vertex_indices_buffer.device_address,
             meshlets_device_address: mesh_buffer.meshlets_buffer.device_address,
@@ -57,12 +57,12 @@ pub fn render_meshes(
             ..Default::default()
         };
 
-        let p_mesh_push_constant = mesh_push_constant as *const MeshPushConstant;
+        let p_mesh_push_constant = mesh_push_constant as *const GraphicsPushConstant;
         command_buffer.push_constants(
             mesh_pipeline_layout,
             ShaderStageFlags::MeshEXT | ShaderStageFlags::Fragment | ShaderStageFlags::Compute,
             Default::default(),
-            size_of::<MeshPushConstant>() as u32
+            size_of::<GraphicsPushConstant>() as u32
                 - std::mem::size_of_val(&mesh_push_constant.draw_image_index) as u32,
             p_mesh_push_constant as _,
         );

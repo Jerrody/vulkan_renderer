@@ -9,7 +9,7 @@ use vulkanite::{
 };
 
 use crate::engine::{
-    resources::{FrameContext, MeshPushConstant, RendererContext, RendererResources},
+    resources::{FrameContext, GraphicsPushConstant, RendererContext, RendererResources},
     utils::{self, image_subresource_range, transition_image},
 };
 
@@ -268,7 +268,7 @@ fn draw_gradient(
     );
 
     let draw_image_ref = renderer_resources.get_texture_ref(renderer_resources.draw_image_id);
-    let mesh_push_constant = &MeshPushConstant {
+    let mesh_push_constant = &GraphicsPushConstant {
         draw_image_index: draw_image_ref.index as _,
         ..Default::default()
     };
@@ -278,7 +278,7 @@ fn draw_gradient(
             .resources_descriptor_set_handle
             .pipeline_layout,
         ShaderStageFlags::Compute | ShaderStageFlags::Fragment | ShaderStageFlags::MeshEXT,
-        std::mem::offset_of!(MeshPushConstant, draw_image_index) as _,
+        std::mem::offset_of!(GraphicsPushConstant, draw_image_index) as _,
         std::mem::size_of_val(&draw_image_ref.index) as _,
         mesh_push_constant as *const _ as _,
     );

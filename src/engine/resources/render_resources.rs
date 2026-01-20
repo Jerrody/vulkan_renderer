@@ -54,17 +54,14 @@ pub struct MeshObject {
 #[repr(C)]
 pub struct InstanceObject {
     pub model_matrix: Mat4,
-    pub mesh_index: u32,
+    pub device_address_mesh_object: DeviceAddress,
 }
 
 #[repr(C)]
 #[derive(Default)]
-pub struct MeshPushConstant {
-    pub world_matrix: Mat4,
-    pub meshlets_device_address: DeviceAddress,
-    pub vertex_buffer_device_adress: DeviceAddress,
-    pub vertex_indices_device_address: DeviceAddress,
-    pub local_indices_device_address: DeviceAddress,
+pub struct GraphicsPushConstant {
+    pub view_projection: Mat4,
+    pub device_address_instance_object: DeviceAddress,
     pub sampler_index: u32,
     pub texture_image_index: u32,
     pub draw_image_index: u32,

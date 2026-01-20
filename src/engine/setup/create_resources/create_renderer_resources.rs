@@ -95,7 +95,7 @@ impl Engine {
                 | ShaderStageFlags::Fragment
                 | ShaderStageFlags::Compute,
             offset: Default::default(),
-            size: std::mem::size_of::<MeshPushConstant>() as _,
+            size: std::mem::size_of::<GraphicsPushConstant>() as _,
         };
 
         let push_constant_ranges = [push_constant_range];
@@ -307,23 +307,11 @@ impl Engine {
             128,
             DescriptorBindingFlags::PartiallyBound,
         );
-        // Buffer of Mesh Buffers (size is uniform, because we hold pointers to the actual buffers)
-        descriptor_set_builder.add_binding(
-            DescriptorType::StorageBuffer,
-            1,
-            DescriptorBindingFlags::default(),
-        );
-        // Buffer of Instance Objects (size is uniform, because we just hold indices to the required resources)
-        descriptor_set_builder.add_binding(
-            DescriptorType::StorageBuffer,
-            1,
-            DescriptorBindingFlags::default(),
-        );
-        // Sampled Images (aka Textures), we can resize count of descriptors, we pre-alllocate 4096 descriptors,
+        // Sampled Images (aka Textures), we can resize count of descriptors, we pre-alllocate N descriptors,
         // but we specify that count as unbound (aka variable)
         descriptor_set_builder.add_binding(
             DescriptorType::SampledImage,
-            4096,
+            10_240,
             DescriptorBindingFlags::PartiallyBound
                 | DescriptorBindingFlags::VariableDescriptorCount,
         );

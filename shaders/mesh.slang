@@ -26,33 +26,28 @@ struct Meshlet
 
 struct MeshObject
 {
-    const let meshlets : Ptr<Meshlet, Access.Read>;
-    const let vertices : Ptr<Vertex, Access.Read>;
-    const let vertex_indices : Ptr<uint32_t, Access.Read>;
-    const let local_indices : Ptr<uint8_t, Access.Read>;
+    const let meshlets : ImmutablePtr<Meshlet>;
+    const let vertices : ImmutablePtr<Vertex>;
+    const let vertex_indices : ImmutablePtr<uint32_t>;
+    const let local_indices : ImmutablePtr<uint8_t>;
 }
 
 struct InstanceObject
 {
     const let model_matrix : float4x4;
-    const let mesh_index : uint32_t;
+    const let ptr_mesh_object : ImmutablePtr<MeshObject>;
 }
 
 struct GraphicsPushConstants
 {
     const let view_projection_matrix : float4x4;
-    const let instance_object_index : uint32_t;
+    const let ptr_instance_object : ImmutablePtr<InstanceObject>;
     const let sampler_index : uint32_t;
     const let texture_image_index : uint32_t;
 };
 
 [[vk::push_constant]]
 readonly ConstantBuffer<GraphicsPushConstants> graphics_push_constants;
-
-[[vk::binding(2, 0)]]
-readonly const StructuredBuffer<MeshObject> mesh_objects;
-[[vk::binding(3, 0)]]
-readonly const StructuredBuffer<InstanceObject> instance_objects;
 
 [shader("mesh")]
 [outputtopology("triangle")]
@@ -63,8 +58,8 @@ void main(
     OutputVertices<VertexOutput, MAX_VERTICES> outVerts,
     OutputIndices<uint3, MAX_TRIANGLES> outIndices)
 {
-    let instance_object = instance_objects[graphics_push_constants.instance_object_index];
-    let mesh_object = mesh_objects[instance_object.mesh_index];
+    let instance_object = graphics_push_constants.ptr_instance_object;
+    let mesh_object = instance_object.ptr_mesh_object;
 
     let meshlet = mesh_object.meshlets[group_id];
 
@@ -82,9 +77,9 @@ void main(
     if (group_index < meshlet.triangle_count)
     {
         let triangleLookupIndex = meshlet.triangle_offset + (group_index * 3);
-        let i0 = mesh_object.local_indices[triangleLookupIndex + 0].x;
-        let i1 = mesh_object.local_indices[triangleLookupIndex + 1].x;
-        let i2 = mesh_object.local_indices[triangleLookupIndex + 2].x;
+        let i0 = mesh_object.local_indices[triangleLookupIndex + 0];
+        let i1 = mesh_object.local_indices[triangleLookupIndex + 1];
+        let i2 = mesh_object.local_indices[triangleLookupIndex + 2];
 
         outIndices[group_index] = uint32_t3(i0, i1, i2);
     }
@@ -103,8 +98,8 @@ func process_vertex(const v: Vertex, const mat: float4x4)->VertexOutput
 
 [[vk::binding(0, 0)]]
 readonly const SamplerState samplers[16];
-[[vk::binding(4, 0)]]
-readonly const Texture2D<float4> images[4096];
+[[vk::binding(2, 0)]]
+readonly const Texture2D<float4> images[];
 
 [shader("fragment")]
 func main(const vertex_output: VertexOutput)->float4
