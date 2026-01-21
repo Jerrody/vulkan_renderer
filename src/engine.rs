@@ -27,8 +27,8 @@ use crate::engine::{
         VulkanContextResource,
     },
     systems::{
-        begin_rendering, end_rendering, on_load_model, on_spawn_mesh, prepare_frame, present,
-        propogate_transforms, render_meshes,
+        begin_rendering, collect_instance_objects, end_rendering, on_load_model, on_spawn_mesh,
+        prepare_frame, present, propogate_transforms, render_meshes, write_instance_objects,
     },
 };
 
@@ -65,7 +65,12 @@ impl Engine {
         world.insert_resource(frame_context);
 
         let mut world_schedule = Schedule::new(ScheduleWorldUpdate);
-        world_schedule.add_systems((propogate_transforms,));
+        world_schedule.add_systems((
+            propogate_transforms,
+            collect_instance_objects::collect_instance_objects.after(propogate_transforms),
+            write_instance_objects::write_instance_objects
+                .after(collect_instance_objects::collect_instance_objects),
+        ));
 
         let mut renderer_schedule = Schedule::new(ScheduleRendererUpdate);
         renderer_schedule.add_systems((

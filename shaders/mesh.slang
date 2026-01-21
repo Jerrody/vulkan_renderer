@@ -47,7 +47,7 @@ struct GraphicsPushConstants
 };
 
 [[vk::push_constant]]
-readonly ConstantBuffer<GraphicsPushConstants> graphics_push_constants;
+ConstantBuffer<GraphicsPushConstants> graphics_push_constants;
 
 [shader("mesh")]
 [outputtopology("triangle")]
@@ -97,9 +97,9 @@ func process_vertex(const v: Vertex, const mat: float4x4)->VertexOutput
 ///////////////////////////////////////////////////// FRAGMENT //////////////////////////////////////////////////////////////
 
 [[vk::binding(0, 0)]]
-readonly const SamplerState samplers[16];
+const SamplerState samplers[16];
 [[vk::binding(2, 0)]]
-readonly const Texture2D<float4> images[];
+const Texture2D<float4> images[];
 
 [shader("fragment")]
 func main(const vertex_output: VertexOutput)->float4

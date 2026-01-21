@@ -4,7 +4,7 @@ use bevy_ecs::system::{Res, ResMut};
 
 use crate::engine::resources::{RendererResources, VulkanContextResource};
 
-pub fn update_instance_objects(
+pub fn write_instance_objects(
     vk_ctx: Res<VulkanContextResource>,
     mut renderer_resources: ResMut<RendererResources>,
 ) {
