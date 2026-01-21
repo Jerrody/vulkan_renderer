@@ -38,13 +38,14 @@ pub struct Vertex {
 
 #[repr(C)]
 pub struct MeshObject {
-    pub vertex_buffer_address: DeviceAddress,
-    pub vertex_indices_buffer_address: DeviceAddress,
-    pub meshlets_buffer_address: DeviceAddress,
-    pub local_indices_buffer_address: DeviceAddress,
+    pub device_address_vertex_buffer: DeviceAddress,
+    pub device_address_vertex_indices_buffer: DeviceAddress,
+    pub device_address_meshlets_buffer: DeviceAddress,
+    pub device_address_local_indices_buffer: DeviceAddress,
 }
 
 #[repr(C)]
+#[derive(Default, Clone, Copy)]
 pub struct InstanceObject {
     pub model_matrix: Mat4,
     pub device_address_mesh_object: DeviceAddress,
@@ -62,11 +63,12 @@ pub struct GraphicsPushConstant {
 
 pub struct MeshBuffer {
     pub id: Id,
+    pub mesh_object_device_address: DeviceAddress,
     pub vertex_buffer_id: Id,
     pub vertex_indices_buffer_id: Id,
     pub meshlets_buffer_id: Id,
     pub local_indices_buffer_id: Id,
-    pub meshlets_count_id: usize,
+    pub meshlets_count: usize,
 }
 
 pub struct AllocatedImage {
@@ -117,16 +119,77 @@ impl SamplerObject {
     }
 }
 
+pub struct MeshObjectPool {
+    pub mesh_objects_buffer_id: Id,
+    pub mesh_buffers_to_write: Vec<Id>,
+}
+
+impl Default for MeshObjectPool {
+    fn default() -> Self {
+        MeshObjectPool {
+            mesh_objects_buffer_id: Id::NULL,
+            mesh_buffers_to_write: Default::default(),
+        }
+    }
+}
+
+impl<'a> MeshObjectPool {
+    pub fn enqueue_mesh_buffer_to_write(&mut self, mesh_buffer_id: Id) {
+        self.mesh_buffers_to_write.push(mesh_buffer_id);
+    }
+
+    pub fn get_mesh_buffers_to_write_iter(&'a self) -> Iter<'a, Id> {
+        self.mesh_buffers_to_write.iter()
+    }
+
+    pub fn get_mesh_buffers_to_write_iter_mut(&'a mut self) -> IterMut<'a, Id> {
+        self.mesh_buffers_to_write.iter_mut()
+    }
+}
+
+pub struct InstancesPool {
+    pub current_instance_set_index: usize,
+    pub instance_sets_buffers_ids: Vec<Id>,
+    instance_objects_to_write: Vec<InstanceObject>,
+}
+
+impl<'a> InstancesPool {
+    pub fn get_current_instance_set_buffer_id(&self) -> Id {
+        self.instance_sets_buffers_ids[self.current_instance_set_index]
+    }
+
+    pub fn get_instances_objects_to_write_as_slice(&'a self) -> &'a [InstanceObject] {
+        self.instance_objects_to_write.as_slice()
+    }
+
+    pub fn write_instance_object_to_current_instance_set(
+        &mut self,
+        instance_object: InstanceObject,
+    ) -> usize {
+        self.instance_objects_to_write.push(instance_object);
+
+        self.instance_objects_to_write.len() - 1
+    }
+}
+
+impl Default for InstancesPool {
+    fn default() -> Self {
+        Self {
+            current_instance_set_index: usize::MIN,
+            instance_sets_buffers_ids: Default::default(),
+            instance_objects_to_write: Default::default(),
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct ResourcesPool {
     pub mesh_buffers: Vec<MeshBuffer>,
     pub storage_buffers: Vec<AllocatedBuffer>,
     pub textures: Vec<AllocatedImage>,
     pub samplers: Vec<SamplerObject>,
-}
-
-pub struct InstancesPool {
-    pub buffers: Vec<Id>,
+    pub instances_pool: InstancesPool,
+    pub mesh_objects_pool: MeshObjectPool,
 }
 
 #[derive(Resource)]
@@ -135,7 +198,6 @@ pub struct RendererResources {
     pub draw_image_id: Id,
     pub white_image_id: Id,
     pub nearest_sampler_id: Id,
-    pub instance_objects_buffers_ids: Vec<Id>,
     pub mesh_objects_buffers_ids: Vec<Id>,
     pub resources_descriptor_set_handle: DescriptorSetHandle,
     pub gradient_compute_shader_object: ShaderObject,
@@ -147,6 +209,65 @@ pub struct RendererResources {
 }
 
 impl<'a> RendererResources {
+    pub fn insert_mesh_objects_buffer_id(&mut self, mesh_objects_buffer_id: Id) {
+        self.resources_pool.mesh_objects_pool.mesh_objects_buffer_id = mesh_objects_buffer_id;
+    }
+
+    pub fn enqueue_mesh_buffer_to_write(&mut self, mesh_buffer_id: Id) {
+        self.resources_pool
+            .mesh_objects_pool
+            .enqueue_mesh_buffer_to_write(mesh_buffer_id);
+    }
+
+    pub fn get_mesh_buffer_to_write_iter(&'a self) -> Iter<'a, Id> {
+        self.resources_pool
+            .mesh_objects_pool
+            .get_mesh_buffers_to_write_iter()
+    }
+
+    pub fn insert_instance_set_buffer_id(&mut self, instance_set_buffer_id: Id) {
+        self.resources_pool
+            .instances_pool
+            .instance_sets_buffers_ids
+            .push(instance_set_buffer_id);
+    }
+
+    pub fn set_and_reset_current_instance_set_by_index(&mut self, index: usize) {
+        let instances_pool = &mut self.resources_pool.instances_pool;
+        instances_pool.current_instance_set_index = index;
+        instances_pool.instance_objects_to_write.clear();
+    }
+
+    pub fn get_current_instance_set_buffer_id(&self) -> Id {
+        self.resources_pool
+            .instances_pool
+            .get_current_instance_set_buffer_id()
+    }
+
+    pub fn write_instance_object(
+        &mut self,
+        model_matrix: Mat4,
+        device_address_mesh_object: DeviceAddress,
+    ) -> usize {
+        let instance_object = InstanceObject {
+            model_matrix,
+            device_address_mesh_object,
+        };
+
+        let last_instance_object_index = self
+            .resources_pool
+            .instances_pool
+            .write_instance_object_to_current_instance_set(instance_object);
+
+        last_instance_object_index
+    }
+
+    pub fn get_instances_objects_to_write_as_slice(&self) -> &[InstanceObject] {
+        self.resources_pool
+            .instances_pool
+            .get_instances_objects_to_write_as_slice()
+    }
+
     #[must_use]
     pub fn insert_mesh_buffer(&'a mut self, mesh_buffer: MeshBuffer) -> Id {
         let mesh_buffer_id = mesh_buffer.id;

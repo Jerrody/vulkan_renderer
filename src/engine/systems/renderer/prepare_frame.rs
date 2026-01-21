@@ -1,11 +1,14 @@
 use bevy_ecs::system::{Res, ResMut};
 use vulkanite::vk::*;
 
-use crate::engine::resources::{FrameContext, RendererContext, VulkanContextResource};
+use crate::engine::resources::{
+    FrameContext, RendererContext, RendererResources, VulkanContextResource,
+};
 
 pub fn prepare_frame(
     vulkan_ctx: Res<VulkanContextResource>,
     render_ctx: Res<RendererContext>,
+    mut renderer_resources: ResMut<RendererResources>,
     mut frame_ctx: ResMut<FrameContext>,
 ) {
     let device = &vulkan_ctx.device;
@@ -26,6 +29,8 @@ pub fn prepare_frame(
         )
         .unwrap();
     frame_ctx.swapchain_image_index = swapchain_image_index;
+
+    renderer_resources.set_and_reset_current_instance_set_by_index(swapchain_image_index as _);
 
     frame_data
         .command_group

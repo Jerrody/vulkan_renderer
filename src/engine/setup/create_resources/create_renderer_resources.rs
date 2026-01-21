@@ -144,7 +144,6 @@ impl Engine {
             draw_image_id: Id::NULL,
             white_image_id: Id::NULL,
             nearest_sampler_id: Id::NULL,
-            instance_objects_buffers_ids: Vec::new(),
             mesh_objects_buffers_ids: Vec::new(),
             resources_descriptor_set_handle,
             gradient_compute_shader_object: created_shaders[0],
@@ -177,7 +176,12 @@ impl Engine {
                 instance_objects_buffers_ids
                     .push(renderer_resources.insert_storage_buffer(instance_object_buffer));
             });
-        renderer_resources.instance_objects_buffers_ids = instance_objects_buffers_ids;
+        instance_objects_buffers_ids
+            .drain(..)
+            .into_iter()
+            .for_each(|instance_objects_buffer_id| {
+                renderer_resources.insert_instance_set_buffer_id(instance_objects_buffer_id);
+            });
 
         let mut mesh_objects_buffers = Vec::with_capacity(render_context.frame_overlap);
 

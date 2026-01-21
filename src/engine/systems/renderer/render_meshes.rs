@@ -7,7 +7,7 @@ use vulkanite::vk::*;
 
 use crate::engine::{
     components::{mesh::Mesh, transform::Parent},
-    resources::{FrameContext, GraphicsPushConstant, RendererResources},
+    resources::{FrameContext, GraphicsPushConstant, InstanceObject, RendererResources},
 };
 
 pub fn render_meshes(
@@ -36,9 +36,14 @@ pub fn render_meshes(
     let mesh_pipeline_layout = renderer_resources
         .resources_descriptor_set_handle
         .pipeline_layout;
-    graphics_entities.iter().for_each(|(name, parent, mesh)| {
-        let mesh_buffer = renderer_resources.get_mesh_buffer_ref(mesh.buffer_id);
 
+    let instance_objects_buffer_id = renderer_resources.get_current_instance_set_buffer_id();
+    let device_address_instance_objects_buffer = renderer_resources
+        .get_storage_buffer_ref(instance_objects_buffer_id)
+        .device_address;
+    let instance_object_size = std::mem::size_of::<InstanceObject>();
+
+    graphics_entities.iter().for_each(|(name, parent, mesh)| {
         let texture_image_index = renderer_resources
             .get_texture_ref(renderer_resources.draw_image_id)
             .index;
@@ -46,12 +51,11 @@ pub fn render_meshes(
             .get_sampler(renderer_resources.nearest_sampler_id)
             .index;
 
+        let device_address_instance_object = device_address_instance_objects_buffer
+            + mesh.instance_object_index.unwrap() as u64 * instance_object_size as u64;
         let mesh_push_constant = &GraphicsPushConstant {
             view_projection: frame_context.world_matrix,
-            vertex_buffer_device_adress: mesh_buffer.vertex_buffer_id.device_address,
-            vertex_indices_device_address: mesh_buffer.vertex_indices_buffer_id.device_address,
-            meshlets_device_address: mesh_buffer.meshlets_buffer_id.device_address,
-            local_indices_device_address: mesh_buffer.local_indices_buffer_id.device_address,
+            device_address_instance_object: device_address_instance_object,
             texture_image_index: texture_image_index as _,
             sampler_index: nearest_sampler_index as _,
             ..Default::default()
@@ -67,7 +71,8 @@ pub fn render_meshes(
             p_mesh_push_constant as _,
         );
 
-        command_buffer.draw_mesh_tasks_ext(mesh_buffer.meshlets_count_id as _, 1, 1);
+        let mesh_buffer_ref = renderer_resources.get_mesh_buffer_ref(mesh.mesh_buffer_id);
+        command_buffer.draw_mesh_tasks_ext(mesh_buffer_ref.meshlets_count as _, 1, 1);
     });
 
     renderer_resources.is_printed_scene_hierarchy = true;

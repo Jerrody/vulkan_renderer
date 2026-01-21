@@ -16,7 +16,7 @@ use vulkanite::{
 
 use crate::engine::{
     resources::{AllocatedImage, UploadContext, allocation::create_buffer},
-    systems::on_load_model::transfer_data,
+    systems::on_load_model::transfer_data_to_buffer,
 };
 
 #[derive(Resource)]
@@ -61,7 +61,7 @@ impl VulkanContextResource {
         );
 
         unsafe {
-            transfer_data(&self.allocator, &mut upload_buffer, data_to_copy, size as _);
+            transfer_data_to_buffer(&self.allocator, &mut upload_buffer, data_to_copy, size as _);
         }
 
         let host_image_layout_transition_info = [HostImageLayoutTransitionInfo {

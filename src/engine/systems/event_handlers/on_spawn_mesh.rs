@@ -1,4 +1,4 @@
-use bevy_ecs::{entity::Entity, name::Name, observer::On, system::Commands};
+use bevy_ecs::{name::Name, observer::On, system::Commands};
 use glam::{Quat, Vec3};
 use uuid::Uuid;
 
@@ -22,14 +22,8 @@ pub fn on_spawn_mesh(spawn_event: On<SpawnEvent>, mut commands: Commands) {
     let scene_entity_id = commands
         .spawn((Name::new("Scene"), scene_global_transform, scene_transform))
         .id();
-    /*     let mut current_parent_index = usize::MIN;
-
-    let mut previous_entity_id = Entity::PLACEHOLDER;
-
-    let mut parent_entity_id = scene_entity_id */
 
     let mut spawned_entities = Vec::with_capacity(spawn_event.spawn_records.len());
-    let mut current_parent_index = usize::default();
 
     for spawn_event_record in spawn_event.spawn_records.iter() {
         let basic_components = (
@@ -47,7 +41,8 @@ pub fn on_spawn_mesh(spawn_event: On<SpawnEvent>, mut commands: Commands) {
         if mesh_buffer_id != Id::NULL {
             let mesh = Mesh {
                 id: Id::new(Uuid::new_v4()),
-                buffer_id: mesh_buffer_id,
+                instance_object_index: None,
+                mesh_buffer_id,
                 material_id: Id::NULL,
             };
             name.set(std::format!(
@@ -60,18 +55,10 @@ pub fn on_spawn_mesh(spawn_event: On<SpawnEvent>, mut commands: Commands) {
 
         let parent = if let Some(parent_index) = spawn_event_record.parent_index {
             Parent(spawned_entities[parent_index])
-            /*             if current_parent_index < parent_index {
-                current_parent_index = parent_index;
-
-                parent_entity_id = previous_entity_id;
-            }
-
-            Parent(parent_entity_id) */
         } else {
             Parent(scene_entity_id)
         };
 
         spawned_entity.insert((name, parent));
-        //previous_entity_id = spawned_entity.id()
     }
 }
