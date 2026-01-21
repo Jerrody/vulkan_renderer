@@ -65,17 +65,15 @@ impl Engine {
         world.insert_resource(frame_context);
 
         let mut world_schedule = Schedule::new(ScheduleWorldUpdate);
-        world_schedule.add_systems((
-            propogate_transforms,
-            collect_instance_objects::collect_instance_objects.after(propogate_transforms),
-            write_instance_objects::write_instance_objects
-                .after(collect_instance_objects::collect_instance_objects),
-        ));
+        world_schedule.add_systems((propogate_transforms,));
 
         let mut renderer_schedule = Schedule::new(ScheduleRendererUpdate);
         renderer_schedule.add_systems((
             prepare_frame::prepare_frame,
-            begin_rendering::begin_rendering.after(prepare_frame::prepare_frame),
+            collect_instance_objects::collect_instance_objects.after(prepare_frame::prepare_frame),
+            write_instance_objects::write_instance_objects
+                .after(collect_instance_objects::collect_instance_objects),
+            begin_rendering::begin_rendering.after(write_instance_objects::write_instance_objects),
             render_meshes::render_meshes.after(begin_rendering::begin_rendering),
             end_rendering::end_rendering.after(render_meshes::render_meshes),
             present::present.after(render_meshes::render_meshes),

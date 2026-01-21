@@ -27,5 +27,7 @@ pub fn write_instance_objects(
             ptr_instance_set_buffer as *mut _,
             instances_objects_to_write_count,
         );
+
+        allocator.unmap_memory(&mut instance_set_buffer.allocation);
     }
 }

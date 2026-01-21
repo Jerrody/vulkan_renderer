@@ -11,7 +11,7 @@ use crate::engine::{
 };
 
 pub fn render_meshes(
-    graphics_entities: Query<(&Name, &Parent, &Mesh)>,
+    graphics_entities: Query<&Mesh>,
     entities: Query<(Entity, &Name)>,
     entities_with_parent: Query<&Parent>,
     mut renderer_resources: ResMut<RendererResources>,
@@ -43,7 +43,7 @@ pub fn render_meshes(
         .device_address;
     let instance_object_size = std::mem::size_of::<InstanceObject>();
 
-    graphics_entities.iter().for_each(|(name, parent, mesh)| {
+    graphics_entities.iter().for_each(|mesh| {
         let texture_image_index = renderer_resources
             .get_texture_ref(renderer_resources.draw_image_id)
             .index;

@@ -26,9 +26,9 @@ struct Meshlet
 
 struct MeshObject
 {
-    const let meshlets : ImmutablePtr<Meshlet>;
     const let vertices : ImmutablePtr<Vertex>;
     const let vertex_indices : ImmutablePtr<uint32_t>;
+    const let meshlets : ImmutablePtr<Meshlet>;
     const let local_indices : ImmutablePtr<uint8_t>;
 }
 

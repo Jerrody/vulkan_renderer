@@ -279,19 +279,19 @@ pub fn on_load_model(
             let device_address_vertex_indices_buffer: DeviceAddress = get_device_address(
                 vulkan_context.device,
                 &renderer_resources
-                    .get_storage_buffer_ref(mesh_buffer.vertex_buffer_id)
+                    .get_storage_buffer_ref(mesh_buffer.vertex_indices_buffer_id)
                     .buffer,
             );
             let device_address_meshlets_buffer: DeviceAddress = get_device_address(
                 vulkan_context.device,
                 &renderer_resources
-                    .get_storage_buffer_ref(mesh_buffer.vertex_buffer_id)
+                    .get_storage_buffer_ref(mesh_buffer.meshlets_buffer_id)
                     .buffer,
             );
             let device_address_local_indices_buffer: DeviceAddress = get_device_address(
                 vulkan_context.device,
                 &renderer_resources
-                    .get_storage_buffer_ref(mesh_buffer.vertex_buffer_id)
+                    .get_storage_buffer_ref(mesh_buffer.local_indices_buffer_id)
                     .buffer,
             );
 
@@ -317,14 +317,14 @@ pub fn on_load_model(
     let device_addresss_mesh_objects_buffer: DeviceAddress =
         get_device_address(vulkan_context.device, &mesh_objects_buffer.buffer);
 
-    let mesh_object_size = std::mem::size_of::<MeshObjectPool>();
+    let mesh_object_size = std::mem::size_of::<MeshObject>();
     renderer_resources
         .get_mesh_buffers_iter_mut()
         .zip(mesh_objects_to_write.iter().enumerate())
         .for_each(|(mesh_buffer, (mesh_object_index, mesh_object))| {
             let ptr_mesh_object = mesh_object as *const _ as _;
 
-            let offset_dst = mesh_object_index * mesh_object_index;
+            let offset_dst = mesh_object_index * mesh_object_size;
 
             mesh_buffer.mesh_object_device_address =
                 device_addresss_mesh_objects_buffer + offset_dst as u64;
