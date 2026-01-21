@@ -1,6 +1,5 @@
 use asset_importer::{Matrix4x4, node::Node};
 use std::ffi::c_void;
-use uuid::Uuid;
 use vulkanite::vk::{BufferUsageFlags, DeviceAddress};
 
 use bevy_ecs::{
@@ -162,27 +161,31 @@ pub fn on_load_model(
                         }
                     }
 
-                    let mut vertices = mesh
+                    let positions: Vec<Vec3> = mesh
                         .vertices_iter()
-                        .zip(
-                            mesh.normals()
-                                .unwrap()
-                                .into_iter()
-                                .zip(mesh.texture_coords_iter(Default::default())),
-                        )
-                        .into_iter()
-                        .map(|(position, (normal, uv))| {
-                            let position = Vec3::new(position.x, position.y, position.z);
-                            let normal = Vec3::new(normal.x, normal.y, normal.z);
-                            let uv = Vec2::new(uv.x, uv.y);
+                        .map(|v| Vec3::new(v.x, v.y, v.z))
+                        .collect();
+                    let normals: Vec<Vec3> = mesh
+                        .normals()
+                        .map(|ns| ns.iter().map(|n| Vec3::new(n.x, n.y, n.z)).collect())
+                        .unwrap_or_else(|| vec![Vec3::ZERO; positions.len()]);
 
-                            Vertex {
-                                position,
-                                normal,
-                                uv,
-                            }
-                        })
-                        .collect::<Vec<Vertex>>();
+                    let uvs: Vec<Vec2> = if mesh.has_texture_coords(0) {
+                        mesh.texture_coords_iter(0)
+                            .map(|uv| Vec2::new(uv.x, uv.y))
+                            .collect()
+                    } else {
+                        vec![Vec2::ZERO; positions.len()]
+                    };
+
+                    let mut vertices = Vec::with_capacity(positions.len());
+                    for i in 0..positions.len() {
+                        vertices.push(Vertex {
+                            position: positions[i],
+                            normal: normals[i],
+                            uv: uvs[i],
+                        });
+                    }
 
                     let remap = optimize_vertex_fetch_remap(&indices, vertices.len());
                     indices = remap_index_buffer(Some(&indices), vertices.len(), &remap);
@@ -197,7 +200,7 @@ pub fn on_load_model(
                             .unwrap();
 
                     optimize_vertex_cache_in_place(&mut indices, vertices.len());
-                    optimize_vertex_fetch(&mut indices, &vertices);
+                    let vertices = optimize_vertex_fetch(&mut indices, &vertices);
 
                     let (meshlets, vertex_indices, triangles) =
                         generate_meshlets(&indices, &vertex_data_adapter);
@@ -386,7 +389,7 @@ fn generate_meshlets(
     vertices: &VertexDataAdapter,
 ) -> (Vec<Meshlet>, Vec<u32>, Vec<u8>) {
     let max_vertices = 64;
-    let max_triangles = 124;
+    let max_triangles = 64;
     let cone_weight = 0.0;
 
     let raw_meshlets = build_meshlets(indices, vertices, max_vertices, max_triangles, cone_weight);

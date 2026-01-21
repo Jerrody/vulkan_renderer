@@ -1,5 +1,5 @@
 static const let MAX_VERTICES : uint32_t = 64;
-static const let MAX_TRIANGLES : uint32_t = 124;
+static const let MAX_TRIANGLES : uint32_t = 64;
 static const let GROUP_SIZE : uint32_t = MAX_VERTICES;
 
 struct Vertex
@@ -71,7 +71,7 @@ void main(
         let globalVertexId = mesh_object.vertex_indices[vertexLookupIndex];
 
         let v = mesh_object.vertices[globalVertexId];
-        outVerts[group_index] = process_vertex(v, graphics_push_constants.view_projection_matrix);
+        outVerts[group_index] = process_vertex(v, instance_object.model_matrix, graphics_push_constants.view_projection_matrix);
     }
 
     if (group_index < meshlet.triangle_count)
@@ -86,10 +86,13 @@ void main(
 }
 
 [ForceInline]
-func process_vertex(const v: Vertex, const mat: float4x4)->VertexOutput
+func process_vertex(const v: Vertex, const model_matrix: float4x4, const view_projection_matrix: float4x4)->VertexOutput
 {
-    let position = mul(mat, float4(v.position, 1.0));
-    let vertex_output : VertexOutput = VertexOutput(position, v.normal, v.uv);
+    let position = float4(v.position, 1.0);
+    let world_position = mul(model_matrix, position);
+    let clip_position = mul(view_projection_matrix, world_position);
+
+    let vertex_output : VertexOutput = VertexOutput(clip_position, v.normal, v.uv);
 
     return vertex_output;
 }
@@ -107,7 +110,8 @@ func main(const vertex_output: VertexOutput)->float4
     let sampler = samplers[graphics_push_constants.sampler_index];
     let image = images[graphics_push_constants.texture_image_index];
 
-    let color = image.Sample(sampler, vertex_output.uv);
+    // let color = image.Sample(sampler, vertex_output.uv);
+    let color = float4(vertex_output.color, 1.0);
 
     return color;
 }
