@@ -151,7 +151,7 @@ impl Engine {
             fragment_shader_object: created_shaders[2],
             model_loader,
             resources_pool: Default::default(),
-            is_printed_scene_hierarchy: false,
+            is_printed_scene_hierarchy: true,
         };
 
         let mut instance_objects_buffers = Vec::with_capacity(render_context.frame_overlap);
@@ -308,7 +308,7 @@ impl Engine {
         descriptor_set_builder.add_binding(
             DescriptorType::Sampler,
             16,
-            DescriptorBindingFlags::default(),
+            DescriptorBindingFlags::PartiallyBound,
         );
         // Storage Images (aka Draw Image)
         descriptor_set_builder.add_binding(
