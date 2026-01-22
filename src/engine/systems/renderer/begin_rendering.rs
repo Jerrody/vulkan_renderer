@@ -70,6 +70,14 @@ pub fn begin_rendering(
         draw_image_extent2d,
     );
 
+    transition_image(
+        command_buffer,
+        draw_image.image,
+        ImageLayout::General,
+        ImageLayout::General,
+        ImageAspectFlags::Color,
+    );
+
     let color_attachment_infos = [RenderingAttachmentInfo {
         image_view: Some(draw_image_view.borrow()),
         image_layout: ImageLayout::General,
@@ -279,8 +287,8 @@ fn draw_gradient(
             .pipeline_layout,
         ShaderStageFlags::Compute | ShaderStageFlags::Fragment | ShaderStageFlags::MeshEXT,
         std::mem::offset_of!(GraphicsPushConstant, draw_image_index) as _,
-        std::mem::size_of_val(&draw_image_ref.index) as _,
-        mesh_push_constant as *const _ as _,
+        std::mem::size_of::<u32>() as _,
+        &mesh_push_constant.draw_image_index as *const _ as _,
     );
 
     command_buffer.dispatch(

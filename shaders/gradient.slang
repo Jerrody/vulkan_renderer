@@ -1,6 +1,6 @@
 struct PushConstants
 {
-    [[vk::offset(68)]]
+    [[vk::offset(80)]]
     let draw_image_index : uint32_t;
 };
 

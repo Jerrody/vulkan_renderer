@@ -10,7 +10,7 @@ use crate::engine::{
     Engine,
     descriptors::{
         DescriptorKind, DescriptorSampledImage, DescriptorSampler, DescriptorSetBuilder,
-        DescriptorSetHandle, DescriptorStorageBuffer, DescriptorStorageImage,
+        DescriptorSetHandle, DescriptorStorageImage,
     },
     id::Id,
     resources::{allocation::create_buffer, model_loader::ModelLoader, *},
