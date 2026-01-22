@@ -292,7 +292,7 @@ fn draw_gradient(
 
 #[allow(unused)]
 fn draw_background(
-    render_context: &ResMut<RendererContext>,
+    render_context: &RendererContext,
     command_buffer: CommandBuffer,
     draw_image: &Image,
 ) {
