@@ -12,6 +12,12 @@ pub struct Transform {
 }
 
 impl Transform {
+    pub const IDENTITY: Transform = Transform {
+        position: Vec3::ZERO,
+        rotation: Quat::IDENTITY,
+        local_scale: Vec3::ONE,
+    };
+
     pub fn get_matrix(&self) -> Mat4 {
         Mat4::from_scale_rotation_translation(self.local_scale, self.rotation, self.position)
     }

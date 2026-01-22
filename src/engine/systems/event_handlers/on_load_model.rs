@@ -96,29 +96,33 @@ pub fn on_load_model(
     let mut nodes = Vec::new();
 
     let scene = model_loader.load_model(&load_model_event.path);
+
+    let root_node_index = Default::default();
     let root_node = scene.root_node().unwrap();
 
     nodes.push(NodeData::new(
         root_node.name(),
-        Default::default(),
+        root_node_index,
         None,
         root_node.transformation(),
         get_mesh_indices(&root_node, root_node.num_meshes()),
     ));
 
-    let mut stack = Vec::new();
-    stack.push(root_node);
+    let mut stack: Vec<(Node, usize)> = Vec::new();
+    stack.push((root_node, root_node_index));
 
     loop {
-        while let Some(parent_node) = stack.pop() {
-            let parent_index = nodes.len() - 1;
-            for (child_index, child_node) in parent_node.children().enumerate() {
-                stack.push(child_node.clone());
+        while let Some((parent_node, parent_index_in_array)) = stack.pop() {
+            for child_index in (0..parent_node.num_children()).rev() {
+                let child_node = parent_node.child(child_index).unwrap();
+
+                let child_index_in_array = nodes.len();
+                stack.push((child_node.clone(), child_index_in_array));
 
                 nodes.push(NodeData::new(
                     child_node.name(),
-                    parent_index + child_index + 1,
-                    Some(parent_index),
+                    child_index_in_array,
+                    Some(parent_index_in_array),
                     child_node.transformation(),
                     get_mesh_indices(&child_node, child_node.num_meshes()),
                 ));
@@ -133,8 +137,7 @@ pub fn on_load_model(
     let mut spawn_event = SpawnEvent::default();
     let mut spawn_event_record = SpawnEventRecord::default();
 
-    let mut mesh_index_offset = usize::default();
-    for node_data in nodes.into_iter() {
+    nodes.iter().for_each(|node_data| {
         let local_matrix = node_data.matrix;
 
         let (local_scale, rotation, position) = local_matrix.to_scale_rotation_translation();
@@ -148,7 +151,9 @@ pub fn on_load_model(
         spawn_event_record.transform = transform;
 
         spawn_event.spawn_records.push(spawn_event_record.clone());
+    });
 
+    for node_data in nodes.into_iter() {
         if node_data.mesh_indices.len() > Default::default() {
             for &mesh_index in node_data.mesh_indices.iter() {
                 let mesh = scene.mesh(mesh_index);
@@ -252,20 +257,14 @@ pub fn on_load_model(
                     renderer_resources.enqueue_mesh_buffer_to_write(mesh_buffer_id);
 
                     spawn_event_record.name = mesh.name();
-                    spawn_event_record.parent_index = Some(node_data.index + mesh_index_offset);
+                    spawn_event_record.parent_index = Some(node_data.index);
                     spawn_event_record.mesh_buffer_id = mesh_buffer_id;
-                    spawn_event_record.transform = transform;
+                    spawn_event_record.transform = Transform::IDENTITY;
 
                     spawn_event.spawn_records.push(spawn_event_record.clone());
                 }
             }
-
-            mesh_index_offset = node_data.mesh_indices.len();
-        } else {
-            mesh_index_offset = Default::default();
         }
-
-        spawn_event_record.mesh_buffer_id = Id::NULL;
     }
 
     let mesh_objects_to_write = renderer_resources
