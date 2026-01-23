@@ -1,12 +1,11 @@
-use bevy_ecs::{resource::Resource, system::command};
+use bevy_ecs::resource::Resource;
 use vma::Allocator;
 use vulkanite::{
     Handle,
     vk::{
-        self, BufferImageCopy, BufferUsageFlags, CommandBufferBeginInfo, CommandBufferSubmitInfo,
-        CommandBufferUsageFlags, CommandPoolResetFlags, DescriptorType,
-        HostImageLayoutTransitionInfo, ImageLayout, ImageSubresourceLayers, SubmitInfo,
-        SubmitInfo2, SurfaceFormatKHR,
+        self, BufferImageCopy, BufferUsageFlags, CommandBufferBeginInfo, CommandBufferUsageFlags,
+        CommandPoolResetFlags, HostImageLayoutTransitionInfo, ImageLayout, ImageSubresourceLayers,
+        SubmitInfo, SurfaceFormatKHR,
         rs::{
             DebugUtilsMessengerEXT, Device, Instance, PhysicalDevice, Queue, SurfaceKHR,
             SwapchainKHR,

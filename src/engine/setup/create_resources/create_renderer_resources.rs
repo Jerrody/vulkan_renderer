@@ -93,7 +93,8 @@ impl Engine {
         let push_constant_range = PushConstantRange {
             stage_flags: ShaderStageFlags::MeshEXT
                 | ShaderStageFlags::Fragment
-                | ShaderStageFlags::Compute,
+                | ShaderStageFlags::Compute
+                | ShaderStageFlags::TaskEXT,
             offset: Default::default(),
             size: std::mem::size_of::<GraphicsPushConstant>() as _,
         };
@@ -119,7 +120,15 @@ impl Engine {
             },
             ShaderInfo {
                 path: &mesh_shader_path,
-                flags: ShaderCreateFlagsEXT::LinkStage | ShaderCreateFlagsEXT::NoTaskShader,
+                flags: ShaderCreateFlagsEXT::LinkStage,
+                stage: ShaderStageFlags::TaskEXT,
+                next_stage: ShaderStageFlags::MeshEXT,
+                descriptor_layouts: &descriptor_set_layouts,
+                push_constant_ranges: Some(&push_constant_ranges),
+            },
+            ShaderInfo {
+                path: &mesh_shader_path,
+                flags: ShaderCreateFlagsEXT::LinkStage,
                 stage: ShaderStageFlags::MeshEXT,
                 next_stage: ShaderStageFlags::Fragment,
                 descriptor_layouts: &descriptor_set_layouts,
@@ -147,8 +156,9 @@ impl Engine {
             mesh_objects_buffers_ids: Vec::new(),
             resources_descriptor_set_handle,
             gradient_compute_shader_object: created_shaders[0],
-            mesh_shader_object: created_shaders[1],
-            fragment_shader_object: created_shaders[2],
+            task_shader_object: created_shaders[1],
+            mesh_shader_object: created_shaders[2],
+            fragment_shader_object: created_shaders[3],
             model_loader,
             resources_pool: Default::default(),
             is_printed_scene_hierarchy: true,
@@ -330,7 +340,10 @@ impl Engine {
             &vulkan_context_resource.allocator,
             &device_properties_resource.descriptor_buffer_properties,
             push_constants_ranges,
-            ShaderStageFlags::Compute | ShaderStageFlags::Fragment | ShaderStageFlags::MeshEXT,
+            ShaderStageFlags::Compute
+                | ShaderStageFlags::Fragment
+                | ShaderStageFlags::MeshEXT
+                | ShaderStageFlags::TaskEXT,
         );
 
         resources_descriptor_set_handle

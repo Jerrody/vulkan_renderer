@@ -153,7 +153,7 @@ pub fn begin_rendering(
     let color_component_flags = [ColorComponentFlags::all()];
     command_buffer.set_color_write_mask_ext(Default::default(), &color_component_flags);
 
-    let view = Mat4::from_translation(Vec3::new(-85.45, 0.0, 2.52));
+    let view = Mat4::from_translation(Vec3::new(0.0, 0.0, -5.0));
     let projection = Mat4::perspective_rh(
         70.0_f32.to_radians(),
         draw_image_extent2d.width as f32 / draw_image_extent2d.height as f32,
@@ -185,10 +185,12 @@ pub fn begin_rendering(
     }
 
     let shader_stages = [
+        renderer_resources.task_shader_object.stage,
         renderer_resources.mesh_shader_object.stage,
         renderer_resources.fragment_shader_object.stage,
     ];
     let shaders = [
+        *renderer_resources.task_shader_object.shader,
         *renderer_resources.mesh_shader_object.shader,
         *renderer_resources.fragment_shader_object.shader,
     ];
@@ -285,7 +287,10 @@ fn draw_gradient(
         renderer_resources
             .resources_descriptor_set_handle
             .pipeline_layout,
-        ShaderStageFlags::Compute | ShaderStageFlags::Fragment | ShaderStageFlags::MeshEXT,
+        ShaderStageFlags::Compute
+            | ShaderStageFlags::Fragment
+            | ShaderStageFlags::MeshEXT
+            | ShaderStageFlags::TaskEXT,
         std::mem::offset_of!(GraphicsPushConstant, draw_image_index) as _,
         std::mem::size_of::<u32>() as _,
         &mesh_push_constant.draw_image_index as *const _ as _,

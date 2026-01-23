@@ -50,6 +50,7 @@ pub struct MeshObject {
 pub struct InstanceObject {
     pub model_matrix: Mat4,
     pub device_address_mesh_object: DeviceAddress,
+    pub meshlet_count: u32,
 }
 
 #[repr(C)]
@@ -163,6 +164,10 @@ impl<'a> InstancesPool {
         self.instance_objects_to_write.as_slice()
     }
 
+    pub fn get_instances_objects_to_write_as_slice_mut(&'a mut self) -> &'a mut [InstanceObject] {
+        self.instance_objects_to_write.as_mut_slice()
+    }
+
     pub fn write_instance_object_to_current_instance_set(
         &mut self,
         instance_object: InstanceObject,
@@ -202,6 +207,7 @@ pub struct RendererResources {
     pub mesh_objects_buffers_ids: Vec<Id>,
     pub resources_descriptor_set_handle: DescriptorSetHandle,
     pub gradient_compute_shader_object: ShaderObject,
+    pub task_shader_object: ShaderObject,
     pub mesh_shader_object: ShaderObject,
     pub fragment_shader_object: ShaderObject,
     pub model_loader: ModelLoader,
@@ -249,10 +255,12 @@ impl<'a> RendererResources {
         &mut self,
         model_matrix: Mat4,
         device_address_mesh_object: DeviceAddress,
+        meshlet_count: usize,
     ) -> usize {
         let instance_object = InstanceObject {
             model_matrix,
             device_address_mesh_object,
+            meshlet_count: meshlet_count as _,
         };
 
         let last_instance_object_index = self
@@ -267,6 +275,12 @@ impl<'a> RendererResources {
         self.resources_pool
             .instances_pool
             .get_instances_objects_to_write_as_slice()
+    }
+
+    pub fn get_instances_objects_to_write_as_slice_mut(&mut self) -> &mut [InstanceObject] {
+        self.resources_pool
+            .instances_pool
+            .get_instances_objects_to_write_as_slice_mut()
     }
 
     #[must_use]

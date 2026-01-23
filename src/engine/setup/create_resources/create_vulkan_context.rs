@@ -187,7 +187,7 @@ impl Engine {
     ) -> (vk::rs::Instance, Option<vk::rs::DebugUtilsMessengerEXT>) {
         const VALIDATION_LAYER: &CStr = c"VK_LAYER_KHRONOS_validation";
         let layers: Vec<_> = entry.enumerate_instance_layer_properties().unwrap();
-        let mut has_validation = layers
+        let has_validation = layers
             .into_iter()
             .any(|layer| layer.get_layer_name() == VALIDATION_LAYER);
         let enabled_layers = has_validation.then_some(VALIDATION_LAYER.as_ptr());
@@ -268,7 +268,7 @@ impl Engine {
             })
             .unwrap();
 
-        let features = vk::PhysicalDeviceFeatures::default();
+        let features = vk::PhysicalDeviceFeatures::default().shader_int64(true);
 
         let required_extensions = [
             vk::KHR_SWAPCHAIN.name,
@@ -323,7 +323,9 @@ impl Engine {
             PhysicalDeviceUnifiedImageLayoutsFeaturesKHR::default().unified_image_layouts(true),
             PhysicalDeviceDescriptorBufferFeaturesEXT::default().descriptor_buffer(true),
             PhysicalDeviceShaderObjectFeaturesEXT::default().shader_object(true),
-            PhysicalDeviceMeshShaderFeaturesEXT::default().mesh_shader(true)
+            PhysicalDeviceMeshShaderFeaturesEXT::default()
+                .mesh_shader(true)
+                .task_shader(true),
         );
 
         let device = physical_device.create_device(device_info.as_ref()).unwrap();

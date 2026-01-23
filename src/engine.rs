@@ -21,7 +21,6 @@ use winit::window::Window;
 
 use crate::engine::{
     events::LoadModelEvent,
-    id::Id,
     resources::{
         AllocatedBuffer, AllocatedImage, FrameContext, RendererContext, RendererResources,
         VulkanContextResource,
@@ -87,7 +86,7 @@ impl Engine {
 
         // TODO: TEMP
         world.trigger(LoadModelEvent {
-            path: String::from_str(r"assets/structure.glb").unwrap(),
+            path: String::from_str(r"assets/basicmesh.glb").unwrap(),
         });
 
         Self { world }
@@ -179,6 +178,7 @@ impl Drop for Engine {
                 renderer_resources.gradient_compute_shader_object.shader,
             ));
             device.destroy_shader_ext(Some(renderer_resources.mesh_shader_object.shader));
+            device.destroy_shader_ext(Some(renderer_resources.task_shader_object.shader));
             device.destroy_shader_ext(Some(renderer_resources.fragment_shader_object.shader));
 
             device.destroy_command_pool(Some(
