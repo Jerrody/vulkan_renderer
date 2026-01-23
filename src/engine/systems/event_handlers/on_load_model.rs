@@ -1,5 +1,5 @@
 use asset_importer::{Matrix4x4, node::Node};
-use std::ffi::c_void;
+use std::{collections::HashMap, ffi::c_void};
 use vulkanite::vk::{BufferUsageFlags, DeviceAddress};
 
 use bevy_ecs::{
@@ -153,12 +153,22 @@ pub fn on_load_model(
         spawn_event.spawn_records.push(spawn_event_record.clone());
     });
 
+    let mut uploaded_mesh_buffers: HashMap<usize, (String, Id)> =
+        HashMap::with_capacity(scene.num_meshes());
     for node_data in nodes.into_iter() {
         if node_data.mesh_indices.len() > Default::default() {
+            let mut mesh_name: String;
+            let mut mesh_buffer_id: Id;
             for &mesh_index in node_data.mesh_indices.iter() {
-                let mesh = scene.mesh(mesh_index);
-                if let Some(mesh) = mesh {
-                    let mut indices = Vec::new();
+                if uploaded_mesh_buffers.contains_key(&mesh_index) {
+                    let already_uploaded_mesh = uploaded_mesh_buffers.get(&mesh_index).unwrap();
+                    mesh_name = already_uploaded_mesh.0.clone();
+                    mesh_buffer_id = already_uploaded_mesh.1;
+                } else {
+                    let mesh = scene.mesh(mesh_index).unwrap();
+                    mesh_name = mesh.name();
+
+                    let mut indices = Vec::with_capacity(mesh.faces().len() * 3);
 
                     for face in mesh.faces() {
                         for index in face.indices() {
@@ -253,16 +263,18 @@ pub fn on_load_model(
                         meshlets_count: meshlets.len(),
                     };
 
-                    let mesh_buffer_id = renderer_resources.insert_mesh_buffer(mesh_buffer);
+                    mesh_buffer_id = renderer_resources.insert_mesh_buffer(mesh_buffer);
                     renderer_resources.enqueue_mesh_buffer_to_write(mesh_buffer_id);
 
-                    spawn_event_record.name = mesh.name();
-                    spawn_event_record.parent_index = Some(node_data.index);
-                    spawn_event_record.mesh_buffer_id = mesh_buffer_id;
-                    spawn_event_record.transform = Transform::IDENTITY;
-
-                    spawn_event.spawn_records.push(spawn_event_record.clone());
+                    uploaded_mesh_buffers.insert(mesh_index, (mesh_name.clone(), mesh_buffer_id));
                 }
+
+                spawn_event_record.name = mesh_name;
+                spawn_event_record.parent_index = Some(node_data.index);
+                spawn_event_record.mesh_buffer_id = mesh_buffer_id;
+                spawn_event_record.transform = Transform::IDENTITY;
+
+                spawn_event.spawn_records.push(spawn_event_record.clone());
             }
         }
     }
