@@ -9,6 +9,7 @@ winit = { version = "=0.31.0-beta.2", default-features = false }
 bevy_ecs = { version = "0.17.3", default-features = false, features = [
     "std",
     "backtrace",
+    "multi_threaded",
 ] }
 vulkanite = { git = "https://github.com/Jerrody/vulkanite", features = [
     "version_1_4",
@@ -28,6 +29,7 @@ bytemuck = "1.24.0"
 meshopt = "0.6.2"
 ahash = "0.8.12"
 uuid = { version = "1.19", default-features = false, features = ["v4"] }
+rayon = { version = "1.11.0", default-features = false }
 
 [profile.dev]
 opt-level = 2

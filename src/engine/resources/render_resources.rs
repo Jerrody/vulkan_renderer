@@ -5,6 +5,7 @@ use std::slice::{Iter, IterMut};
 
 use bevy_ecs::resource::Resource;
 use glam::{Mat4, Vec2, Vec3};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use vma::Allocation;
 use vulkanite::{
     Handle,
@@ -375,8 +376,8 @@ impl<'a> RendererResources {
     pub fn get_mesh_buffer_ref(&'a self, id: Id) -> &'a MeshBuffer {
         self.resources_pool
             .mesh_buffers
-            .iter()
-            .find(|&mesh_buffer| mesh_buffer.id == id)
+            .par_iter()
+            .find_any(|&mesh_buffer| mesh_buffer.id == id)
             .unwrap()
     }
 
