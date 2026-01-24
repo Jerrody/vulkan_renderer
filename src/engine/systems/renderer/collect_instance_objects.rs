@@ -44,12 +44,9 @@ pub fn collect_instance_objects(
 
     for (_, mut mesh) in &mut mesh_query {
         let mesh_instance_index = mesh.instance_object_index.unwrap();
-        let instance_object_index =
-            instances_data_to_write
-                .par_iter()
-                .position_any(|instance_data_to_write| {
-                    instance_data_to_write.index == mesh_instance_index
-                });
+        let instance_object_index = instances_data_to_write
+            .iter()
+            .position(|instance_data_to_write| instance_data_to_write.index == mesh_instance_index);
 
         mesh.instance_object_index = instance_object_index;
     }

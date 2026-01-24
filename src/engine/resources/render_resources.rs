@@ -390,8 +390,8 @@ impl<'a> RendererResources {
     pub fn get_mesh_buffer_ref(&'a self, id: Id) -> &'a MeshBuffer {
         self.resources_pool
             .mesh_buffers
-            .par_iter()
-            .find_any(|&mesh_buffer| mesh_buffer.id == id)
+            .iter()
+            .find(|&mesh_buffer| mesh_buffer.id == id)
             .unwrap()
     }
 
