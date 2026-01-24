@@ -5,12 +5,14 @@ use vma::{Allocator, AllocatorCreateFlags, AllocatorCreateInfo};
 use vulkanite::{
     DefaultAllocator, Dispatcher, DynamicDispatcher, flagbits, structure_chain,
     vk::{
-        self, EXT_DESCRIPTOR_BUFFER, EXT_MESH_SHADER, EXT_SHADER_OBJECT, KHR_UNIFIED_IMAGE_LAYOUTS,
+        self, EXT_DESCRIPTOR_BUFFER, EXT_MESH_SHADER, EXT_SHADER_OBJECT,
+        KHR_SHADER_NON_SEMANTIC_INFO, KHR_UNIFIED_IMAGE_LAYOUTS,
         PhysicalDeviceDescriptorBufferFeaturesEXT, PhysicalDeviceMeshShaderFeaturesEXT,
         PhysicalDeviceRobustness2FeaturesKHR, PhysicalDeviceShaderObjectFeaturesEXT,
         PhysicalDeviceUnifiedImageLayoutsFeaturesKHR, PhysicalDeviceVulkan11Features,
         PhysicalDeviceVulkan12Features, PhysicalDeviceVulkan13Features,
-        PhysicalDeviceVulkan14Features, SurfaceFormatKHR,
+        PhysicalDeviceVulkan14Features, SurfaceFormatKHR, ValidationFeatureEnableEXT,
+        ValidationFeaturesEXT,
         rs::{PhysicalDevice, SwapchainKHR},
     },
     window,
@@ -204,10 +206,18 @@ impl Engine {
             .engine_name(Some(c"No Engine"))
             .api_version(vk::API_VERSION_1_4);
 
+        let mut enabled_validation_features = Vec::new();
+
+        /*         enabled_validation_features.push(ValidationFeatureEnableEXT::DebugPrintf);
+        enabled_validation_features.push(ValidationFeatureEnableEXT::GpuAssisted); */
+
+        let mut validation_features = ValidationFeaturesEXT::default()
+            .enabled_validation_features(enabled_validation_features.as_slice());
         let instance_info = vk::InstanceCreateInfo::default()
             .application_info(Some(&app_info))
             .enabled_extension(&enabled_extensions)
-            .enabled_layer(enabled_layers.as_slice());
+            .enabled_layer(enabled_layers.as_slice())
+            .push_next(&mut validation_features);
 
         let instance = entry.create_instance(&instance_info).unwrap();
 
@@ -276,6 +286,7 @@ impl Engine {
             KHR_UNIFIED_IMAGE_LAYOUTS.name,
             EXT_SHADER_OBJECT.name,
             EXT_MESH_SHADER.name,
+            //  KHR_SHADER_NON_SEMANTIC_INFO.name,
         ];
         let mut missing_extensions: HashSet<&CStr> =
             required_extensions.iter().map(|ext| ext.get()).collect();

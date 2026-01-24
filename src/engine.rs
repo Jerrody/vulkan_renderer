@@ -86,7 +86,7 @@ impl Engine {
 
         // TODO: TEMP
         world.trigger(LoadModelEvent {
-            path: String::from_str(r"assets/basicmesh.glb").unwrap(),
+            path: String::from_str(r"assets/structure.glb").unwrap(),
         });
 
         Self { world }

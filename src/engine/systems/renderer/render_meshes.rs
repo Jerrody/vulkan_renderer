@@ -68,7 +68,7 @@ pub fn render_meshes(
         p_mesh_push_constant as _,
     );
 
-    //command_buffer.draw_mesh_tasks_ext(graphics_entities.iter().len() as _, 1, 1);
+    command_buffer.draw_mesh_tasks_ext(graphics_entities.iter().len() as _, 1, 1);
 
     renderer_resources.is_printed_scene_hierarchy = true;
 }

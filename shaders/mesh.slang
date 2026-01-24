@@ -52,9 +52,11 @@ ConstantBuffer<GraphicsPushConstants> graphics_push_constants;
 
 struct Payload
 {
-    const let model_matrix : float4x4;
-    const let device_address_mesh_object : uint64_t;
+    var model_matrix : float4x4;
+    var device_address_mesh_object : uint64_t;
 }
+
+groupshared Payload payload;
 
 ///////////////////////////////////////////////////// TASK //////////////////////////////////////////////////////////////
 
@@ -63,7 +65,9 @@ struct Payload
 void main(const uint32_t group_id: SV_GroupID)
 {
     const let instance_object = graphics_push_constants.ptr_instance_object[group_id];
-    var payload = Payload(instance_object.model_matrix, (uint64_t)instance_object.ptr_mesh_object);
+
+    payload.model_matrix = instance_object.model_matrix;
+    payload.device_address_mesh_object = (uint64_t)instance_object.ptr_mesh_object;
 
     DispatchMesh(instance_object.meshlet_count, 1, 1, payload);
 }
@@ -74,7 +78,6 @@ void main(const uint32_t group_id: SV_GroupID)
 [outputtopology("triangle")]
 [numthreads(GROUP_SIZE, 1, 1)]
 void main(
-    in payload Payload payload,
     const uint group_id: SV_GroupID,
     const uint group_index: SV_GroupIndex,
     OutputVertices<VertexOutput, MAX_VERTICES> outVerts,
