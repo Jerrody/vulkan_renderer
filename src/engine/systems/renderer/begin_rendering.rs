@@ -221,26 +221,6 @@ pub fn begin_rendering(
     command_buffer.bind_shaders_ext(shader_stages.as_slice(), shaders.as_slice());
 }
 
-#[allow(unused)]
-fn draw_triangle(renderer_resources: &RendererResources, command_buffer: CommandBuffer) {
-    let vertex_bindings_descriptions = [];
-    let vertex_attributes = [];
-    command_buffer.set_vertex_input_ext(&vertex_bindings_descriptions, &vertex_attributes);
-
-    let shader_stages = [
-        renderer_resources.mesh_shader_object.stage,
-        renderer_resources.fragment_shader_object.stage,
-    ];
-    let shaders = [
-        renderer_resources.mesh_shader_object.shader,
-        renderer_resources.fragment_shader_object.shader,
-    ];
-
-    command_buffer.bind_shaders_ext(shader_stages.as_slice(), shaders.as_slice());
-
-    command_buffer.draw(3, 1, Default::default(), Default::default());
-}
-
 fn draw_gradient(
     renderer_resources: &RendererResources,
     command_buffer: CommandBuffer,
