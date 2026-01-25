@@ -4,7 +4,7 @@ static const let GROUP_SIZE : uint32_t = MAX_VERTICES;
 
 struct PrimitiveData
 {
-    const let texture_index : uint32_t;
+    nointerpolation const let texture_index : uint32_t;
 }
 
 struct Vertex
@@ -67,7 +67,7 @@ groupshared Payload payload;
 
 [shader("amplification")]
 [numthreads(1, 1, 1)]
-void main(const uint32_t group_id: SV_GroupID)
+func main(const uint32_t group_id: SV_GroupID)
 {
     const let instance_object = graphics_push_constants.ptr_instance_object[group_id];
 
@@ -81,7 +81,7 @@ void main(const uint32_t group_id: SV_GroupID)
 [shader("mesh")]
 [outputtopology("triangle")]
 [numthreads(GROUP_SIZE, 1, 1)]
-void main(
+func main(
     const uint group_id: SV_GroupID,
     const uint group_index: SV_GroupIndex,
     OutputVertices<VertexOutput, MAX_VERTICES> outVerts,
