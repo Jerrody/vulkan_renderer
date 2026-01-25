@@ -168,21 +168,21 @@ pub fn on_load_model(
             let mut mesh_buffer_id: Id;
             let mut texture_id: Id;
             for &mesh_index in node_data.mesh_indices.iter() {
+                texture_id = renderer_resources.default_texture_id;
+                try_upload_texture(
+                    &vulkan_context,
+                    &renderer_context_resource,
+                    &mut renderer_resources,
+                    &scene,
+                    &mut uploaded_textures,
+                    scene.mesh(mesh_index).unwrap(),
+                    &mut texture_id,
+                );
+
                 if uploaded_mesh_buffers.contains_key(&mesh_index) {
                     let already_uploaded_mesh = uploaded_mesh_buffers.get(&mesh_index).unwrap();
                     mesh_name = already_uploaded_mesh.0.name();
                     mesh_buffer_id = already_uploaded_mesh.1;
-
-                    texture_id = renderer_resources.default_texture_id;
-                    try_upload_texture(
-                        &vulkan_context,
-                        &renderer_context_resource,
-                        &mut renderer_resources,
-                        &scene,
-                        &mut uploaded_textures,
-                        already_uploaded_mesh.0.clone(),
-                        &mut texture_id,
-                    );
                 } else {
                     let mesh = scene.mesh(mesh_index).unwrap();
                     mesh_name = mesh.name();
@@ -271,17 +271,6 @@ pub fn on_load_model(
                         renderer_resources.insert_storage_buffer(meshlets_buffer);
                     let local_indices_buffer_id =
                         renderer_resources.insert_storage_buffer(local_indices_buffer);
-
-                    texture_id = renderer_resources.default_texture_id;
-                    try_upload_texture(
-                        &vulkan_context,
-                        &renderer_context_resource,
-                        &mut renderer_resources,
-                        &scene,
-                        &mut uploaded_textures,
-                        mesh.clone(),
-                        &mut texture_id,
-                    );
 
                     let mesh_buffer = MeshBuffer {
                         id: Id::new(vertex_buffer_id),
@@ -399,12 +388,14 @@ fn try_upload_texture(
     texture_id: &mut Id,
 ) {
     let material_index = mesh.material_index();
-    if uploaded_textures.contains_key(&mesh.material_index()) {
-        *texture_id = *uploaded_textures.get(&mesh.material_index()).unwrap();
+    if uploaded_textures.contains_key(&material_index) {
+        *texture_id = *uploaded_textures.get(&material_index).unwrap();
     } else {
         let material = scene.material(material_index).unwrap();
-        if material.texture_count(asset_importer::TextureType::Diffuse) > Default::default() {
-            let texture_info = material.base_color_texture(Default::default()).unwrap();
+        if material.texture_count(asset_importer::TextureType::BaseColor) > Default::default() {
+            let texture_info = material
+                .texture(asset_importer::TextureType::BaseColor, Default::default())
+                .unwrap();
             let texture_index = texture_info.path[1..].parse::<usize>().unwrap();
 
             let texture = scene.texture(texture_index).unwrap();
@@ -426,7 +417,7 @@ fn try_upload_texture(
             let allocated_texture = Engine::allocate_image(
                 vulkan_context.device,
                 &vulkan_context.allocator,
-                Format::R8G8B8A8Unorm,
+                Format::R8G8B8A8Srgb,
                 image_extent,
                 ImageUsageFlags::Sampled | ImageUsageFlags::TransferDst,
             );
@@ -457,7 +448,7 @@ fn try_upload_texture(
                 texture_index.unwrap()
             );
 
-            uploaded_textures.insert(mesh.material_index(), *texture_id);
+            uploaded_textures.insert(material_index, *texture_id);
         }
     }
 }

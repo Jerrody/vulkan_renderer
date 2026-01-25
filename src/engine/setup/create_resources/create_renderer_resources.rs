@@ -72,7 +72,6 @@ impl Engine {
             pixels.as_ptr() as *const _,
             &render_context.upload_context,
         );
-        //Self::transfer_data_to_image(device, &white_image, pixels.as_ptr() as *const _ as _);
 
         let depth_image = Self::allocate_image(
             device,
