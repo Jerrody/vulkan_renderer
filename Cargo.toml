@@ -31,6 +31,10 @@ meshopt = "0.6.2"
 ahash = "0.8.12"
 uuid = { version = "1.19", default-features = false, features = ["v4"] }
 rayon = { version = "1.11.0", default-features = false }
+image = { version = "0.25.9", default-features = false, features = [
+    "png",
+    "jpeg",
+] }
 
 [profile.dev]
 opt-level = 2

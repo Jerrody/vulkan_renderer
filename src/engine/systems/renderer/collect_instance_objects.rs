@@ -14,6 +14,7 @@ struct InstanceDataToWrite {
     pub index: usize,
     pub model_matrix: Mat4,
     pub device_address_mesh_object: DeviceAddress,
+    pub texture_index: u32,
     pub meshlet_count: usize,
 }
 
@@ -32,16 +33,21 @@ pub fn collect_instance_objects(
 
     let mut current_instance_data_index = usize::default();
     for (global_transform, mut mesh) in &mut mesh_query {
+        //let texture_index = renderer_resources.get_texture_ref(mesh.texture_id).index;
+        let texture_index = renderer_resources.get_texture_ref(mesh.texture_id).index;
+
         let mesh_buffer = unsafe {
             mesh_buffers_map
                 .get(&mesh.mesh_buffer_id)
                 .unwrap_unchecked()
         };
+
         instances_data_to_write.push(InstanceDataToWrite {
             index: current_instance_data_index,
             model_matrix: global_transform.0,
             device_address_mesh_object: mesh_buffer.mesh_object_device_address,
             meshlet_count: mesh_buffer.meshlets_count,
+            texture_index: texture_index as _,
         });
 
         mesh.instance_object_index = Some(current_instance_data_index);
@@ -69,6 +75,7 @@ pub fn collect_instance_objects(
                 instance_data_to_write.model_matrix,
                 instance_data_to_write.device_address_mesh_object,
                 instance_data_to_write.meshlet_count,
+                instance_data_to_write.texture_index,
             );
         });
 }

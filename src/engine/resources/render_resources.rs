@@ -5,7 +5,6 @@ use std::slice::{Iter, IterMut};
 
 use bevy_ecs::resource::Resource;
 use glam::{Mat4, Vec2, Vec3};
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use vma::Allocation;
 use vulkanite::{
     Handle,
@@ -51,6 +50,7 @@ pub struct InstanceObject {
     pub model_matrix: Mat4,
     pub device_address_mesh_object: DeviceAddress,
     pub meshlet_count: u32,
+    pub texture_index: u32,
 }
 
 #[repr(C)]
@@ -202,7 +202,7 @@ pub struct ResourcesPool {
 pub struct RendererResources {
     pub depth_image_id: Id,
     pub draw_image_id: Id,
-    pub white_image_id: Id,
+    pub default_texture_id: Id,
     pub nearest_sampler_id: Id,
     pub mesh_objects_buffers_ids: Vec<Id>,
     pub resources_descriptor_set_handle: DescriptorSetHandle,
@@ -256,11 +256,13 @@ impl<'a> RendererResources {
         model_matrix: Mat4,
         device_address_mesh_object: DeviceAddress,
         meshlet_count: usize,
+        texture_index: u32,
     ) -> usize {
         let instance_object = InstanceObject {
             model_matrix,
             device_address_mesh_object,
             meshlet_count: meshlet_count as _,
+            texture_index,
         };
 
         let last_instance_object_index = self

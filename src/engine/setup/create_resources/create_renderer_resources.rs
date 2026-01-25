@@ -151,7 +151,7 @@ impl Engine {
         let mut renderer_resources = RendererResources {
             depth_image_id: Id::NULL,
             draw_image_id: Id::NULL,
-            white_image_id: Id::NULL,
+            default_texture_id: Id::NULL,
             nearest_sampler_id: Id::NULL,
             mesh_objects_buffers_ids: Vec::new(),
             resources_descriptor_set_handle,
@@ -219,7 +219,7 @@ impl Engine {
 
         renderer_resources.draw_image_id = renderer_resources.insert_texture(draw_image);
         renderer_resources.depth_image_id = renderer_resources.insert_texture(depth_image);
-        renderer_resources.white_image_id = renderer_resources.insert_texture(white_image);
+        renderer_resources.default_texture_id = renderer_resources.insert_texture(white_image);
         renderer_resources.nearest_sampler_id =
             renderer_resources.insert_sampler(nearest_sampler_object);
 
@@ -235,7 +235,8 @@ impl Engine {
             .get_texture_ref_mut(renderer_resources.draw_image_id)
             .index = draw_image_index.unwrap();
 
-        let white_image_ref = renderer_resources.get_texture_ref(renderer_resources.white_image_id);
+        let white_image_ref =
+            renderer_resources.get_texture_ref(renderer_resources.default_texture_id);
         let descriptor_white_image = DescriptorKind::SampledImage(DescriptorSampledImage {
             image_view: white_image_ref.image_view,
         });
@@ -243,7 +244,7 @@ impl Engine {
             .resources_descriptor_set_handle
             .update_binding(device, allocator, descriptor_white_image);
         renderer_resources
-            .get_texture_ref_mut(renderer_resources.white_image_id)
+            .get_texture_ref_mut(renderer_resources.default_texture_id)
             .index = white_image_index.unwrap();
 
         let sampler_object = renderer_resources.get_sampler(renderer_resources.nearest_sampler_id);
@@ -260,7 +261,7 @@ impl Engine {
         renderer_resources
     }
 
-    fn allocate_image(
+    pub fn allocate_image(
         device: Device,
         allocator: &Allocator,
         format: Format,

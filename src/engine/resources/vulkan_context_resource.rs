@@ -16,6 +16,7 @@ use vulkanite::{
 use crate::engine::{
     resources::{AllocatedImage, UploadContext, allocation::create_buffer},
     systems::on_load_model::transfer_data_to_buffer,
+    utils::transition_image,
 };
 
 #[derive(Resource)]
@@ -63,17 +64,13 @@ impl VulkanContextResource {
             transfer_data_to_buffer(&self.allocator, &mut upload_buffer, data_to_copy, size as _);
         }
 
-        let host_image_layout_transition_info = [HostImageLayoutTransitionInfo {
-            image: Some(allocated_image.image.borrow()),
-            old_layout: ImageLayout::Undefined,
-            new_layout: ImageLayout::General,
-            subresource_range: allocated_image.subresource_range,
-            ..Default::default()
-        }];
-
-        self.device
-            .transition_image_layout(&host_image_layout_transition_info)
-            .unwrap();
+        transition_image(
+            command_buffer,
+            allocated_image.image,
+            ImageLayout::Undefined,
+            ImageLayout::General,
+            allocated_image.subresource_range.aspect_mask,
+        );
 
         let buffer_image_copy = [BufferImageCopy {
             image_subresource: ImageSubresourceLayers {

@@ -1,6 +1,7 @@
 use asset_importer::{Matrix4x4, node::Node};
-use std::{collections::HashMap, ffi::c_void};
-use vulkanite::vk::{BufferUsageFlags, DeviceAddress};
+use image::ImageReader;
+use std::{collections::HashMap, ffi::c_void, io::Cursor};
+use vulkanite::vk::{BufferUsageFlags, DeviceAddress, Extent3D, Format, ImageUsageFlags};
 
 use bevy_ecs::{
     observer::On,
@@ -15,12 +16,14 @@ use vma::Allocator;
 use vulkanite::vk::rs::Device;
 
 use crate::engine::{
+    Engine,
     components::transform::Transform,
+    descriptors::{DescriptorKind, DescriptorSampledImage},
     events::{LoadModelEvent, SpawnEvent, SpawnEventRecord},
     id::Id,
     resources::{
-        AllocatedBuffer, MeshBuffer, MeshObject, MeshObjectPool, Meshlet, RendererResources,
-        Vertex, VulkanContextResource, allocation::create_buffer,
+        AllocatedBuffer, MeshBuffer, MeshObject, MeshObjectPool, Meshlet, RendererContext,
+        RendererResources, Vertex, VulkanContextResource, allocation::create_buffer,
     },
     utils::get_device_address,
 };
@@ -87,6 +90,7 @@ pub fn on_load_model(
     load_model_event: On<LoadModelEvent>,
     mut commands: Commands,
     vulkan_context: Res<VulkanContextResource>,
+    renderer_context_resource: Res<RendererContext>,
     mut renderer_resources: ResMut<RendererResources>,
 ) {
     let device = vulkan_context.device;
@@ -153,17 +157,32 @@ pub fn on_load_model(
         spawn_event.spawn_records.push(spawn_event_record.clone());
     });
 
-    let mut uploaded_mesh_buffers: HashMap<usize, (String, Id)> =
+    let mut uploaded_mesh_buffers: HashMap<usize, (asset_importer::mesh::Mesh, Id)> =
         HashMap::with_capacity(scene.num_meshes());
+    let mut uploaded_textures: HashMap<usize, Id> =
+        HashMap::with_capacity(uploaded_mesh_buffers.capacity());
+
     for node_data in nodes.into_iter() {
         if node_data.mesh_indices.len() > Default::default() {
             let mut mesh_name: String;
             let mut mesh_buffer_id: Id;
+            let mut texture_id: Id;
             for &mesh_index in node_data.mesh_indices.iter() {
                 if uploaded_mesh_buffers.contains_key(&mesh_index) {
                     let already_uploaded_mesh = uploaded_mesh_buffers.get(&mesh_index).unwrap();
-                    mesh_name = already_uploaded_mesh.0.clone();
+                    mesh_name = already_uploaded_mesh.0.name();
                     mesh_buffer_id = already_uploaded_mesh.1;
+
+                    texture_id = renderer_resources.default_texture_id;
+                    try_upload_texture(
+                        &vulkan_context,
+                        &renderer_context_resource,
+                        &mut renderer_resources,
+                        &scene,
+                        &mut uploaded_textures,
+                        already_uploaded_mesh.0.clone(),
+                        &mut texture_id,
+                    );
                 } else {
                     let mesh = scene.mesh(mesh_index).unwrap();
                     mesh_name = mesh.name();
@@ -253,6 +272,17 @@ pub fn on_load_model(
                     let local_indices_buffer_id =
                         renderer_resources.insert_storage_buffer(local_indices_buffer);
 
+                    texture_id = renderer_resources.default_texture_id;
+                    try_upload_texture(
+                        &vulkan_context,
+                        &renderer_context_resource,
+                        &mut renderer_resources,
+                        &scene,
+                        &mut uploaded_textures,
+                        mesh.clone(),
+                        &mut texture_id,
+                    );
+
                     let mesh_buffer = MeshBuffer {
                         id: Id::new(vertex_buffer_id),
                         mesh_object_device_address: Id::NULL.value(),
@@ -266,11 +296,12 @@ pub fn on_load_model(
                     mesh_buffer_id = renderer_resources.insert_mesh_buffer(mesh_buffer);
                     renderer_resources.enqueue_mesh_buffer_to_write(mesh_buffer_id);
 
-                    uploaded_mesh_buffers.insert(mesh_index, (mesh_name.clone(), mesh_buffer_id));
+                    uploaded_mesh_buffers.insert(mesh_index, (mesh, mesh_buffer_id));
                 }
 
                 spawn_event_record.name = mesh_name;
                 spawn_event_record.parent_index = Some(node_data.index);
+                spawn_event_record.texture_id = texture_id;
                 spawn_event_record.mesh_buffer_id = mesh_buffer_id;
                 spawn_event_record.transform = Transform::IDENTITY;
 
@@ -358,7 +389,78 @@ pub fn on_load_model(
     commands.trigger(spawn_event);
 }
 
-fn write_mesh_buffers_to_mesh_objects_buffer(renderer_resources: &RendererResources) {}
+fn try_upload_texture(
+    vulkan_context: &VulkanContextResource,
+    renderer_context: &RendererContext,
+    renderer_resources: &mut RendererResources,
+    scene: &asset_importer::Scene,
+    uploaded_textures: &mut HashMap<usize, Id>,
+    mesh: asset_importer::mesh::Mesh,
+    texture_id: &mut Id,
+) {
+    let material_index = mesh.material_index();
+    if uploaded_textures.contains_key(&mesh.material_index()) {
+        *texture_id = *uploaded_textures.get(&mesh.material_index()).unwrap();
+    } else {
+        let material = scene.material(material_index).unwrap();
+        if material.texture_count(asset_importer::TextureType::Diffuse) > Default::default() {
+            let texture_info = material.base_color_texture(Default::default()).unwrap();
+            let texture_index = texture_info.path[1..].parse::<usize>().unwrap();
+
+            let texture = scene.texture(texture_index).unwrap();
+            let data = texture.data_bytes_ref().unwrap();
+            let image = ImageReader::new(Cursor::new(data))
+                .with_guessed_format()
+                .unwrap()
+                .decode()
+                .unwrap();
+            let image_rgba = image.to_rgba8();
+            let image_bytes = image_rgba.as_raw();
+
+            let image_extent = Extent3D {
+                width: image.width(),
+                height: image.height(),
+                depth: 1,
+            };
+
+            let allocated_texture = Engine::allocate_image(
+                vulkan_context.device,
+                &vulkan_context.allocator,
+                Format::R8G8B8A8Unorm,
+                image_extent,
+                ImageUsageFlags::Sampled | ImageUsageFlags::TransferDst,
+            );
+
+            vulkan_context.transfer_data_to_image(
+                &allocated_texture,
+                image_bytes.as_ptr() as *const _,
+                &renderer_context.upload_context,
+            );
+
+            *texture_id = renderer_resources.insert_texture(allocated_texture);
+
+            let texture_ref = renderer_resources.get_texture_ref(*texture_id);
+            let descriptor_texture = DescriptorKind::SampledImage(DescriptorSampledImage {
+                image_view: texture_ref.image_view,
+            });
+            let texture_index = renderer_resources
+                .resources_descriptor_set_handle
+                .update_binding(
+                    vulkan_context.device,
+                    &vulkan_context.allocator,
+                    descriptor_texture,
+                );
+            renderer_resources.get_texture_ref_mut(*texture_id).index = texture_index.unwrap();
+            println!(
+                "Name: {} | Index: {}",
+                texture.filename_str().unwrap(),
+                texture_index.unwrap()
+            );
+
+            uploaded_textures.insert(mesh.material_index(), *texture_id);
+        }
+    }
+}
 
 fn get_mesh_indices(node: &Node, num_meshes: usize) -> Vec<usize> {
     let mut mesh_indices = Vec::with_capacity(num_meshes);

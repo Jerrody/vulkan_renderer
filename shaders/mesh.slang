@@ -14,6 +14,7 @@ struct VertexOutput
     const float4 position : SV_Position;
     const float3 color : COLOR0;
     const float2 uv : TEXCOORD0;
+    nointerpolation const let texture_index : uint32_t;
 };
 
 struct Meshlet
@@ -37,6 +38,7 @@ struct InstanceObject
     const let model_matrix : float4x4;
     const let ptr_mesh_object : ImmutablePtr<MeshObject>;
     const let meshlet_count : uint32_t;
+    const let texture_index : uint32_t;
 }
 
 struct GraphicsPushConstants
@@ -93,7 +95,10 @@ void main(
         let globalVertexId = ptr_mesh_object.vertex_indices[vertexLookupIndex];
 
         let v = ptr_mesh_object.vertices[globalVertexId];
-        outVerts[group_index] = process_vertex(v, instance_object.model_matrix, graphics_push_constants.view_projection_matrix);
+        outVerts[group_index] = process_vertex(v,
+                                               instance_object.model_matrix,
+                                               graphics_push_constants.view_projection_matrix,
+                                               instance_object.texture_index);
     }
 
     if (group_index < meshlet.triangle_count)
@@ -108,13 +113,13 @@ void main(
 }
 
 [ForceInline]
-func process_vertex(const v: Vertex, const model_matrix: float4x4, const view_projection_matrix: float4x4)->VertexOutput
+func process_vertex(const v: Vertex, const model_matrix: float4x4, const view_projection_matrix: float4x4, texture_index: uint32_t)->VertexOutput
 {
     let position = float4(v.position, 1.0);
     let world_position = mul(model_matrix, position);
     let clip_position = mul(view_projection_matrix, world_position);
 
-    let vertex_output : VertexOutput = VertexOutput(clip_position, v.normal, v.uv);
+    let vertex_output : VertexOutput = VertexOutput(clip_position, v.normal, v.uv, texture_index);
 
     return vertex_output;
 }
@@ -130,10 +135,10 @@ const Texture2D<float4> images[];
 func main(const vertex_output: VertexOutput)->float4
 {
     let sampler = samplers[graphics_push_constants.sampler_index];
-    let image = images[graphics_push_constants.texture_image_index];
+    let image = images[vertex_output.texture_index];
 
-    // let color = image.Sample(sampler, vertex_output.uv);
-    let color = float4(vertex_output.color, 1.0);
+    let color = image.Sample(sampler, vertex_output.uv);
+    // let color = float4(vertex_output.color, 1.0);
 
     return color;
 }

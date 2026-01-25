@@ -12,6 +12,7 @@ pub struct SpawnEventRecord {
     pub name: String,
     pub parent_index: Option<usize>,
     pub mesh_buffer_id: Id,
+    pub texture_id: Id,
     pub transform: Transform,
 }
 
@@ -21,6 +22,7 @@ impl Default for SpawnEventRecord {
             name: String::default(),
             parent_index: Default::default(),
             mesh_buffer_id: Id::NULL,
+            texture_id: Id::NULL,
             transform: Default::default(),
         }
     }
