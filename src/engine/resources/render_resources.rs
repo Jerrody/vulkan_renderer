@@ -4,7 +4,7 @@ pub mod model_loader;
 use std::slice::{Iter, IterMut};
 
 use bevy_ecs::resource::Resource;
-use glam::{Mat4, Vec2, Vec3};
+use glam::{Mat4, Vec2, Vec3, Vec4};
 use vma::Allocation;
 use vulkanite::{
     Handle,
@@ -42,6 +42,7 @@ pub struct MeshObject {
     pub device_address_vertex_indices_buffer: DeviceAddress,
     pub device_address_meshlets_buffer: DeviceAddress,
     pub device_address_local_indices_buffer: DeviceAddress,
+    pub base_color: Vec4,
 }
 
 #[repr(C)]
@@ -71,6 +72,7 @@ pub struct MeshBuffer {
     pub meshlets_buffer_id: Id,
     pub local_indices_buffer_id: Id,
     pub meshlets_count: usize,
+    pub base_color: Vec4,
 }
 
 pub struct AllocatedImage {
@@ -203,6 +205,7 @@ pub struct RendererResources {
     pub depth_image_id: Id,
     pub draw_image_id: Id,
     pub default_texture_id: Id,
+    pub fallback_texture_id: Id,
     pub nearest_sampler_id: Id,
     pub mesh_objects_buffers_ids: Vec<Id>,
     pub resources_descriptor_set_handle: DescriptorSetHandle,

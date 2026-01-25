@@ -5,6 +5,7 @@ static const let GROUP_SIZE : uint32_t = MAX_VERTICES;
 struct PrimitiveData
 {
     nointerpolation const let texture_index : uint32_t;
+    nointerpolation const let base_color : float4;
 }
 
 struct Vertex
@@ -35,6 +36,7 @@ struct MeshObject
     const let vertex_indices : ImmutablePtr<uint32_t>;
     const let meshlets : ImmutablePtr<Meshlet>;
     const let local_indices : ImmutablePtr<uint8_t>;
+    const let base_color : float4; // TODO: Should be part of material data.
 }
 
 struct InstanceObject
@@ -113,7 +115,7 @@ func main(
         let i2 = ptr_mesh_object.local_indices[triangleLookupIndex + 2];
 
         outIndices[group_index] = uint32_t3(i0, i1, i2);
-        out_primitives[group_index] = PrimitiveData(instance_object.texture_index);
+        out_primitives[group_index] = PrimitiveData(instance_object.texture_index, ptr_mesh_object.base_color);
     }
 }
 
@@ -142,8 +144,8 @@ func main(const vertex_output: VertexOutput, const primitive_data: PrimitiveData
     let sampler = samplers[graphics_push_constants.sampler_index];
     let image = images[primitive_data.texture_index];
 
-    let color = image.Sample(sampler, vertex_output.uv);
-    // let color = float4(vertex_output.color, 1.0);
+    var color = image.Sample(sampler, vertex_output.uv);
+    color *= primitive_data.base_color;
 
     return color;
 }

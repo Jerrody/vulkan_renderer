@@ -168,7 +168,7 @@ pub fn on_load_model(
             let mut mesh_buffer_id: Id;
             let mut texture_id: Id;
             for &mesh_index in node_data.mesh_indices.iter() {
-                texture_id = renderer_resources.default_texture_id;
+                texture_id = renderer_resources.fallback_texture_id;
                 try_upload_texture(
                     &vulkan_context,
                     &renderer_context_resource,
@@ -272,6 +272,9 @@ pub fn on_load_model(
                     let local_indices_buffer_id =
                         renderer_resources.insert_storage_buffer(local_indices_buffer);
 
+                    let material_index = mesh.material_index();
+                    let material = scene.material(material_index).unwrap();
+                    let base_color = material.base_color().unwrap();
                     let mesh_buffer = MeshBuffer {
                         id: Id::new(vertex_buffer_id),
                         mesh_object_device_address: Id::NULL.value(),
@@ -280,6 +283,12 @@ pub fn on_load_model(
                         meshlets_buffer_id,
                         local_indices_buffer_id,
                         meshlets_count: meshlets.len(),
+                        base_color: Vec4::new(
+                            base_color.x,
+                            base_color.y,
+                            base_color.z,
+                            base_color.z,
+                        ),
                     };
 
                     mesh_buffer_id = renderer_resources.insert_mesh_buffer(mesh_buffer);
@@ -334,6 +343,7 @@ pub fn on_load_model(
                 device_address_vertex_indices_buffer,
                 device_address_meshlets_buffer,
                 device_address_local_indices_buffer,
+                base_color: mesh_buffer.base_color,
             };
 
             mesh_object
