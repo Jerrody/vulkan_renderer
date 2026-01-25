@@ -52,8 +52,7 @@ ConstantBuffer<GraphicsPushConstants> graphics_push_constants;
 
 struct Payload
 {
-    var model_matrix : float4x4;
-    var device_address_mesh_object : uint64_t;
+    const let instance_object_index : uint32_t;
 }
 
 groupshared Payload payload;
@@ -66,8 +65,7 @@ void main(const uint32_t group_id: SV_GroupID)
 {
     const let instance_object = graphics_push_constants.ptr_instance_object[group_id];
 
-    payload.model_matrix = instance_object.model_matrix;
-    payload.device_address_mesh_object = (uint64_t)instance_object.ptr_mesh_object;
+    payload = Payload(group_id);
 
     DispatchMesh(instance_object.meshlet_count, 1, 1, payload);
 }
@@ -83,7 +81,8 @@ void main(
     OutputVertices<VertexOutput, MAX_VERTICES> outVerts,
     OutputIndices<uint3, MAX_TRIANGLES> outIndices)
 {
-    let ptr_mesh_object = (ImmutablePtr<MeshObject>)payload.device_address_mesh_object;
+    const let instance_object = graphics_push_constants.ptr_instance_object[payload.instance_object_index];
+    let ptr_mesh_object = instance_object.ptr_mesh_object;
     let meshlet = ptr_mesh_object.meshlets[group_id];
 
     SetMeshOutputCounts(meshlet.vertex_count, meshlet.triangle_count);
@@ -94,7 +93,7 @@ void main(
         let globalVertexId = ptr_mesh_object.vertex_indices[vertexLookupIndex];
 
         let v = ptr_mesh_object.vertices[globalVertexId];
-        outVerts[group_index] = process_vertex(v, payload.model_matrix, graphics_push_constants.view_projection_matrix);
+        outVerts[group_index] = process_vertex(v, instance_object.model_matrix, graphics_push_constants.view_projection_matrix);
     }
 
     if (group_index < meshlet.triangle_count)
