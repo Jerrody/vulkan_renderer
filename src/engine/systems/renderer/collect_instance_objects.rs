@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use bevy_ecs::system::{Query, ResMut};
 use glam::Mat4;
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator};
 use vulkanite::vk::DeviceAddress;
 
 use crate::engine::{
     components::{mesh::Mesh, transform::GlobalTransform},
+    id::Id,
     resources::{MeshBuffer, RendererResources},
 };
 
@@ -25,16 +25,22 @@ pub fn collect_instance_objects(
     let mut instances_data_to_write: Vec<InstanceDataToWrite> =
         Vec::with_capacity(mesh_query.iter().len());
 
-    let mesh_buffers_iter = renderer_resources.get_mesh_buffers_iter();
-    let mut mesh_buffers_map = HashMap::with_capacity(mesh_buffers_iter.len());
-    mesh_buffers_iter.for_each(|mesh_buffer| {
-        mesh_buffers_map.insert(mesh_buffer.id, mesh_buffer);
-    });
+    let mesh_buffers_map = renderer_resources
+        .get_mesh_buffers_iter()
+        .map(|mesh_buffer| (mesh_buffer.id, mesh_buffer))
+        .collect::<HashMap<Id, &MeshBuffer>>();
+    let textures_indices_map = renderer_resources
+        .get_textures_iter()
+        .map(|texture| (texture.id, texture.index))
+        .collect::<HashMap<Id, usize>>();
 
     let mut current_instance_data_index = usize::default();
     for (global_transform, mut mesh) in &mut mesh_query {
-        //let texture_index = renderer_resources.get_texture_ref(mesh.texture_id).index;
-        let texture_index = renderer_resources.get_texture_ref(mesh.texture_id).index;
+        let texture_index = unsafe {
+            *textures_indices_map
+                .get(&mesh.texture_id)
+                .unwrap_unchecked()
+        };
 
         let mesh_buffer = unsafe {
             mesh_buffers_map
