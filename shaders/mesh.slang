@@ -2,6 +2,11 @@ static const let MAX_VERTICES : uint32_t = 64;
 static const let MAX_TRIANGLES : uint32_t = 64;
 static const let GROUP_SIZE : uint32_t = MAX_VERTICES;
 
+struct PrimitiveData
+{
+    const let texture_index : uint32_t;
+}
+
 struct Vertex
 {
     const let position : float3;
@@ -14,7 +19,6 @@ struct VertexOutput
     const float4 position : SV_Position;
     const float3 color : COLOR0;
     const float2 uv : TEXCOORD0;
-    nointerpolation const let texture_index : uint32_t;
 };
 
 struct Meshlet
@@ -81,7 +85,8 @@ void main(
     const uint group_id: SV_GroupID,
     const uint group_index: SV_GroupIndex,
     OutputVertices<VertexOutput, MAX_VERTICES> outVerts,
-    OutputIndices<uint3, MAX_TRIANGLES> outIndices)
+    OutputIndices<uint3, MAX_TRIANGLES> outIndices,
+    OutputPrimitives<PrimitiveData, MAX_TRIANGLES> out_primitives)
 {
     const let instance_object = graphics_push_constants.ptr_instance_object[payload.instance_object_index];
     let ptr_mesh_object = instance_object.ptr_mesh_object;
@@ -97,8 +102,7 @@ void main(
         let v = ptr_mesh_object.vertices[globalVertexId];
         outVerts[group_index] = process_vertex(v,
                                                instance_object.model_matrix,
-                                               graphics_push_constants.view_projection_matrix,
-                                               instance_object.texture_index);
+                                               graphics_push_constants.view_projection_matrix);
     }
 
     if (group_index < meshlet.triangle_count)
@@ -109,17 +113,18 @@ void main(
         let i2 = ptr_mesh_object.local_indices[triangleLookupIndex + 2];
 
         outIndices[group_index] = uint32_t3(i0, i1, i2);
+        out_primitives[group_index] = PrimitiveData(instance_object.texture_index);
     }
 }
 
 [ForceInline]
-func process_vertex(const v: Vertex, const model_matrix: float4x4, const view_projection_matrix: float4x4, texture_index: uint32_t)->VertexOutput
+func process_vertex(const v: Vertex, const model_matrix: float4x4, const view_projection_matrix: float4x4)->VertexOutput
 {
     let position = float4(v.position, 1.0);
     let world_position = mul(model_matrix, position);
     let clip_position = mul(view_projection_matrix, world_position);
 
-    let vertex_output : VertexOutput = VertexOutput(clip_position, v.normal, v.uv, texture_index);
+    let vertex_output : VertexOutput = VertexOutput(clip_position, v.normal, v.uv);
 
     return vertex_output;
 }
@@ -132,10 +137,10 @@ const SamplerState samplers[16];
 const Texture2D<float4> images[];
 
 [shader("fragment")]
-func main(const vertex_output: VertexOutput)->float4
+func main(const vertex_output: VertexOutput, const primitive_data: PrimitiveData)->float4
 {
     let sampler = samplers[graphics_push_constants.sampler_index];
-    let image = images[vertex_output.texture_index];
+    let image = images[primitive_data.texture_index];
 
     let color = image.Sample(sampler, vertex_output.uv);
     // let color = float4(vertex_output.color, 1.0);
