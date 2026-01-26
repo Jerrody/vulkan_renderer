@@ -68,7 +68,7 @@ impl VulkanContextResource {
             command_buffer,
             allocated_image.image,
             ImageLayout::Undefined,
-            ImageLayout::TransferDstOptimal,
+            ImageLayout::General,
             PipelineStageFlags2::None,
             PipelineStageFlags2::Copy,
             AccessFlags2::None,
@@ -93,15 +93,15 @@ impl VulkanContextResource {
             .copy_buffer_to_image(
                 upload_buffer.buffer,
                 allocated_image.image,
-                ImageLayout::TransferDstOptimal,
+                ImageLayout::General,
                 &buffer_image_copy,
             );
 
         transition_image(
             command_buffer,
             allocated_image.image,
-            ImageLayout::TransferDstOptimal,
-            ImageLayout::ShaderReadOnlyOptimal,
+            ImageLayout::General,
+            ImageLayout::General,
             PipelineStageFlags2::Copy,
             PipelineStageFlags2::FragmentShader,
             AccessFlags2::TransferWrite,
