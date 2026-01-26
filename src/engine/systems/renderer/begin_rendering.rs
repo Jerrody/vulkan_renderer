@@ -22,32 +22,28 @@ pub fn begin_rendering(
 
     let command_buffer = frame_data.command_group.command_buffer;
     frame_context.command_buffer = Some(command_buffer);
+    frame_context.draw_image_id = frame_data.draw_image_id;
+    frame_context.depth_image_id = frame_data.depth_image_id;
 
     let command_buffer_begin_info =
         utils::create_command_buffer_begin_info(CommandBufferUsageFlags::OneTimeSubmit);
 
     command_buffer.begin(&command_buffer_begin_info).unwrap();
 
-    let image_index = frame_context.swapchain_image_index as usize;
-    let swapchain_image = render_context.images[image_index];
-    let draw_image =
-        unsafe { &*renderer_resources.get_texture_ref(renderer_resources.draw_image_id) };
+    let draw_image = &*renderer_resources.get_texture_ref(frame_context.draw_image_id);
     let draw_image_view = draw_image.image_view;
 
-    let depth_image = renderer_resources.get_texture_ref(renderer_resources.depth_image_id);
+    let depth_image = renderer_resources.get_texture_ref(frame_context.depth_image_id);
 
-    transition_image(
-        command_buffer,
-        swapchain_image,
-        ImageLayout::Undefined,
-        ImageLayout::General,
-        ImageAspectFlags::Color,
-    );
     transition_image(
         command_buffer,
         draw_image.image,
         ImageLayout::Undefined,
         ImageLayout::General,
+        PipelineStageFlags2::Blit,
+        PipelineStageFlags2::ComputeShader,
+        AccessFlags2::TransferRead,
+        AccessFlags2::ShaderStorageWrite,
         ImageAspectFlags::Color,
     );
     transition_image(
@@ -55,6 +51,10 @@ pub fn begin_rendering(
         depth_image.image,
         ImageLayout::Undefined,
         ImageLayout::General,
+        PipelineStageFlags2::LateFragmentTests,
+        PipelineStageFlags2::EarlyFragmentTests,
+        AccessFlags2::DepthStencilAttachmentWrite,
+        AccessFlags2::DepthStencilAttachmentWrite,
         ImageAspectFlags::Depth,
     );
 
@@ -68,6 +68,7 @@ pub fn begin_rendering(
         renderer_resources.as_ref(),
         command_buffer,
         draw_image_extent2d,
+        draw_image.index,
     );
 
     transition_image(
@@ -75,6 +76,10 @@ pub fn begin_rendering(
         draw_image.image,
         ImageLayout::General,
         ImageLayout::General,
+        PipelineStageFlags2::ComputeShader,
+        PipelineStageFlags2::ColorAttachmentOutput,
+        AccessFlags2::ShaderStorageWrite,
+        AccessFlags2::ColorAttachmentRead,
         ImageAspectFlags::Color,
     );
 
@@ -226,6 +231,7 @@ fn draw_gradient(
     renderer_resources: &RendererResources,
     command_buffer: CommandBuffer,
     draw_extent: Extent2D,
+    draw_image_index: usize,
 ) {
     let gradient_compute_shader_object = renderer_resources.gradient_compute_shader_object;
 
@@ -258,9 +264,8 @@ fn draw_gradient(
         &offsets,
     );
 
-    let draw_image_ref = renderer_resources.get_texture_ref(renderer_resources.draw_image_id);
     let mesh_push_constant = &GraphicsPushConstant {
-        draw_image_index: draw_image_ref.index as _,
+        draw_image_index: draw_image_index as _,
         ..Default::default()
     };
 

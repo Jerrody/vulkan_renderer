@@ -18,28 +18,13 @@ use crate::engine::{
 };
 
 impl Engine {
-    pub fn create_renderer_resources(world: &World) -> RendererResources {
+    pub fn create_renderer_resources(world: &mut World) -> RendererResources {
         let vulkan_context = world.get_resource_ref::<VulkanContextResource>().unwrap();
         let render_context = world.get_resource_ref::<RendererContext>().unwrap();
+        let frames_data: *mut FrameData = render_context.frames_data.as_ptr() as *const _ as *mut _;
 
         let device = vulkan_context.device;
         let allocator = &vulkan_context.allocator;
-
-        let draw_image_extent = Extent3D {
-            width: render_context.draw_extent.width,
-            height: render_context.draw_extent.height,
-            depth: 1,
-        };
-
-        let draw_image = Self::allocate_image(
-            device,
-            allocator,
-            Format::R16G16B16A16Sfloat,
-            draw_image_extent,
-            ImageUsageFlags::TransferSrc
-                | ImageUsageFlags::Storage
-                | ImageUsageFlags::ColorAttachment,
-        );
 
         let magenta = &Self::pack_unorm_4x8(Vec4::new(1.0, 0.0, 1.0, 1.0));
         let black = &Self::pack_unorm_4x8(Vec4::new(0.0, 0.0, 0.0, 0.0));
@@ -91,14 +76,6 @@ impl Engine {
             &white_image,
             white_image_pixels.as_ptr() as *const _,
             &render_context.upload_context,
-        );
-
-        let depth_image = Self::allocate_image(
-            device,
-            allocator,
-            Format::D32Sfloat,
-            draw_image_extent,
-            ImageUsageFlags::DepthStencilAttachment,
         );
 
         let nearest_sampler_create_info = SamplerCreateInfo {
@@ -168,8 +145,6 @@ impl Engine {
         let model_loader = ModelLoader::new();
 
         let mut renderer_resources = RendererResources {
-            depth_image_id: Id::NULL,
-            draw_image_id: Id::NULL,
             fallback_texture_id: Id::NULL,
             default_texture_id: Id::NULL,
             nearest_sampler_id: Id::NULL,
@@ -183,6 +158,52 @@ impl Engine {
             resources_pool: Default::default(),
             is_printed_scene_hierarchy: true,
         };
+
+        for frame_data_index in 0..render_context.frame_overlap {
+            let frame_data = frames_data.wrapping_add(frame_data_index);
+
+            let draw_image_extent = Extent3D {
+                width: render_context.draw_extent.width,
+                height: render_context.draw_extent.height,
+                depth: 1,
+            };
+
+            let draw_image = Self::allocate_image(
+                device,
+                allocator,
+                Format::R16G16B16A16Sfloat,
+                draw_image_extent,
+                ImageUsageFlags::TransferSrc
+                    | ImageUsageFlags::Storage
+                    | ImageUsageFlags::ColorAttachment,
+            );
+
+            let depth_image = Self::allocate_image(
+                device,
+                allocator,
+                Format::D32Sfloat,
+                draw_image_extent,
+                ImageUsageFlags::DepthStencilAttachment,
+            );
+
+            let draw_image_id = renderer_resources.insert_texture(draw_image);
+
+            let draw_image_ref = renderer_resources.get_texture_ref(draw_image_id);
+            let descriptor_draw_image = DescriptorKind::StorageImage(DescriptorStorageImage {
+                image_view: draw_image_ref.image_view,
+            });
+            let draw_image_index = renderer_resources
+                .resources_descriptor_set_handle
+                .update_binding(device, allocator, descriptor_draw_image);
+            renderer_resources.get_texture_ref_mut(draw_image_id).index = draw_image_index.unwrap();
+
+            let depth_image_id = renderer_resources.insert_texture(depth_image);
+
+            unsafe {
+                (*frame_data).draw_image_id = draw_image_id;
+                (*frame_data).depth_image_id = depth_image_id;
+            }
+        }
 
         let mut instance_objects_buffers = Vec::with_capacity(render_context.frame_overlap);
 
@@ -237,25 +258,13 @@ impl Engine {
             });
         renderer_resources.mesh_objects_buffers_ids = mesh_objects_buffers_ids;
 
-        renderer_resources.draw_image_id = renderer_resources.insert_texture(draw_image);
         renderer_resources.fallback_texture_id = renderer_resources.insert_texture(white_image);
-        renderer_resources.depth_image_id = renderer_resources.insert_texture(depth_image);
         renderer_resources.default_texture_id =
             renderer_resources.insert_texture(checkerboard_image);
         renderer_resources.nearest_sampler_id =
             renderer_resources.insert_sampler(nearest_sampler_object);
 
         // TODO: Need to make this mess more ergonomic and simpler.
-        let draw_image_ref = renderer_resources.get_texture_ref(renderer_resources.draw_image_id);
-        let descriptor_draw_image = DescriptorKind::StorageImage(DescriptorStorageImage {
-            image_view: draw_image_ref.image_view,
-        });
-        let draw_image_index = renderer_resources
-            .resources_descriptor_set_handle
-            .update_binding(device, allocator, descriptor_draw_image);
-        renderer_resources
-            .get_texture_ref_mut(renderer_resources.draw_image_id)
-            .index = draw_image_index.unwrap();
 
         let checkerboard_image_ref =
             renderer_resources.get_texture_ref(renderer_resources.default_texture_id);

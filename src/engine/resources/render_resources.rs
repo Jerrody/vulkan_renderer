@@ -202,8 +202,6 @@ pub struct ResourcesPool {
 
 #[derive(Resource)]
 pub struct RendererResources {
-    pub depth_image_id: Id,
-    pub draw_image_id: Id,
     pub default_texture_id: Id,
     pub fallback_texture_id: Id,
     pub nearest_sampler_id: Id,

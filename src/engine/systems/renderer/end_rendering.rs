@@ -15,7 +15,7 @@ pub fn end_rendering(
 
     let swapchain_image = renderer_context.images[frame_context.swapchain_image_index as usize];
 
-    let draw_image = &*renderer_resources.get_texture_ref(renderer_resources.draw_image_id);
+    let draw_image = &*renderer_resources.get_texture_ref(frame_context.draw_image_id);
 
     let draw_image_extent3d = draw_image.extent;
     let draw_image_extent2d = Extent2D {
@@ -24,6 +24,30 @@ pub fn end_rendering(
     };
 
     command_buffer.end_rendering();
+
+    transition_image(
+        command_buffer,
+        draw_image.image,
+        ImageLayout::General,
+        ImageLayout::General,
+        PipelineStageFlags2::ColorAttachmentOutput,
+        PipelineStageFlags2::Blit,
+        AccessFlags2::ColorAttachmentWrite,
+        AccessFlags2::TransferRead,
+        ImageAspectFlags::Color,
+    );
+
+    transition_image(
+        command_buffer,
+        swapchain_image,
+        ImageLayout::Undefined,
+        ImageLayout::General,
+        PipelineStageFlags2::Blit | PipelineStageFlags2::ColorAttachmentOutput,
+        PipelineStageFlags2::Blit,
+        AccessFlags2::None,
+        AccessFlags2::TransferWrite,
+        ImageAspectFlags::Color,
+    );
 
     copy_image_to_image(
         command_buffer,
@@ -38,6 +62,10 @@ pub fn end_rendering(
         swapchain_image,
         ImageLayout::General,
         ImageLayout::PresentSrcKHR,
+        PipelineStageFlags2::Blit,
+        PipelineStageFlags2::ColorAttachmentOutput,
+        AccessFlags2::TransferWrite,
+        AccessFlags2::None,
         ImageAspectFlags::Color,
     );
 

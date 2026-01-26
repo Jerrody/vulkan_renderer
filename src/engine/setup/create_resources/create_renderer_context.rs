@@ -4,6 +4,7 @@ use winit::window::Window;
 
 use crate::engine::{
     Engine,
+    id::Id,
     resources::{CommandGroup, FrameData, RendererContext, UploadContext, VulkanContextResource},
 };
 
@@ -71,6 +72,8 @@ impl Engine {
                     command_group,
                     swapchain_semaphore,
                     render_semaphore,
+                    draw_image_id: Id::NULL,
+                    depth_image_id: Id::NULL,
                 }
             })
             .collect();

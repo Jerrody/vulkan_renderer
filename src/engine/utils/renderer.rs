@@ -27,13 +27,17 @@ pub fn transition_image(
     image: Image,
     old_image_layout: ImageLayout,
     new_image_layout: ImageLayout,
+    src_stage_mask: PipelineStageFlags2,
+    dst_stage_mask: PipelineStageFlags2,
+    src_access_mask: AccessFlags2,
+    dst_access_mask: AccessFlags2,
     image_aspect_flags: ImageAspectFlags,
 ) {
     let mut image_memory_barrier = ImageMemoryBarrier2::default()
-        .src_stage_mask(PipelineStageFlags2::AllCommands)
-        .src_access_mask(AccessFlags2::MemoryWrite)
-        .dst_stage_mask(PipelineStageFlags2::AllCommands)
-        .dst_access_mask(AccessFlags2::MemoryRead | AccessFlags2::MemoryWrite)
+        .src_stage_mask(src_stage_mask)
+        .src_access_mask(src_access_mask)
+        .dst_stage_mask(dst_stage_mask)
+        .dst_access_mask(dst_access_mask)
         .old_layout(old_image_layout)
         .new_layout(new_image_layout)
         .subresource_range(image_subresource_range(image_aspect_flags));

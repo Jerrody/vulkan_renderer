@@ -39,7 +39,7 @@ pub fn render_meshes(
         .device_address;
 
     let texture_image_index = renderer_resources
-        .get_texture_ref(renderer_resources.draw_image_id)
+        .get_texture_ref(frame_context.draw_image_id)
         .index;
     let nearest_sampler_index = renderer_resources
         .get_sampler(renderer_resources.nearest_sampler_id)

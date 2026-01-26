@@ -208,6 +208,8 @@ impl Engine {
 
         let mut enabled_validation_features = Vec::new();
 
+        enabled_validation_features.push(ValidationFeatureEnableEXT::SynchronizationValidation);
+        enabled_validation_features.push(ValidationFeatureEnableEXT::BestPractices);
         /*         enabled_validation_features.push(ValidationFeatureEnableEXT::DebugPrintf);
         enabled_validation_features.push(ValidationFeatureEnableEXT::GpuAssisted); */
 

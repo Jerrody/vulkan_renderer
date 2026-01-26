@@ -57,7 +57,7 @@ impl Engine {
         let descriptor_set_builder_resource = Self::create_descriptor_set_builder_resource();
         world.insert_resource(descriptor_set_builder_resource);
 
-        let renderer_resources = Self::create_renderer_resources(&world);
+        let renderer_resources = Self::create_renderer_resources(&mut world);
         world.insert_resource(renderer_resources);
 
         let frame_context = FrameContext::default();

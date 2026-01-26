@@ -3,9 +3,9 @@ use vma::Allocator;
 use vulkanite::{
     Handle,
     vk::{
-        self, BufferImageCopy, BufferUsageFlags, CommandBufferBeginInfo, CommandBufferUsageFlags,
-        CommandPoolResetFlags, HostImageLayoutTransitionInfo, ImageLayout, ImageSubresourceLayers,
-        SubmitInfo, SurfaceFormatKHR,
+        self, AccessFlags2, BufferImageCopy, BufferUsageFlags, CommandBufferBeginInfo,
+        CommandBufferUsageFlags, CommandPoolResetFlags, HostImageLayoutTransitionInfo, ImageLayout,
+        ImageSubresourceLayers, PipelineStageFlags2, SubmitInfo, SurfaceFormatKHR,
         rs::{
             DebugUtilsMessengerEXT, Device, Instance, PhysicalDevice, Queue, SurfaceKHR,
             SwapchainKHR,
@@ -69,6 +69,10 @@ impl VulkanContextResource {
             allocated_image.image,
             ImageLayout::Undefined,
             ImageLayout::General,
+            PipelineStageFlags2::None,
+            PipelineStageFlags2::Copy,
+            AccessFlags2::None,
+            AccessFlags2::TransferWrite,
             allocated_image.subresource_range.aspect_mask,
         );
 
@@ -92,6 +96,18 @@ impl VulkanContextResource {
                 ImageLayout::General,
                 &buffer_image_copy,
             );
+
+        transition_image(
+            command_buffer,
+            allocated_image.image,
+            ImageLayout::General,
+            ImageLayout::ShaderReadOnlyOptimal,
+            PipelineStageFlags2::Copy,
+            PipelineStageFlags2::FragmentShader,
+            AccessFlags2::TransferWrite,
+            AccessFlags2::ShaderSampledRead,
+            allocated_image.subresource_range.aspect_mask,
+        );
 
         command_buffer.end().unwrap();
 

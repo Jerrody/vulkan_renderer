@@ -4,10 +4,14 @@ use vulkanite::vk::{
     rs::{CommandBuffer, CommandPool, Fence, Image, ImageView, Semaphore},
 };
 
+use crate::engine::id::Id;
+
 pub struct FrameData {
     pub command_group: CommandGroup,
     pub swapchain_semaphore: Semaphore,
     pub render_semaphore: Semaphore,
+    pub draw_image_id: Id,
+    pub depth_image_id: Id,
 }
 
 pub struct CommandGroup {
