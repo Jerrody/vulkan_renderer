@@ -7,7 +7,7 @@ mod setup;
 mod systems;
 mod utils;
 
-use std::str::FromStr;
+use std::{path::PathBuf, str::FromStr};
 
 use bevy_ecs::{
     schedule::{IntoScheduleConfigs, Schedule, ScheduleLabel},
@@ -86,7 +86,7 @@ impl Engine {
 
         // TODO: TEMP
         world.trigger(LoadModelEvent {
-            path: String::from_str(r"assets/structure.glb").unwrap(),
+            path: PathBuf::from(r"assets/structure.glb"),
         });
 
         Self { world }

@@ -1,10 +1,12 @@
+use std::path::PathBuf;
+
 use bevy_ecs::event::Event;
 
 use crate::engine::{components::transform::Transform, id::Id};
 
 #[derive(Event)]
 pub struct LoadModelEvent {
-    pub path: String,
+    pub path: PathBuf,
 }
 
 #[derive(Clone)]

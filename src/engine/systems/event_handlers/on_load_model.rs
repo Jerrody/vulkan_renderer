@@ -100,7 +100,7 @@ pub fn on_load_model(
 
     let mut nodes = Vec::new();
 
-    let scene = model_loader.load_model(&load_model_event.path);
+    let scene = model_loader.load_model(&load_model_event.path.as_os_str().to_str().unwrap());
 
     let root_node_index = Default::default();
     let root_node = scene.root_node().unwrap();
@@ -179,6 +179,7 @@ pub fn on_load_model(
                     &mut uploaded_textures,
                     scene.mesh(mesh_index).unwrap(),
                     &mut texture_id,
+                    load_model_event.path.file_stem().unwrap().to_str().unwrap(),
                 );
 
                 if uploaded_mesh_buffers.contains_key(&mesh_index) {
@@ -398,6 +399,7 @@ fn try_upload_texture(
     uploaded_textures: &mut HashMap<usize, Id>,
     mesh: asset_importer::mesh::Mesh,
     texture_id: &mut Id,
+    model_name: &str,
 ) {
     let material_index = mesh.material_index();
     if uploaded_textures.contains_key(&material_index) {
@@ -412,7 +414,8 @@ fn try_upload_texture(
 
             let texture = scene.texture(texture_index).unwrap();
 
-            let (texture_data, image_extent) = try_to_load_cached_texture(texture.clone());
+            let (texture_data, image_extent) =
+                try_to_load_cached_texture(model_name, texture.clone());
 
             let allocated_texture = Engine::allocate_image(
                 vulkan_context.device,
@@ -443,9 +446,12 @@ fn try_upload_texture(
                 );
             renderer_resources.get_texture_ref_mut(*texture_id).index = texture_index.unwrap();
             println!(
-                "Name: {} | Index: {}",
+                "Name: {} | Index: {} | Extent: {}x{}x{}",
                 texture.filename_str().unwrap(),
-                texture_index.unwrap()
+                texture_index.unwrap(),
+                image_extent.width,
+                image_extent.height,
+                image_extent.depth,
             );
 
             uploaded_textures.insert(material_index, *texture_id);
@@ -453,17 +459,21 @@ fn try_upload_texture(
     }
 }
 
-fn try_to_load_cached_texture(texture: asset_importer::Texture) -> (Vec<u8>, Extent3D) {
-    let path = &std::path::PathBuf::from(std::format!(
-        "intermediate/textures/{}",
-        texture.filename().unwrap()
-    ));
-    let does_exist = std::fs::exists(path).unwrap();
+fn try_to_load_cached_texture(
+    model_name: &str,
+    texture: asset_importer::Texture,
+) -> (Vec<u8>, Extent3D) {
+    let mut path = std::path::PathBuf::from("intermediate/textures/");
+    path.push(model_name);
+    std::fs::create_dir_all(&path).unwrap();
+
+    path.push(texture.filename().unwrap());
+    let does_exist = std::fs::exists(&path).unwrap();
 
     let image_extent: Extent3D;
     let mut texture_data: Vec<u8> = Vec::new();
     if does_exist {
-        let texture = Ktx2Texture::from_file(path).unwrap();
+        let texture = Ktx2Texture::from_file(&path).unwrap();
         let image_extent_raw = texture.get_metadata("image_extent").unwrap();
         image_extent = unsafe { std::ptr::read(image_extent_raw.as_ptr() as *const Extent3D) };
 
