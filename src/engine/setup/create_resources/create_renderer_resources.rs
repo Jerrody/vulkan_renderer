@@ -56,6 +56,7 @@ impl Engine {
             &checkerboard_image,
             pixels.as_ptr() as *const _,
             &render_context.upload_context,
+            None,
         );
 
         let white_image_extent = Extent3D {
@@ -76,6 +77,7 @@ impl Engine {
             &white_image,
             white_image_pixels.as_ptr() as *const _,
             &render_context.upload_context,
+            None,
         );
 
         let nearest_sampler_create_info = SamplerCreateInfo {

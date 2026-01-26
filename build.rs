@@ -26,7 +26,6 @@ fn main() -> io::Result<()> {
         let entry = entry?;
         let path = entry.path();
 
-        let file_stem_str = path.file_stem().unwrap().to_str().unwrap();
         if path.is_file()
             && path.extension().and_then(|s| s.to_str()) == Some("slang")
             && !path.to_str().unwrap().contains("ignore_for_compilation")

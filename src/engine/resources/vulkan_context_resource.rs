@@ -40,6 +40,7 @@ impl VulkanContextResource {
         allocated_image: &AllocatedImage,
         data_to_copy: *const std::ffi::c_void,
         upload_context: &UploadContext,
+        size: Option<usize>,
     ) {
         let command_buffer = upload_context.command_group.command_buffer;
 
@@ -51,7 +52,10 @@ impl VulkanContextResource {
         command_buffer.begin(&command_buffer_begin_info).unwrap();
 
         let image_extent = allocated_image.extent;
-        let size = image_extent.depth * image_extent.width * image_extent.height * 4;
+        let size = match size {
+            Some(size) => size,
+            None => (image_extent.depth * image_extent.width * image_extent.height * 4) as usize,
+        };
 
         let mut upload_buffer = create_buffer(
             self.device,

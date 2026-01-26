@@ -1,5 +1,6 @@
 use asset_importer::{Matrix4x4, node::Node};
 use image::ImageReader;
+use ktx2_rw::{BasisCompressionParams, Ktx2Texture, VkFormat};
 use std::{collections::HashMap, ffi::c_void, io::Cursor};
 use vulkanite::vk::{BufferUsageFlags, DeviceAddress, Extent3D, Format, ImageUsageFlags};
 
@@ -417,6 +418,8 @@ fn try_upload_texture(
                 .unwrap();
             let image_rgba = image.to_rgba8();
             let image_bytes = image_rgba.as_raw();
+            let image_name = texture.filename_str().unwrap();
+            let image_bytes = (*image_bytes).as_slice();
 
             let image_extent = Extent3D {
                 width: image.width(),
@@ -424,18 +427,43 @@ fn try_upload_texture(
                 depth: 1,
             };
 
+            let mut texture = Ktx2Texture::create(
+                image_extent.width,
+                image_extent.height,
+                1,
+                1,
+                1,
+                1,
+                VkFormat::R8G8B8A8Srgb,
+            )
+            .unwrap();
+            texture.set_image_data(0, 0, 0, image_bytes).unwrap();
+
+            texture
+                .compress_basis(
+                    &BasisCompressionParams::builder()
+                        .quality_level(255)
+                        .thread_count(4)
+                        .build(),
+                )
+                .unwrap();
+            texture
+                .transcode_basis(ktx2_rw::TranscodeFormat::Bc7Rgba)
+                .unwrap();
+            let texture_data = texture.get_image_data(0, 0, 0).unwrap();
+
             let allocated_texture = Engine::allocate_image(
                 vulkan_context.device,
                 &vulkan_context.allocator,
-                Format::R8G8B8A8Srgb,
+                Format::Bc7SrgbBlock,
                 image_extent,
                 ImageUsageFlags::Sampled | ImageUsageFlags::TransferDst,
             );
-
             vulkan_context.transfer_data_to_image(
                 &allocated_texture,
-                image_bytes.as_ptr() as *const _,
+                texture_data.as_ptr() as *const _,
                 &renderer_context.upload_context,
+                Some(texture_data.len()),
             );
 
             *texture_id = renderer_resources.insert_texture(allocated_texture);
@@ -452,11 +480,7 @@ fn try_upload_texture(
                     descriptor_texture,
                 );
             renderer_resources.get_texture_ref_mut(*texture_id).index = texture_index.unwrap();
-            println!(
-                "Name: {} | Index: {}",
-                texture.filename_str().unwrap(),
-                texture_index.unwrap()
-            );
+            println!("Name: {} | Index: {}", image_name, texture_index.unwrap());
 
             uploaded_textures.insert(material_index, *texture_id);
         }
