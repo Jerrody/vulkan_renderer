@@ -2,7 +2,7 @@ use std::process::Command;
 use std::{env, fs, io, path::PathBuf};
 
 fn main() -> io::Result<()> {
-    let dir = "shaders";
+    let dir = "shaders/programs";
     println!("cargo:rerun-if-changed=shaders");
 
     let sdk_path = env::var("VULKAN_SDK")
@@ -19,13 +19,14 @@ fn main() -> io::Result<()> {
     let slangc_path = sdk_bin.join(format!("slangc{}", exe_suffix));
     let spirv_opt_path = sdk_bin.join(format!("spirv-opt{}", exe_suffix));
 
-    fs::create_dir_all("shaders/output")?;
+    fs::create_dir_all("shaders/_outputs")?;
 
     let mut file_paths = Vec::new();
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
 
+        let file_stem_str = path.file_stem().unwrap().to_str().unwrap();
         if path.is_file()
             && path.extension().and_then(|s| s.to_str()) == Some("slang")
             && !path.to_str().unwrap().contains("ignore_for_compilation")
@@ -36,9 +37,11 @@ fn main() -> io::Result<()> {
 
     for path in file_paths {
         let filename = path.file_name().unwrap().to_str().unwrap();
-        let output_filename = format!("shaders/output/{}.spv", filename);
+        let output_filename = format!("shaders/_outputs/{}.spv", filename);
 
         let slang_status = Command::new(&slangc_path)
+            .arg("-I")
+            .arg("shaders")
             .arg("-target")
             .arg("spirv")
             .arg("-profile")

@@ -104,10 +104,10 @@ impl Engine {
             .descriptor_set_layout_handle
             .descriptor_set_layout];
 
-        let mesh_shader_path = r"shaders\output\mesh.slang.spv";
+        let mesh_shader_path = r"shaders\_outputs\mesh.slang.spv";
         let shaders_info = [
             ShaderInfo {
-                path: r"shaders\output\gradient.slang.spv",
+                path: r"shaders\_outputs\gradient.slang.spv",
                 flags: ShaderCreateFlagsEXT::empty(),
                 stage: ShaderStageFlags::Compute,
                 next_stage: ShaderStageFlags::empty(),

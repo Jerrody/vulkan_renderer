@@ -1,67 +1,11 @@
+import modules;
+
 static const let MAX_VERTICES : uint32_t = 64;
 static const let MAX_TRIANGLES : uint32_t = 64;
 static const let GROUP_SIZE : uint32_t = MAX_VERTICES;
 
-struct PrimitiveData
-{
-    nointerpolation const let texture_index : uint32_t;
-    nointerpolation const let base_color : float4;
-}
-
-struct Vertex
-{
-    const let position : float3;
-    const let normal : float3;
-    const let uv : float2;
-};
-
-struct VertexOutput
-{
-    const float4 position : SV_Position;
-    const float3 color : COLOR0;
-    const float2 uv : TEXCOORD0;
-};
-
-struct Meshlet
-{
-    const let vertex_offset : uint32_t;
-    const let triangle_offset : uint32_t;
-    const let vertex_count : uint32_t;
-    const let triangle_count : uint32_t;
-}
-
-struct MeshObject
-{
-    const let vertices : ImmutablePtr<Vertex>;
-    const let vertex_indices : ImmutablePtr<uint32_t>;
-    const let meshlets : ImmutablePtr<Meshlet>;
-    const let local_indices : ImmutablePtr<uint8_t>;
-    const let base_color : float4; // TODO: Should be part of material data.
-}
-
-struct InstanceObject
-{
-    const let model_matrix : float4x4;
-    const let ptr_mesh_object : ImmutablePtr<MeshObject>;
-    const let meshlet_count : uint32_t;
-    const let texture_index : uint32_t;
-}
-
-struct GraphicsPushConstants
-{
-    const let view_projection_matrix : float4x4;
-    const let ptr_instance_object : ImmutablePtr<InstanceObject>;
-    const let sampler_index : uint32_t;
-    const let texture_image_index : uint32_t;
-};
-
 [[vk::push_constant]]
-ConstantBuffer<GraphicsPushConstants> graphics_push_constants;
-
-struct Payload
-{
-    const let instance_object_index : uint32_t;
-}
+ConstantBuffer<GlobalPushConstants> push_constants;
 
 groupshared Payload payload;
 
@@ -71,7 +15,7 @@ groupshared Payload payload;
 [numthreads(1, 1, 1)]
 func main(const uint32_t group_id: SV_GroupID)
 {
-    const let instance_object = graphics_push_constants.ptr_instance_object[group_id];
+    const let instance_object = push_constants.ptr_instance_object[group_id];
 
     payload = Payload(group_id);
 
@@ -90,7 +34,7 @@ func main(
     OutputIndices<uint3, MAX_TRIANGLES> outIndices,
     OutputPrimitives<PrimitiveData, MAX_TRIANGLES> out_primitives)
 {
-    const let instance_object = graphics_push_constants.ptr_instance_object[payload.instance_object_index];
+    const let instance_object = push_constants.ptr_instance_object[payload.instance_object_index];
     let ptr_mesh_object = instance_object.ptr_mesh_object;
     let meshlet = ptr_mesh_object.meshlets[group_id];
 
@@ -104,7 +48,7 @@ func main(
         let v = ptr_mesh_object.vertices[globalVertexId];
         outVerts[group_index] = process_vertex(v,
                                                instance_object.model_matrix,
-                                               graphics_push_constants.view_projection_matrix);
+                                               push_constants.view_projection_matrix);
     }
 
     if (group_index < meshlet.triangle_count)
@@ -141,7 +85,7 @@ const Texture2D<float4> images[];
 [shader("fragment")]
 func main(const vertex_output: VertexOutput, const primitive_data: PrimitiveData)->float4
 {
-    let sampler = samplers[graphics_push_constants.sampler_index];
+    let sampler = samplers[push_constants.sampler_index];
     let image = images[primitive_data.texture_index];
 
     var color = image.Sample(sampler, vertex_output.uv);

@@ -64,6 +64,47 @@ pub fn begin_rendering(
         height: draw_image_extent3d.height,
     };
 
+    let view = Mat4::from_translation(Vec3::new(-85.45, 0.0, 2.52));
+    //let view = Mat4::from_translation(Vec3::new(0.0, 0.0, -5.0));
+
+    let projection = Mat4::perspective_rh(
+        70.0_f32.to_radians(),
+        draw_image_extent2d.width as f32 / draw_image_extent2d.height as f32,
+        10000.0,
+        0.1,
+    );
+
+    frame_context.world_matrix = projection * view;
+
+    let instance_objects_buffer_id = renderer_resources.get_current_instance_set_buffer_id();
+    let device_address_instance_objects_buffer = renderer_resources
+        .get_storage_buffer_ref(instance_objects_buffer_id)
+        .device_address;
+
+    let nearest_sampler_index = renderer_resources
+        .get_sampler(renderer_resources.nearest_sampler_id)
+        .index;
+
+    let mesh_push_constant = GraphicsPushConstant {
+        view_projection: frame_context.world_matrix,
+        device_address_instance_object: device_address_instance_objects_buffer,
+        sampler_index: nearest_sampler_index as _,
+        draw_image_index: draw_image.index as _,
+    };
+
+    command_buffer.push_constants(
+        renderer_resources
+            .resources_descriptor_set_handle
+            .pipeline_layout,
+        ShaderStageFlags::MeshEXT
+            | ShaderStageFlags::Fragment
+            | ShaderStageFlags::Compute
+            | ShaderStageFlags::TaskEXT,
+        Default::default(),
+        size_of::<GraphicsPushConstant>() as u32,
+        &mesh_push_constant as *const _ as _,
+    );
+
     draw_gradient(
         renderer_resources.as_ref(),
         command_buffer,
@@ -158,17 +199,6 @@ pub fn begin_rendering(
     let color_component_flags = [ColorComponentFlags::all()];
     command_buffer.set_color_write_mask_ext(Default::default(), &color_component_flags);
 
-    let view = Mat4::from_translation(Vec3::new(-85.45, 0.0, 2.52));
-    //let view = Mat4::from_translation(Vec3::new(0.0, 0.0, -5.0));
-    let projection = Mat4::perspective_rh(
-        70.0_f32.to_radians(),
-        draw_image_extent2d.width as f32 / draw_image_extent2d.height as f32,
-        10000.0,
-        0.1,
-    );
-
-    frame_context.world_matrix = projection * view;
-
     let vertex_bindings_descriptions = [];
     let vertex_attributes = [];
     command_buffer.set_vertex_input_ext(&vertex_bindings_descriptions, &vertex_attributes);
@@ -262,24 +292,6 @@ fn draw_gradient(
         Default::default(),
         &buffer_indices,
         &offsets,
-    );
-
-    let mesh_push_constant = &GraphicsPushConstant {
-        draw_image_index: draw_image_index as _,
-        ..Default::default()
-    };
-
-    command_buffer.push_constants(
-        renderer_resources
-            .resources_descriptor_set_handle
-            .pipeline_layout,
-        ShaderStageFlags::Compute
-            | ShaderStageFlags::Fragment
-            | ShaderStageFlags::MeshEXT
-            | ShaderStageFlags::TaskEXT,
-        std::mem::offset_of!(GraphicsPushConstant, draw_image_index) as _,
-        std::mem::size_of::<u32>() as _,
-        &mesh_push_constant.draw_image_index as *const _ as _,
     );
 
     command_buffer.dispatch(

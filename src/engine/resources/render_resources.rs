@@ -60,7 +60,6 @@ pub struct GraphicsPushConstant {
     pub view_projection: Mat4,
     pub device_address_instance_object: DeviceAddress,
     pub sampler_index: u32,
-    pub texture_image_index: u32,
     pub draw_image_index: u32,
 }
 

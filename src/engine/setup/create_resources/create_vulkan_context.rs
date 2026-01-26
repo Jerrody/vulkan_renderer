@@ -280,7 +280,7 @@ impl Engine {
             })
             .unwrap();
 
-        let features = vk::PhysicalDeviceFeatures::default().shader_int64(true);
+        let features = vk::PhysicalDeviceFeatures::default();
 
         let required_extensions = [
             vk::KHR_SWAPCHAIN.name,
@@ -331,7 +331,6 @@ impl Engine {
             PhysicalDeviceVulkan13Features::default()
                 .synchronization2(true)
                 .dynamic_rendering(true),
-            PhysicalDeviceVulkan14Features::default().host_image_copy(true),
             PhysicalDeviceRobustness2FeaturesKHR::default().null_descriptor(true),
             PhysicalDeviceUnifiedImageLayoutsFeaturesKHR::default().unified_image_layouts(true),
             PhysicalDeviceDescriptorBufferFeaturesEXT::default().descriptor_buffer(true),
