@@ -1,7 +1,7 @@
 use asset_importer::{Matrix4x4, node::Node};
 use image::ImageReader;
 use ktx2_rw::{BasisCompressionParams, Ktx2Texture, VkFormat};
-use std::{collections::HashMap, ffi::c_void, io::Cursor};
+use std::{collections::HashMap, ffi::c_void, io::Cursor, path::Path};
 use vulkanite::vk::{BufferUsageFlags, DeviceAddress, Extent3D, Format, ImageUsageFlags};
 
 use bevy_ecs::{
@@ -163,6 +163,7 @@ pub fn on_load_model(
     let mut uploaded_textures: HashMap<usize, Id> =
         HashMap::with_capacity(uploaded_mesh_buffers.capacity());
 
+    std::fs::create_dir_all("shaders/_outputs").unwrap();
     for node_data in nodes.into_iter() {
         if node_data.mesh_indices.len() > Default::default() {
             let mut mesh_name: String;
@@ -410,49 +411,8 @@ fn try_upload_texture(
             let texture_index = texture_info.path[1..].parse::<usize>().unwrap();
 
             let texture = scene.texture(texture_index).unwrap();
-            let data = texture.data_bytes_ref().unwrap();
-            let image = ImageReader::new(Cursor::new(data))
-                .with_guessed_format()
-                .unwrap()
-                .decode()
-                .unwrap();
-            let image_rgba = image.to_rgba8();
-            let image_bytes = image_rgba.as_raw();
-            let image_name = texture.filename_str().unwrap();
-            let image_bytes = (*image_bytes).as_slice();
 
-            let image_extent = Extent3D {
-                width: image.width(),
-                height: image.height(),
-                depth: 1,
-            };
-
-            let mut texture = Ktx2Texture::create(
-                image_extent.width,
-                image_extent.height,
-                1,
-                1,
-                1,
-                1,
-                VkFormat::R8G8B8A8Srgb,
-            )
-            .unwrap();
-            texture.set_image_data(0, 0, 0, image_bytes).unwrap();
-
-            texture
-                .compress_basis(
-                    &BasisCompressionParams::builder()
-                        .uastc(false)
-                        .compression_level(0)
-                        .quality_level(128)
-                        .thread_count(4)
-                        .build(),
-                )
-                .unwrap();
-            texture
-                .transcode_basis(ktx2_rw::TranscodeFormat::Bc1Rgb)
-                .unwrap();
-            let texture_data = texture.get_image_data(0, 0, 0).unwrap();
+            let (texture_data, image_extent) = try_to_load_cached_texture(texture.clone());
 
             let allocated_texture = Engine::allocate_image(
                 vulkan_context.device,
@@ -482,11 +442,90 @@ fn try_upload_texture(
                     descriptor_texture,
                 );
             renderer_resources.get_texture_ref_mut(*texture_id).index = texture_index.unwrap();
-            println!("Name: {} | Index: {}", image_name, texture_index.unwrap());
+            println!(
+                "Name: {} | Index: {}",
+                texture.filename_str().unwrap(),
+                texture_index.unwrap()
+            );
 
             uploaded_textures.insert(material_index, *texture_id);
         }
     }
+}
+
+fn try_to_load_cached_texture(texture: asset_importer::Texture) -> (Vec<u8>, Extent3D) {
+    let path = &std::path::PathBuf::from(std::format!(
+        "intermediate/textures/{}",
+        texture.filename().unwrap()
+    ));
+    let does_exist = std::fs::exists(path).unwrap();
+
+    let image_extent: Extent3D;
+    let mut texture_data: Vec<u8> = Vec::new();
+    if does_exist {
+        let texture = Ktx2Texture::from_file(path).unwrap();
+        let image_extent_raw = texture.get_metadata("image_extent").unwrap();
+        image_extent = unsafe { std::ptr::read(image_extent_raw.as_ptr() as *const Extent3D) };
+
+        texture_data.extend_from_slice(texture.get_image_data(0, 0, 0).unwrap());
+    } else {
+        let data = texture.data_bytes_ref().unwrap();
+        let image = ImageReader::new(Cursor::new(data))
+            .with_guessed_format()
+            .unwrap()
+            .decode()
+            .unwrap();
+        let image_rgba = image.to_rgba8();
+        let image_bytes = image_rgba.as_raw();
+        let image_bytes = (*image_bytes).as_slice();
+
+        image_extent = Extent3D {
+            width: image.width(),
+            height: image.height(),
+            depth: 1,
+        };
+
+        let mut texture = Ktx2Texture::create(
+            image_extent.width,
+            image_extent.height,
+            1,
+            1,
+            1,
+            1,
+            VkFormat::R8G8B8A8Srgb,
+        )
+        .unwrap();
+        texture.set_image_data(0, 0, 0, image_bytes).unwrap();
+
+        texture
+            .compress_basis(
+                &BasisCompressionParams::builder()
+                    .uastc(false)
+                    .compression_level(0)
+                    .quality_level(255)
+                    .thread_count(11)
+                    .build(),
+            )
+            .unwrap();
+        texture
+            .transcode_basis(ktx2_rw::TranscodeFormat::Bc1Rgb)
+            .unwrap();
+        let texture_data_ref = texture.get_image_data(0, 0, 0).unwrap();
+        texture_data.extend_from_slice(texture_data_ref);
+
+        // TODO
+        texture
+            .set_metadata("image_extent", unsafe {
+                std::slice::from_raw_parts(
+                    (&image_extent as *const Extent3D) as *const u8,
+                    std::mem::size_of::<Extent3D>(),
+                )
+            })
+            .unwrap();
+        texture.write_to_file(path).unwrap();
+    }
+
+    (texture_data, image_extent)
 }
 
 fn get_mesh_indices(node: &Node, num_meshes: usize) -> Vec<usize> {
