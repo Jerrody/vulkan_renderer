@@ -42,7 +42,7 @@ pub fn end_rendering(
         swapchain_image,
         ImageLayout::Undefined,
         ImageLayout::General,
-        PipelineStageFlags2::Blit | PipelineStageFlags2::ColorAttachmentOutput,
+        PipelineStageFlags2::ColorAttachmentOutput,
         PipelineStageFlags2::Blit,
         AccessFlags2::None,
         AccessFlags2::TransferWrite,

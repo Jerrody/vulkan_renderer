@@ -19,7 +19,7 @@ pub fn present(
     let command_buffer_submit_infos = [command_buffer_submit_info(&command_buffer)];
 
     let wait_semaphore_submit_infos = [semaphore_submit_info(
-        PipelineStageFlags2::Blit | PipelineStageFlags2::ColorAttachmentOutput,
+        PipelineStageFlags2::ColorAttachmentOutput,
         &frame_data.swapchain_semaphore,
     )];
     let signal_semaphore_submit_infos = [semaphore_submit_info(
