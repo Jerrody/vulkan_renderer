@@ -442,20 +442,22 @@ fn try_upload_texture(
             texture
                 .compress_basis(
                     &BasisCompressionParams::builder()
-                        .quality_level(255)
+                        .uastc(false)
+                        .compression_level(0)
+                        .quality_level(128)
                         .thread_count(4)
                         .build(),
                 )
                 .unwrap();
             texture
-                .transcode_basis(ktx2_rw::TranscodeFormat::Bc7Rgba)
+                .transcode_basis(ktx2_rw::TranscodeFormat::Bc1Rgb)
                 .unwrap();
             let texture_data = texture.get_image_data(0, 0, 0).unwrap();
 
             let allocated_texture = Engine::allocate_image(
                 vulkan_context.device,
                 &vulkan_context.allocator,
-                Format::Bc7SrgbBlock,
+                Format::Bc1RgbSrgbBlock,
                 image_extent,
                 ImageUsageFlags::Sampled | ImageUsageFlags::TransferDst,
             );
