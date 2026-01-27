@@ -1,18 +1,12 @@
 import modules;
 
-[[vk::push_constant]]
-ConstantBuffer<GlobalPushConstants> push_constants;
-
-[[vk::binding(1, 0)]]
-RWTexture2D<float4> images[128];
-
 [shader("compute")]
 [numthreads(16, 16, 1)]
 func main(uint3 dispatch_thread_id: SV_DispatchThreadID, uint3 group_thread_id: SV_GroupThreadID)
 {
     let texel_coord = dispatch_thread_id.xy;
 
-    let image = images[push_constants.draw_image_index];
+    let image = storage_images[push_constants.draw_image_index];
 
     var width : uint;
     var height : uint;

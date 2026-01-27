@@ -4,9 +4,6 @@ static const let MAX_VERTICES : uint32_t = 64;
 static const let MAX_TRIANGLES : uint32_t = 64;
 static const let GROUP_SIZE : uint32_t = MAX_VERTICES;
 
-[[vk::push_constant]]
-ConstantBuffer<GlobalPushConstants> push_constants;
-
 groupshared Payload payload;
 
 ///////////////////////////////////////////////////// TASK //////////////////////////////////////////////////////////////
@@ -59,7 +56,8 @@ func main(
         let i2 = ptr_mesh_object.local_indices[triangleLookupIndex + 2];
 
         outIndices[group_index] = uint32_t3(i0, i1, i2);
-        out_primitives[group_index] = PrimitiveData(instance_object.texture_index, ptr_mesh_object.base_color);
+
+        out_primitives[group_index] = PrimitiveData(instance_object.device_address_material);
     }
 }
 
@@ -77,19 +75,13 @@ func process_vertex(const v: Vertex, const model_matrix: float4x4, const view_pr
 
 ///////////////////////////////////////////////////// FRAGMENT //////////////////////////////////////////////////////////////
 
-[[vk::binding(0, 0)]]
-const SamplerState samplers[16];
-[[vk::binding(2, 0)]]
-const Texture2D<float4> images[];
-
 [shader("fragment")]
 func main(const vertex_output: VertexOutput, const primitive_data: PrimitiveData)->float4
 {
-    let sampler = samplers[push_constants.sampler_index];
-    let image = images[primitive_data.texture_index];
+    const let material = push_constants.ptr_material_data.Load<DefaultMaterial>(primitive_data.device_adddress_material);
+    const let surface_data = material.eval(SurfaceData(), vertex_output.uv);
 
-    var color = image.Sample(sampler, vertex_output.uv);
-    color *= primitive_data.base_color;
+    const let final_color = surface_data.color;
 
-    return color;
+    return final_color;
 }

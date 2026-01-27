@@ -513,7 +513,7 @@ fn try_to_load_cached_texture(
                     .uastc(false)
                     .compression_level(0)
                     .quality_level(255)
-                    .thread_count(11)
+                    .thread_count(8)
                     .build(),
             )
             .unwrap();
