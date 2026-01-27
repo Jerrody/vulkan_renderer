@@ -41,7 +41,6 @@ fn main() -> io::Result<()> {
         let slang_status = Command::new(&slangc_path)
             .arg("-I")
             .arg("shaders")
-            .arg("-specialize")
             .arg(format!("-DMATERIAL_TYPE={}", "UnlitMaterial"))
             .arg("-target")
             .arg("spirv")

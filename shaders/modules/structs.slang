@@ -8,7 +8,7 @@ typealias Material = DefaultMaterial;
 
 struct PrimitiveData
 {
-    nointerpolation const let device_adddress_material : uint32_t;
+    nointerpolation const let device_address_material : ImmutablePtr<Material>;
 }
 
 struct Vertex
@@ -45,8 +45,8 @@ struct InstanceObject
 {
     const let model_matrix : float4x4;
     const let ptr_mesh_object : ImmutablePtr<MeshObject>;
+    const let device_address_material : ImmutablePtr<Material>;
     const let meshlet_count : uint32_t;
-    const let device_address_material : uint32_t;
 }
 
 struct Payload
@@ -98,7 +98,6 @@ struct GlobalPushConstants
 {
     const let view_projection_matrix : float4x4;
     const let ptr_instance_object : ImmutablePtr<InstanceObject>;
-    const let ptr_material_data : ByteAddressBuffer;
     const let sampler_index : uint32_t;
     const let draw_image_index : uint32_t;
 };

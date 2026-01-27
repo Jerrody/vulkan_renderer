@@ -78,7 +78,7 @@ func process_vertex(const v: Vertex, const model_matrix: float4x4, const view_pr
 [shader("fragment")]
 func main(const vertex_output: VertexOutput, const primitive_data: PrimitiveData)->float4
 {
-    const let material = push_constants.ptr_material_data.Load<DefaultMaterial>(primitive_data.device_adddress_material);
+    let material = primitive_data.device_address_material;
     const let surface_data = material.eval(SurfaceData(), vertex_output.uv);
 
     const let final_color = surface_data.color;
