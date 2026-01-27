@@ -3,11 +3,10 @@ use bevy_ecs::{
     name::Name,
     system::{Query, Res, ResMut},
 };
-use vulkanite::vk::ShaderStageFlags;
 
 use crate::engine::{
     components::{mesh::Mesh, transform::Parent},
-    resources::{FrameContext, GraphicsPushConstant, RendererResources},
+    resources::{FrameContext, RendererResources},
 };
 
 pub fn render_meshes(

@@ -189,6 +189,75 @@ impl Default for InstancesPool {
     }
 }
 
+#[derive(Clone, Copy)]
+struct MaterialLabel {
+    pub id: Id,
+    pub size: usize,
+    pub device_address_material_data: DeviceAddress,
+}
+
+struct MaterialsPool {
+    pub materials_data_buffer_id: Id,
+    pub materials_to_write: Vec<u8>,
+    pub material_labels: Vec<MaterialLabel>,
+}
+
+impl MaterialsPool {
+    pub fn write_material(&mut self, data: &[u8]) -> Id {
+        let material_label = MaterialLabel {
+            id: Id::new(data.as_ptr() as usize),
+            size: data.len(),
+            device_address_material_data: Default::default(),
+        };
+        let id = material_label.id;
+
+        self.material_labels.push(material_label);
+        self.materials_to_write.extend_from_slice(data);
+
+        id
+    }
+
+    pub fn reset_materails_to_write(&mut self) {
+        self.materials_to_write.clear();
+    }
+
+    pub fn set_materials_labels_device_addresses(
+        &mut self,
+        mut device_address_materials_data: DeviceAddress,
+    ) {
+        for material_label_index in 0..self.material_labels.len() {
+            let material_label = &mut self.material_labels[material_label_index];
+            material_label.device_address_material_data = device_address_materials_data;
+
+            device_address_materials_data += material_label.size as u64;
+        }
+    }
+
+    pub fn get_materials_data_to_write<'a>(&'a self) -> &'a [u8] {
+        &self.materials_to_write.as_slice()
+    }
+
+    pub fn get_material_data_device_address_by_id(&self, material_label_id: Id) -> DeviceAddress {
+        let material_label = self
+            .material_labels
+            .iter()
+            .find(|&material_label| material_label.id == material_label_id)
+            .unwrap();
+
+        material_label.device_address_material_data
+    }
+}
+
+impl Default for MaterialsPool {
+    fn default() -> Self {
+        Self {
+            materials_data_buffer_id: Id::NULL,
+            materials_to_write: Vec::new(),
+            material_labels: Vec::new(),
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct ResourcesPool {
     pub mesh_buffers: Vec<MeshBuffer>,
@@ -197,6 +266,7 @@ pub struct ResourcesPool {
     pub samplers: Vec<SamplerObject>,
     pub instances_pool: InstancesPool,
     pub mesh_objects_pool: MeshObjectPool,
+    pub materials_pool: MaterialsPool,
 }
 
 #[derive(Resource)]
@@ -216,6 +286,37 @@ pub struct RendererResources {
 }
 
 impl<'a> RendererResources {
+    pub fn write_material(&mut self, data: &[u8]) -> Id {
+        self.resources_pool.materials_pool.write_material(data)
+    }
+
+    pub fn reset_materails_to_write(&mut self) {
+        self.resources_pool
+            .materials_pool
+            .reset_materails_to_write();
+    }
+
+    pub fn set_materials_labels_device_addresses(
+        &mut self,
+        device_address_materials_data: DeviceAddress,
+    ) {
+        self.resources_pool
+            .materials_pool
+            .set_materials_labels_device_addresses(device_address_materials_data);
+    }
+
+    pub fn get_materials_data_to_write(&'a self) -> &'a [u8] {
+        self.resources_pool
+            .materials_pool
+            .get_materials_data_to_write()
+    }
+
+    pub fn get_material_data_device_address_by_id(&self, material_label_id: Id) -> DeviceAddress {
+        self.resources_pool
+            .materials_pool
+            .get_material_data_device_address_by_id(material_label_id)
+    }
+
     pub fn insert_mesh_objects_buffer_id(&mut self, mesh_objects_buffer_id: Id) {
         self.resources_pool.mesh_objects_pool.mesh_objects_buffer_id = mesh_objects_buffer_id;
     }

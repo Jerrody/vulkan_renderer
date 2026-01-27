@@ -1,23 +1,22 @@
-use bevy_ecs::component::Component;
 use glam::Vec4;
+use vulkanite::vk::DeviceAddress;
 
 use crate::engine::id::Id;
 
-#[derive(Component)]
-pub struct Material {
-    pub id: Id,
-    pub data: MaterialData,
-    pub state: MaterialState,
+pub struct MaterialState {
+    pub depth_test: bool,
+    pub depth_write: bool,
 }
 
 #[repr(C)]
 pub struct MaterialData {
     pub color: Vec4,
-    pub metallic: Vec4,
-    pub duffuse_texture_index: u64,
+    pub texture_index: u32,
+    pub sampler_index: u32,
 }
 
-pub struct MaterialState {
-    pub depth_test: bool,
-    pub depth_write: bool,
+pub struct Material {
+    pub id: Id,
+    pub ptr_data: DeviceAddress,
+    pub state: MaterialState,
 }

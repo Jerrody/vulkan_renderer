@@ -207,6 +207,21 @@ impl Engine {
             }
         }
 
+        let materials_data_buffer = create_buffer(
+            device,
+            allocator,
+            1024 * 1024 * 64,
+            BufferUsageFlags::StorageBuffer
+                | BufferUsageFlags::ShaderDeviceAddress
+                | BufferUsageFlags::TransferDst,
+        );
+        let materials_data_buffer_id =
+            renderer_resources.insert_storage_buffer(materials_data_buffer);
+        renderer_resources
+            .resources_pool
+            .materials_pool
+            .materials_data_buffer_id = materials_data_buffer_id;
+
         let mut instance_objects_buffers = Vec::with_capacity(render_context.frame_overlap);
 
         for _ in 0..instance_objects_buffers.capacity() {
