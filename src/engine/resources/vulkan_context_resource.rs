@@ -4,8 +4,8 @@ use vulkanite::{
     Handle,
     vk::{
         self, AccessFlags2, BufferImageCopy, BufferUsageFlags, CommandBufferBeginInfo,
-        CommandBufferUsageFlags, CommandPoolResetFlags, HostImageLayoutTransitionInfo, ImageLayout,
-        ImageSubresourceLayers, PipelineStageFlags2, SubmitInfo, SurfaceFormatKHR,
+        CommandBufferUsageFlags, CommandPoolResetFlags, ImageLayout, ImageSubresourceLayers,
+        PipelineStageFlags2, SubmitInfo, SurfaceFormatKHR,
         rs::{
             DebugUtilsMessengerEXT, Device, Instance, PhysicalDevice, Queue, SurfaceKHR,
             SwapchainKHR,

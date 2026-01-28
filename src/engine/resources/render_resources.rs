@@ -202,7 +202,7 @@ struct MaterialsPool {
 impl MaterialsPool {
     pub fn write_material(&mut self, data: &[u8]) -> Id {
         let material_label = MaterialLabel {
-            id: Id::new(data.as_ptr() as usize),
+            id: Id::new(self.material_labels.len()),
             size: data.len(),
             device_address_material_data: Default::default(),
         };

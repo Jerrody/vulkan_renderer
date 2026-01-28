@@ -81,9 +81,10 @@ pub fn begin_rendering(
         .get_storage_buffer_ref(instance_objects_buffer_id)
         .device_address;
 
-    let nearest_sampler_index = renderer_resources
-        .get_sampler(renderer_resources.nearest_sampler_id)
-        .index;
+    /*     let nearest_sampler_index = renderer_resources
+           .get_sampler(renderer_resources.nearest_sampler_id)
+           .index;
+    */
 
     let mesh_push_constant = GraphicsPushConstant {
         view_projection: frame_context.world_matrix,
