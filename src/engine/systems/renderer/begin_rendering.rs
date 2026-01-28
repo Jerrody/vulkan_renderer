@@ -88,7 +88,6 @@ pub fn begin_rendering(
     let mesh_push_constant = GraphicsPushConstant {
         view_projection: frame_context.world_matrix,
         device_address_instance_object: device_address_instance_objects_buffer,
-        sampler_index: nearest_sampler_index as _,
         draw_image_index: draw_image.index as _,
     };
 

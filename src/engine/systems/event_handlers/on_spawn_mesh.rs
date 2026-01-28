@@ -43,7 +43,7 @@ pub fn on_spawn_mesh(spawn_event: On<SpawnEvent>, mut commands: Commands) {
                 id: Id::new(Uuid::new_v4()),
                 instance_object_index: None,
                 mesh_buffer_id,
-                texture_id: spawn_event_record.texture_id,
+                material_id: spawn_event_record.material_id,
             };
             name.set(std::format!(
                 "Mesh ID: {:?}",

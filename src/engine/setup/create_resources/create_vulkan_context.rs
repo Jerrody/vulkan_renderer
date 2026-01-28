@@ -280,7 +280,7 @@ impl Engine {
             })
             .unwrap();
 
-        let features = vk::PhysicalDeviceFeatures::default();
+        let features = vk::PhysicalDeviceFeatures::default().shader_int64(true);
 
         let required_extensions = [
             vk::KHR_SWAPCHAIN.name,

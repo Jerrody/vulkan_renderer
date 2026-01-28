@@ -98,7 +98,6 @@ struct GlobalPushConstants
 {
     const let view_projection_matrix : float4x4;
     const let ptr_instance_object : ImmutablePtr<InstanceObject>;
-    const let sampler_index : uint32_t;
     const let draw_image_index : uint32_t;
 };
 

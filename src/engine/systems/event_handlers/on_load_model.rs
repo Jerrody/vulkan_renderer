@@ -1,4 +1,4 @@
-use asset_importer::{Matrix4x4, node::Node};
+use asset_importer::{Matrix4x4, node::Node, texture};
 use image::ImageReader;
 use ktx2_rw::{BasisCompressionParams, Ktx2Texture, VkFormat};
 use std::{collections::HashMap, ffi::c_void, io::Cursor, path::Path};
@@ -18,7 +18,7 @@ use vulkanite::vk::rs::Device;
 
 use crate::engine::{
     Engine,
-    components::transform::Transform,
+    components::{material::MaterialData, transform::Transform},
     descriptors::{DescriptorKind, DescriptorSampledImage},
     events::{LoadModelEvent, SpawnEvent, SpawnEventRecord},
     id::Id,
@@ -162,7 +162,9 @@ pub fn on_load_model(
         HashMap::with_capacity(scene.num_meshes());
     let mut uploaded_textures: HashMap<usize, Id> =
         HashMap::with_capacity(uploaded_mesh_buffers.capacity());
+    let mut uploaded_materials: HashMap<usize, Id> = HashMap::with_capacity(scene.num_materials());
 
+    renderer_resources.reset_materails_to_write();
     std::fs::create_dir_all("shaders/_outputs").unwrap();
     for node_data in nodes.into_iter() {
         if node_data.mesh_indices.len() > Default::default() {
@@ -171,16 +173,49 @@ pub fn on_load_model(
             let mut texture_id: Id;
             for &mesh_index in node_data.mesh_indices.iter() {
                 texture_id = renderer_resources.fallback_texture_id;
-                try_upload_texture(
-                    &vulkan_context,
-                    &renderer_context_resource,
-                    &mut renderer_resources,
-                    &scene,
-                    &mut uploaded_textures,
-                    scene.mesh(mesh_index).unwrap(),
-                    &mut texture_id,
-                    load_model_event.path.file_stem().unwrap().to_str().unwrap(),
-                );
+                let mesh = scene.mesh(mesh_index).unwrap();
+
+                let material_index = mesh.material_index();
+                let material_id: Id;
+                if uploaded_materials.contains_key(&material_index) {
+                    material_id = *uploaded_materials.get(&material_index).unwrap();
+                } else {
+                    let material = scene.material(material_index).unwrap();
+
+                    try_upload_texture(
+                        &vulkan_context,
+                        &renderer_context_resource,
+                        &mut renderer_resources,
+                        &scene,
+                        &mut uploaded_textures,
+                        material.clone(),
+                        &mut texture_id,
+                        load_model_event.path.file_stem().unwrap().to_str().unwrap(),
+                    );
+
+                    let base_color_raw = material.base_color().unwrap();
+                    let base_color = Vec4::new(
+                        base_color_raw.x,
+                        base_color_raw.y,
+                        base_color_raw.z,
+                        base_color_raw.w,
+                    );
+                    let texture_index = renderer_resources.get_texture_ref(texture_id).index;
+                    let material_data = MaterialData {
+                        color: base_color,
+                        texture_index: texture_index as _,
+                        sampler_index: Default::default(),
+                    };
+
+                    let material_data_raw = unsafe {
+                        std::slice::from_raw_parts(
+                            (&material_data as *const MaterialData) as *const u8,
+                            std::mem::size_of::<MaterialData>(),
+                        )
+                    };
+
+                    material_id = renderer_resources.write_material(material_data_raw);
+                }
 
                 if uploaded_mesh_buffers.contains_key(&mesh_index) {
                     let already_uploaded_mesh = uploaded_mesh_buffers.get(&mesh_index).unwrap();
@@ -275,9 +310,6 @@ pub fn on_load_model(
                     let local_indices_buffer_id =
                         renderer_resources.insert_storage_buffer(local_indices_buffer);
 
-                    let material_index = mesh.material_index();
-                    let material = scene.material(material_index).unwrap();
-                    let base_color = material.base_color().unwrap();
                     let mesh_buffer = MeshBuffer {
                         id: Id::new(vertex_buffer_id),
                         mesh_object_device_address: Id::NULL.value(),
@@ -286,12 +318,6 @@ pub fn on_load_model(
                         meshlets_buffer_id,
                         local_indices_buffer_id,
                         meshlets_count: meshlets.len(),
-                        base_color: Vec4::new(
-                            base_color.x,
-                            base_color.y,
-                            base_color.z,
-                            base_color.z,
-                        ),
                     };
 
                     mesh_buffer_id = renderer_resources.insert_mesh_buffer(mesh_buffer);
@@ -302,7 +328,7 @@ pub fn on_load_model(
 
                 spawn_event_record.name = mesh_name;
                 spawn_event_record.parent_index = Some(node_data.index);
-                spawn_event_record.texture_id = texture_id;
+                spawn_event_record.material_id = material_id;
                 spawn_event_record.mesh_buffer_id = mesh_buffer_id;
                 spawn_event_record.transform = Transform::IDENTITY;
 
@@ -346,12 +372,28 @@ pub fn on_load_model(
                 device_address_vertex_indices_buffer,
                 device_address_meshlets_buffer,
                 device_address_local_indices_buffer,
-                base_color: mesh_buffer.base_color,
             };
 
             mesh_object
         })
         .collect::<Vec<_>>();
+
+    let materials_data_buffer_id = renderer_resources.get_materials_data_buffer_id();
+    let materials_data_buffer_ref_mut: *mut AllocatedBuffer =
+        renderer_resources.get_storage_buffer_ref_mut(materials_data_buffer_id) as *mut _;
+    let materials_data_to_write_ref = renderer_resources.get_materials_data_to_write().as_ptr();
+
+    unsafe {
+        transfer_data_to_buffer(
+            &vulkan_context.allocator,
+            materials_data_buffer_ref_mut.as_mut().unwrap(),
+            materials_data_to_write_ref as *const _,
+            renderer_resources.get_materials_data_to_write_len(),
+        );
+
+        renderer_resources
+            .set_materials_labels_device_addresses((*materials_data_buffer_ref_mut).device_address);
+    }
 
     // FIXME: Currently we use the first buffer of mesh objects,
     // but later we need to use ring buffer pattern for safe read and write operations between the frames.
@@ -397,21 +439,19 @@ fn try_upload_texture(
     renderer_resources: &mut RendererResources,
     scene: &asset_importer::Scene,
     uploaded_textures: &mut HashMap<usize, Id>,
-    mesh: asset_importer::mesh::Mesh,
+    material: asset_importer::Material,
     texture_id: &mut Id,
     model_name: &str,
 ) {
-    let material_index = mesh.material_index();
-    if uploaded_textures.contains_key(&material_index) {
-        *texture_id = *uploaded_textures.get(&material_index).unwrap();
-    } else {
-        let material = scene.material(material_index).unwrap();
-        if material.texture_count(asset_importer::TextureType::BaseColor) > Default::default() {
-            let texture_info = material
-                .texture(asset_importer::TextureType::BaseColor, Default::default())
-                .unwrap();
-            let texture_index = texture_info.path[1..].parse::<usize>().unwrap();
+    if material.texture_count(asset_importer::TextureType::BaseColor) > Default::default() {
+        let texture_info = material
+            .texture(asset_importer::TextureType::BaseColor, Default::default())
+            .unwrap();
+        let texture_index = texture_info.path[1..].parse::<usize>().unwrap();
 
+        if uploaded_textures.contains_key(&texture_index) {
+            *texture_id = *uploaded_textures.get(&texture_index).unwrap();
+        } else {
             let texture = scene.texture(texture_index).unwrap();
 
             let (texture_data, image_extent) =
@@ -437,24 +477,25 @@ fn try_upload_texture(
             let descriptor_texture = DescriptorKind::SampledImage(DescriptorSampledImage {
                 image_view: texture_ref.image_view,
             });
-            let texture_index = renderer_resources
+            let texture_resource_index = renderer_resources
                 .resources_descriptor_set_handle
                 .update_binding(
                     vulkan_context.device,
                     &vulkan_context.allocator,
                     descriptor_texture,
                 );
-            renderer_resources.get_texture_ref_mut(*texture_id).index = texture_index.unwrap();
+            renderer_resources.get_texture_ref_mut(*texture_id).index =
+                texture_resource_index.unwrap();
             println!(
                 "Name: {} | Index: {} | Extent: {}x{}x{}",
                 texture.filename_str().unwrap(),
-                texture_index.unwrap(),
+                texture_resource_index.unwrap(),
                 image_extent.width,
                 image_extent.height,
                 image_extent.depth,
             );
 
-            uploaded_textures.insert(material_index, *texture_id);
+            uploaded_textures.insert(texture_index, *texture_id);
         }
     }
 }

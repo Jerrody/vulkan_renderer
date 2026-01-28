@@ -7,7 +7,7 @@ mod setup;
 mod systems;
 mod utils;
 
-use std::{path::PathBuf, str::FromStr};
+use std::path::PathBuf;
 
 use bevy_ecs::{
     schedule::{IntoScheduleConfigs, Schedule, ScheduleLabel},

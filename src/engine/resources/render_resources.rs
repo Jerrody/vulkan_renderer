@@ -4,7 +4,7 @@ pub mod model_loader;
 use std::slice::{Iter, IterMut};
 
 use bevy_ecs::resource::Resource;
-use glam::{Mat4, Vec2, Vec3, Vec4};
+use glam::{Mat4, Vec2, Vec3};
 use vma::Allocation;
 use vulkanite::{
     Handle,
@@ -42,7 +42,6 @@ pub struct MeshObject {
     pub device_address_vertex_indices_buffer: DeviceAddress,
     pub device_address_meshlets_buffer: DeviceAddress,
     pub device_address_local_indices_buffer: DeviceAddress,
-    pub base_color: Vec4,
 }
 
 #[repr(C)]
@@ -50,8 +49,8 @@ pub struct MeshObject {
 pub struct InstanceObject {
     pub model_matrix: Mat4,
     pub device_address_mesh_object: DeviceAddress,
+    pub device_address_material_data: DeviceAddress,
     pub meshlet_count: u32,
-    pub texture_index: u32,
 }
 
 #[repr(C)]
@@ -59,7 +58,6 @@ pub struct InstanceObject {
 pub struct GraphicsPushConstant {
     pub view_projection: Mat4,
     pub device_address_instance_object: DeviceAddress,
-    pub sampler_index: u32,
     pub draw_image_index: u32,
 }
 
@@ -71,7 +69,6 @@ pub struct MeshBuffer {
     pub meshlets_buffer_id: Id,
     pub local_indices_buffer_id: Id,
     pub meshlets_count: usize,
-    pub base_color: Vec4,
 }
 
 pub struct AllocatedImage {
@@ -221,6 +218,14 @@ impl MaterialsPool {
         self.materials_to_write.clear();
     }
 
+    pub fn get_materials_data_buffer_id(&self) -> Id {
+        self.materials_data_buffer_id
+    }
+
+    pub fn set_materials_data_buffer_id(&mut self, materials_data_buffer_id: Id) {
+        self.materials_data_buffer_id = materials_data_buffer_id;
+    }
+
     pub fn set_materials_labels_device_addresses(
         &mut self,
         mut device_address_materials_data: DeviceAddress,
@@ -235,6 +240,10 @@ impl MaterialsPool {
 
     pub fn get_materials_data_to_write<'a>(&'a self) -> &'a [u8] {
         &self.materials_to_write.as_slice()
+    }
+
+    pub fn get_materials_data_to_write_len(&self) -> usize {
+        self.materials_to_write.len()
     }
 
     pub fn get_material_data_device_address_by_id(&self, material_label_id: Id) -> DeviceAddress {
@@ -266,7 +275,7 @@ pub struct ResourcesPool {
     pub samplers: Vec<SamplerObject>,
     pub instances_pool: InstancesPool,
     pub mesh_objects_pool: MeshObjectPool,
-    pub materials_pool: MaterialsPool,
+    materials_pool: MaterialsPool,
 }
 
 #[derive(Resource)]
@@ -296,6 +305,18 @@ impl<'a> RendererResources {
             .reset_materails_to_write();
     }
 
+    pub fn get_materials_data_buffer_id(&self) -> Id {
+        self.resources_pool
+            .materials_pool
+            .get_materials_data_buffer_id()
+    }
+
+    pub fn set_materials_data_buffer_id(&mut self, materials_data_buffer_id: Id) {
+        self.resources_pool
+            .materials_pool
+            .set_materials_data_buffer_id(materials_data_buffer_id);
+    }
+
     pub fn set_materials_labels_device_addresses(
         &mut self,
         device_address_materials_data: DeviceAddress,
@@ -309,6 +330,12 @@ impl<'a> RendererResources {
         self.resources_pool
             .materials_pool
             .get_materials_data_to_write()
+    }
+
+    pub fn get_materials_data_to_write_len(&self) -> usize {
+        self.resources_pool
+            .materials_pool
+            .get_materials_data_to_write_len()
     }
 
     pub fn get_material_data_device_address_by_id(&self, material_label_id: Id) -> DeviceAddress {
@@ -357,13 +384,13 @@ impl<'a> RendererResources {
         model_matrix: Mat4,
         device_address_mesh_object: DeviceAddress,
         meshlet_count: usize,
-        texture_index: u32,
+        device_address_material_data: DeviceAddress,
     ) -> usize {
         let instance_object = InstanceObject {
             model_matrix,
             device_address_mesh_object,
             meshlet_count: meshlet_count as _,
-            texture_index,
+            device_address_material_data,
         };
 
         let last_instance_object_index = self
