@@ -202,7 +202,7 @@ pub fn on_load_model(
                     );
                     let texture_index = renderer_resources.get_texture_ref(texture_id).index;
                     let material_data = MaterialData {
-                        color: base_color,
+                        color: base_color.to_array(),
                         texture_index: texture_index as _,
                         sampler_index: Default::default(),
                     };
@@ -253,9 +253,9 @@ pub fn on_load_model(
                     let mut vertices = Vec::with_capacity(positions.len());
                     for i in 0..positions.len() {
                         vertices.push(Vertex {
-                            position: positions[i],
-                            normal: normals[i],
-                            uv: uvs[i],
+                            position: positions[i].to_array(),
+                            normal: normals[i].to_array(),
+                            uv: uvs[i].to_array(),
                         });
                     }
 

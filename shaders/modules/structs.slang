@@ -70,6 +70,7 @@ struct UnlitMaterial : IMaterial
     const let texture_index : uint32_t;
     const let sampler_index : uint32_t;
 
+    [ForceInline]
     func eval(SurfaceData surface_data, const uv: float2)->SurfaceData
     {
         const let sampler = samplers[sampler_index];

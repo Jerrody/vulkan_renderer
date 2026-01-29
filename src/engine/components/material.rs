@@ -10,7 +10,7 @@ pub struct MaterialState {
 
 #[repr(C)]
 pub struct MaterialData {
-    pub color: Vec4,
+    pub color: [f32; 4],
     pub texture_index: u32,
     pub sampler_index: u32,
 }
