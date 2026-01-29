@@ -4,6 +4,7 @@ pub mod model_loader;
 use std::slice::{Iter, IterMut};
 
 use bevy_ecs::resource::Resource;
+use bytemuck::{Pod, Zeroable};
 use glam::Mat4;
 use vma::Allocation;
 use vulkanite::{
@@ -20,7 +21,7 @@ use crate::engine::{
 };
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Pod, Zeroable)]
 pub struct Meshlet {
     pub vertex_offset: u32,
     pub triangle_offset: u32,
@@ -29,7 +30,7 @@ pub struct Meshlet {
 }
 
 #[repr(C)]
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, Pod, Zeroable)]
 pub struct Vertex {
     pub position: [f32; 3],
     pub normal: [f32; 3],
@@ -37,6 +38,7 @@ pub struct Vertex {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
 pub struct MeshObject {
     pub device_address_vertex_buffer: DeviceAddress,
     pub device_address_vertex_indices_buffer: DeviceAddress,
@@ -45,20 +47,22 @@ pub struct MeshObject {
 }
 
 #[repr(C)]
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, Pod, Zeroable)]
 pub struct InstanceObject {
     pub model_matrix: [f32; 16],
     pub device_address_mesh_object: DeviceAddress,
     pub device_address_material_data: DeviceAddress,
     pub meshlet_count: u32,
+    pub _pad: u32,
 }
 
 #[repr(C)]
-#[derive(Default)]
+#[derive(Clone, Copy, Default, Pod, Zeroable)]
 pub struct GraphicsPushConstant {
     pub view_projection: [f32; 16],
     pub device_address_instance_object: DeviceAddress,
     pub draw_image_index: u32,
+    pub _pad: u32,
 }
 
 pub struct MeshBuffer {
@@ -391,6 +395,7 @@ impl<'a> RendererResources {
             device_address_mesh_object,
             meshlet_count: meshlet_count as _,
             device_address_material_data,
+            ..Default::default()
         };
 
         let last_instance_object_index = self

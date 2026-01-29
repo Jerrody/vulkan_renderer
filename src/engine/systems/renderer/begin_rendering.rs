@@ -90,6 +90,7 @@ pub fn begin_rendering(
         view_projection: frame_context.world_matrix.to_cols_array(),
         device_address_instance_object: device_address_instance_objects_buffer,
         draw_image_index: draw_image.index as _,
+        ..Default::default()
     };
 
     command_buffer.push_constants(

@@ -1,4 +1,4 @@
-use glam::Vec4;
+use bytemuck::{Pod, Zeroable};
 use vulkanite::vk::DeviceAddress;
 
 use crate::engine::id::Id;
@@ -9,6 +9,7 @@ pub struct MaterialState {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
 pub struct MaterialData {
     pub color: [f32; 4],
     pub texture_index: u32,
