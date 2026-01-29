@@ -53,9 +53,8 @@ impl Engine {
 
         let render_context = Self::create_renderer_context(window, &world);
         world.insert_resource(render_context);
-
-        let descriptor_set_builder_resource = Self::create_descriptor_set_builder_resource();
-        world.insert_resource(descriptor_set_builder_resource);
+        /*         let descriptor_set_builder_resource = Self::create_descriptor_set_builder_resource();
+        world.insert_resource(descriptor_set_builder_resource) */
 
         let renderer_resources = Self::create_renderer_resources(&mut world);
         world.insert_resource(renderer_resources);

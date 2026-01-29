@@ -43,7 +43,7 @@ struct DescriptorSetLayoutBindingInfo<'a> {
     pub flags: DescriptorBindingFlags,
 }
 
-#[derive(Resource, Default)]
+#[derive(Default)]
 pub struct DescriptorSetBuilder<'a> {
     bindings_infos: Vec<DescriptorSetLayoutBindingInfo<'a>>,
 }
