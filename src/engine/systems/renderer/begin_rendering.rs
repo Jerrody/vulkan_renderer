@@ -184,7 +184,6 @@ pub fn begin_rendering(
     command_buffer.set_rasterization_samples_ext(SampleCountFlags::Count1);
 
     command_buffer.set_depth_test_enable(true);
-    command_buffer.set_depth_write_enable(true);
     command_buffer.set_depth_bias_enable(false);
     command_buffer.set_depth_compare_op(CompareOp::GreaterOrEqual);
     command_buffer.set_depth_bounds_test_enable(false);

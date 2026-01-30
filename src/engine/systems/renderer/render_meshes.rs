@@ -45,9 +45,11 @@ pub fn render_meshes(
 
     let meshes_len = graphics_entities.iter().len();
     for material_type in 0..2 {
-        let blend_enables = [Bool32::from(
-            material_type as u32 == MaterialType::Transparent as u32,
-        )];
+        let is_draw_transparent_materials =
+            material_type as u32 == MaterialType::Transparent as u32;
+        let blend_enables = [Bool32::from(is_draw_transparent_materials)];
+
+        command_buffer.set_depth_write_enable(!is_draw_transparent_materials);
 
         command_buffer.set_color_blend_enable_ext(Default::default(), blend_enables.as_slice());
 
