@@ -194,9 +194,6 @@ pub fn begin_rendering(
     command_buffer.set_alpha_to_coverage_enable_ext(false);
     command_buffer.set_sample_mask_ext(SampleCountFlags::Count1, &[SampleMask::MAX]);
 
-    let blend_enables = [Bool32::False];
-    command_buffer.set_color_blend_enable_ext(Default::default(), blend_enables.as_slice());
-
     let color_component_flags = [ColorComponentFlags::all()];
     command_buffer.set_color_write_mask_ext(Default::default(), &color_component_flags);
 

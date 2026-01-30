@@ -1,7 +1,7 @@
-use asset_importer::{Matrix4x4, node::Node, texture};
+use asset_importer::{Matrix4x4, node::Node};
 use image::ImageReader;
 use ktx2_rw::{BasisCompressionParams, Ktx2Texture, VkFormat};
-use std::{collections::HashMap, ffi::c_void, io::Cursor, path::Path};
+use std::{collections::HashMap, ffi::c_void, io::Cursor};
 use vulkanite::vk::{BufferUsageFlags, DeviceAddress, Extent3D, Format, ImageUsageFlags};
 
 use bevy_ecs::{
@@ -18,13 +18,16 @@ use vulkanite::vk::rs::Device;
 
 use crate::engine::{
     Engine,
-    components::{material::MaterialData, transform::Transform},
+    components::{
+        material::{MaterialData, MaterialState, MaterialType},
+        transform::Transform,
+    },
     descriptors::{DescriptorKind, DescriptorSampledImage},
     events::{LoadModelEvent, SpawnEvent, SpawnEventRecord},
     id::Id,
     resources::{
-        AllocatedBuffer, MeshBuffer, MeshObject, MeshObjectPool, Meshlet, RendererContext,
-        RendererResources, Vertex, VulkanContextResource, allocation::create_buffer,
+        AllocatedBuffer, MeshBuffer, MeshObject, Meshlet, RendererContext, RendererResources,
+        Vertex, VulkanContextResource, allocation::create_buffer,
     },
     utils::get_device_address,
 };
@@ -182,6 +185,17 @@ pub fn on_load_model(
                 } else {
                     let material = scene.material(material_index).unwrap();
 
+                    let alpha_mode = std::str::from_utf8(
+                        &material
+                            .get_property_raw_ref(c"$mat.gltf.alphaMode", None, 0)
+                            .unwrap(),
+                    )
+                    .unwrap();
+                    let mut material_type = MaterialType::Opaque;
+                    if alpha_mode.contains("BLEND") {
+                        material_type = MaterialType::Transparent;
+                    }
+
                     try_upload_texture(
                         &vulkan_context,
                         &renderer_context_resource,
@@ -207,14 +221,10 @@ pub fn on_load_model(
                         sampler_index: Default::default(),
                     };
 
-                    let material_data_raw = unsafe {
-                        std::slice::from_raw_parts(
-                            (&material_data as *const MaterialData) as *const u8,
-                            std::mem::size_of::<MaterialData>(),
-                        )
-                    };
-
-                    material_id = renderer_resources.write_material(material_data_raw);
+                    material_id = renderer_resources.write_material(
+                        bytemuck::bytes_of(&material_data),
+                        MaterialState { material_type },
+                    );
                 }
 
                 if uploaded_mesh_buffers.contains_key(&mesh_index) {

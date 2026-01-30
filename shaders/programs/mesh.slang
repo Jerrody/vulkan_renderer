@@ -14,9 +14,12 @@ func main(const uint32_t group_id: SV_GroupID)
 {
     const let instance_object = push_constants.ptr_instance_object[group_id];
 
+    let is_current_material_type = push_constants.current_material_type == instance_object.material_type;
+    let is_current_material_type_mask = (uint32_t)is_current_material_type;
+
     payload = Payload(group_id);
 
-    DispatchMesh(instance_object.meshlet_count, 1, 1, payload);
+    DispatchMesh(instance_object.meshlet_count * is_current_material_type_mask, 1, 1, payload);
 }
 
 ///////////////////////////////////////////////////// MESH //////////////////////////////////////////////////////////////

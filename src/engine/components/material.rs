@@ -3,9 +3,17 @@ use vulkanite::vk::DeviceAddress;
 
 use crate::engine::id::Id;
 
+#[derive(Default, Clone, Copy)]
+#[repr(u8)]
+pub enum MaterialType {
+    #[default]
+    Opaque,
+    Transparent,
+}
+
+#[derive(Clone, Copy)]
 pub struct MaterialState {
-    pub depth_test: bool,
-    pub depth_write: bool,
+    pub material_type: MaterialType,
 }
 
 #[repr(C)]

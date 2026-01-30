@@ -16,7 +16,9 @@ use vulkanite::{
 };
 
 use crate::engine::{
-    descriptors::DescriptorSetHandle, id::Id,
+    components::material::{MaterialState, MaterialType},
+    descriptors::DescriptorSetHandle,
+    id::Id,
     resources::render_resources::model_loader::ModelLoader,
 };
 
@@ -53,7 +55,8 @@ pub struct InstanceObject {
     pub device_address_mesh_object: DeviceAddress,
     pub device_address_material_data: DeviceAddress,
     pub meshlet_count: u32,
-    pub _pad: u32,
+    pub material_type: u8,
+    pub _pad: [u8; 3],
 }
 
 #[repr(C)]
@@ -62,7 +65,8 @@ pub struct GraphicsPushConstant {
     pub view_projection: [f32; 16],
     pub device_address_instance_object: DeviceAddress,
     pub draw_image_index: u32,
-    pub _pad: u32,
+    pub current_material_type: u8,
+    pub _pad: [u8; 3],
 }
 
 pub struct MeshBuffer {
@@ -193,8 +197,14 @@ impl Default for InstancesPool {
 #[derive(Clone, Copy)]
 struct MaterialLabel {
     pub id: Id,
+    pub material_state: MaterialState,
     pub size: usize,
     pub device_address_material_data: DeviceAddress,
+}
+
+pub struct MaterialInfo {
+    pub material_type: MaterialType,
+    pub device_adddress_materail_data: DeviceAddress,
 }
 
 struct MaterialsPool {
@@ -204,10 +214,11 @@ struct MaterialsPool {
 }
 
 impl MaterialsPool {
-    pub fn write_material(&mut self, data: &[u8]) -> Id {
+    pub fn write_material(&mut self, data: &[u8], material_state: MaterialState) -> Id {
         let material_label = MaterialLabel {
             id: Id::new(self.material_labels.len()),
             size: data.len(),
+            material_state,
             device_address_material_data: Default::default(),
         };
         let id = material_label.id;
@@ -250,14 +261,17 @@ impl MaterialsPool {
         self.materials_to_write.len()
     }
 
-    pub fn get_material_data_device_address_by_id(&self, material_label_id: Id) -> DeviceAddress {
+    pub fn get_material_info_device_address_by_id(&self, material_label_id: Id) -> MaterialInfo {
         let material_label = self
             .material_labels
             .iter()
             .find(|&material_label| material_label.id == material_label_id)
             .unwrap();
 
-        material_label.device_address_material_data
+        MaterialInfo {
+            material_type: material_label.material_state.material_type,
+            device_adddress_materail_data: material_label.device_address_material_data,
+        }
     }
 }
 
@@ -299,8 +313,10 @@ pub struct RendererResources {
 }
 
 impl<'a> RendererResources {
-    pub fn write_material(&mut self, data: &[u8]) -> Id {
-        self.resources_pool.materials_pool.write_material(data)
+    pub fn write_material(&mut self, data: &[u8], material_state: MaterialState) -> Id {
+        self.resources_pool
+            .materials_pool
+            .write_material(data, material_state)
     }
 
     pub fn reset_materails_to_write(&mut self) {
@@ -342,10 +358,10 @@ impl<'a> RendererResources {
             .get_materials_data_to_write_len()
     }
 
-    pub fn get_material_data_device_address_by_id(&self, material_label_id: Id) -> DeviceAddress {
+    pub fn get_material_data_device_address_by_id(&self, material_label_id: Id) -> MaterialInfo {
         self.resources_pool
             .materials_pool
-            .get_material_data_device_address_by_id(material_label_id)
+            .get_material_info_device_address_by_id(material_label_id)
     }
 
     pub fn insert_mesh_objects_buffer_id(&mut self, mesh_objects_buffer_id: Id) {
@@ -389,12 +405,14 @@ impl<'a> RendererResources {
         device_address_mesh_object: DeviceAddress,
         meshlet_count: usize,
         device_address_material_data: DeviceAddress,
+        material_type: u8,
     ) -> usize {
         let instance_object = InstanceObject {
             model_matrix: model_matrix.to_cols_array(),
             device_address_mesh_object,
             meshlet_count: meshlet_count as _,
             device_address_material_data,
+            material_type,
             ..Default::default()
         };
 

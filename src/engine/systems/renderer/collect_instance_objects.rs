@@ -5,7 +5,7 @@ use glam::Mat4;
 use vulkanite::vk::DeviceAddress;
 
 use crate::engine::{
-    components::{mesh::Mesh, transform::GlobalTransform},
+    components::{material::MaterialType, mesh::Mesh, transform::GlobalTransform},
     id::Id,
     resources::{MeshBuffer, RendererResources},
 };
@@ -16,6 +16,7 @@ struct InstanceDataToWrite {
     pub device_address_mesh_object: DeviceAddress,
     pub device_address_material_data: DeviceAddress,
     pub meshlet_count: usize,
+    pub material_type: MaterialType,
 }
 
 pub fn collect_instance_objects(
@@ -32,7 +33,7 @@ pub fn collect_instance_objects(
 
     let mut current_instance_data_index = usize::default();
     for (global_transform, mut mesh) in &mut mesh_query {
-        let device_address_material_data =
+        let material_info =
             renderer_resources.get_material_data_device_address_by_id(mesh.material_id);
 
         let mesh_buffer = unsafe {
@@ -46,7 +47,8 @@ pub fn collect_instance_objects(
             model_matrix: global_transform.0,
             device_address_mesh_object: mesh_buffer.mesh_object_device_address,
             meshlet_count: mesh_buffer.meshlets_count,
-            device_address_material_data: device_address_material_data,
+            device_address_material_data: material_info.device_adddress_materail_data,
+            material_type: material_info.material_type,
         });
 
         mesh.instance_object_index = Some(current_instance_data_index);
@@ -75,6 +77,7 @@ pub fn collect_instance_objects(
                 instance_data_to_write.device_address_mesh_object,
                 instance_data_to_write.meshlet_count,
                 instance_data_to_write.device_address_material_data,
+                instance_data_to_write.material_type as u8,
             );
         });
 }

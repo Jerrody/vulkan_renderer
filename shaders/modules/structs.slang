@@ -11,6 +11,12 @@ struct PrimitiveData
     nointerpolation const let device_address_material : ImmutablePtr<Material>;
 }
 
+enum MaterialType : uint8_t
+{
+    Opaque,
+    Transparent,
+}
+
 struct Vertex
 {
     const let position : float3;
@@ -47,6 +53,7 @@ struct InstanceObject
     const let ptr_mesh_object : ImmutablePtr<MeshObject>;
     const let device_address_material : ImmutablePtr<Material>;
     const let meshlet_count : uint32_t;
+    const let material_type : MaterialType;
 }
 
 struct Payload
@@ -100,6 +107,7 @@ struct GlobalPushConstants
     const let view_projection_matrix : float4x4;
     const let ptr_instance_object : ImmutablePtr<InstanceObject>;
     const let draw_image_index : uint32_t;
+    const let current_material_type : MaterialType;
 };
 
 [[vk::push_constant]]
