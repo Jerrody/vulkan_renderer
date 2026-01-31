@@ -3,6 +3,7 @@ pub mod model_loader;
 
 use std::slice::{Iter, IterMut};
 
+use ahash::{HashMap, HashMapExt};
 use bevy_ecs::resource::Resource;
 use bytemuck::{Pod, Zeroable};
 use glam::Mat4;
@@ -155,6 +156,60 @@ impl<'a> MeshObjectPool {
     }
 }
 
+#[derive(Default, Clone, Copy, Pod, Zeroable)]
+#[repr(C)]
+pub struct SceneData {
+    pub camera_position: [f32; 16],
+}
+
+pub struct MemoryBucket {
+    pub buffers: Vec<AllocatedBuffer>,
+    buffers_map: HashMap<Id, AllocatedBuffer>,
+}
+
+impl MemoryBucket {
+    pub fn new() -> Self {
+        Self {
+            buffers: Vec::with_capacity(1024),
+            buffers_map: HashMap::with_capacity(1024),
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct SwappableBuffer<T>
+where
+    T: Sized,
+{
+    pub current_buffer_index: usize,
+    pub buffers_ids: Vec<Id>,
+    objects_to_write: Vec<T>,
+}
+
+impl<'a, T> SwappableBuffer<T> {
+    pub fn get_current_buffer_id(&self) -> Id {
+        self.buffers_ids[self.current_buffer_index]
+    }
+
+    pub fn get_objects_to_write_as_slice(&'a self) -> &'a [T] {
+        self.objects_to_write.as_slice()
+    }
+
+    pub fn get_objects_to_write_as_slice_mut(&'a mut self) -> &'a mut [T] {
+        self.objects_to_write.as_mut_slice()
+    }
+
+    pub fn write_object_to_current_buffer(&mut self, object_to_write: T) -> usize {
+        self.objects_to_write.push(object_to_write);
+
+        self.objects_to_write.len() - 1
+    }
+
+    pub fn clear_objects_to_write(&mut self) {
+        self.objects_to_write.clear();
+    }
+}
+
 pub struct InstancesPool {
     pub current_instance_set_index: usize,
     pub instance_sets_buffers_ids: Vec<Id>,
@@ -292,6 +347,7 @@ pub struct ResourcesPool {
     pub textures: Vec<AllocatedImage>,
     pub samplers: Vec<SamplerObject>,
     pub instances_pool: InstancesPool,
+    pub scene_data: SwappableBuffer<SceneData>,
     pub mesh_objects_pool: MeshObjectPool,
     materials_pool: MaterialsPool,
 }
