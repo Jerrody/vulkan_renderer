@@ -115,6 +115,12 @@ impl From<String> for Id {
     }
 }
 
+impl Default for Id {
+    fn default() -> Self {
+        Self::NULL
+    }
+}
+
 #[test]
 fn id_size() {
     assert_eq!(std::mem::size_of::<Id>(), 8);

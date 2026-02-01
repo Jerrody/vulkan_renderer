@@ -1,26 +1,26 @@
-pub mod allocation;
 pub mod model_loader;
 
-use std::slice::{Iter, IterMut};
+use std::{
+    ffi::c_void,
+    slice::{Iter, IterMut},
+    sync::{Arc, Weak},
+};
 
 use ahash::{HashMap, HashMapExt};
 use bevy_ecs::resource::Resource;
-use bytemuck::{Pod, Zeroable};
+use bytemuck::{NoUninit, Pod, Zeroable};
 use glam::Mat4;
-use vma::Allocation;
+use vma::{Alloc, Allocation, AllocationCreateFlags, AllocationCreateInfo, Allocator, MemoryUsage};
 use vulkanite::{
     Handle,
-    vk::{
-        DeviceAddress, DeviceSize, Extent3D, Format, ImageSubresourceRange, ShaderStageFlags,
-        rs::{Buffer, Image, ImageView, Sampler, ShaderEXT},
-    },
+    vk::{rs::*, *},
 };
 
 use crate::engine::{
     components::material::{MaterialState, MaterialType},
     descriptors::DescriptorSetHandle,
     id::Id,
-    resources::render_resources::model_loader::ModelLoader,
+    resources::{CommandGroup, render_resources::model_loader::ModelLoader},
 };
 
 #[repr(C)]
@@ -73,10 +73,10 @@ pub struct GraphicsPushConstant {
 pub struct MeshBuffer {
     pub id: Id,
     pub mesh_object_device_address: DeviceAddress,
-    pub vertex_buffer_id: Id,
-    pub vertex_indices_buffer_id: Id,
-    pub meshlets_buffer_id: Id,
-    pub local_indices_buffer_id: Id,
+    pub vertex_buffer: BufferReference,
+    pub vertex_indices_buffer: BufferReference,
+    pub meshlets_buffer: BufferReference,
+    pub local_indices_buffer: BufferReference,
     pub meshlets_count: usize,
 }
 
@@ -95,8 +95,79 @@ pub struct AllocatedBuffer {
     pub id: Id,
     pub buffer: Buffer,
     pub allocation: Allocation,
+    pub buffer_info: BufferInfo,
+}
+
+#[derive(Default, Clone)]
+pub struct BufferReference {
+    buffer_id: Id,
+    weak_ptr: Weak<AllocatedBuffer>,
+    buffer_info: BufferInfo,
+}
+
+#[derive(Default, Clone, Copy)]
+pub struct BufferInfo {
     pub device_address: DeviceAddress,
     pub size: DeviceSize,
+    pub buffer_visibility: BufferVisibility,
+}
+
+impl BufferInfo {
+    pub fn new(
+        device_address: DeviceAddress,
+        size: DeviceSize,
+        buffer_visibility: BufferVisibility,
+    ) -> Self {
+        Self {
+            device_address,
+            size,
+            buffer_visibility,
+        }
+    }
+}
+
+impl BufferReference {
+    pub fn new(
+        buffer_id: Id,
+        allocated_buffer: Weak<AllocatedBuffer>,
+        device_address: DeviceAddress,
+        size: DeviceSize,
+        buffer_visibility: BufferVisibility,
+    ) -> Self {
+        Self {
+            buffer_id,
+            weak_ptr: allocated_buffer,
+            buffer_info: BufferInfo::new(device_address, size, buffer_visibility),
+        }
+    }
+
+    pub fn get_buffer<'a>(&'a self) -> Option<&'a AllocatedBuffer> {
+        let mut allocated_buffer = None;
+
+        if !self.weak_ptr.strong_count() != Default::default() {
+            let allocated_buffer_ref = unsafe { &*(self.weak_ptr.as_ptr()) };
+
+            if allocated_buffer_ref.id == self.buffer_id {
+                allocated_buffer = Some(allocated_buffer_ref);
+            }
+        }
+
+        allocated_buffer
+    }
+
+    #[inline(always)]
+    pub fn get_buffer_id(&self) -> Id {
+        let allocated_buffer = self.get_buffer();
+        match allocated_buffer {
+            Some(allocated_buffer) => allocated_buffer.id,
+            None => Id::NULL,
+        }
+    }
+
+    #[inline(always)]
+    pub fn get_buffer_info(&self) -> BufferInfo {
+        self.buffer_info
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -128,124 +199,377 @@ impl SamplerObject {
     }
 }
 
-pub struct MeshObjectPool {
-    pub mesh_objects_buffer_id: Id,
-    pub mesh_buffers_to_write: Vec<Id>,
-}
-
-impl Default for MeshObjectPool {
-    fn default() -> Self {
-        MeshObjectPool {
-            mesh_objects_buffer_id: Id::NULL,
-            mesh_buffers_to_write: Default::default(),
-        }
-    }
-}
-
-impl<'a> MeshObjectPool {
-    pub fn enqueue_mesh_buffer_to_write(&mut self, mesh_buffer_id: Id) {
-        self.mesh_buffers_to_write.push(mesh_buffer_id);
-    }
-
-    pub fn get_mesh_buffers_to_write_iter(&'a self) -> Iter<'a, Id> {
-        self.mesh_buffers_to_write.iter()
-    }
-
-    pub fn get_mesh_buffers_to_write_iter_mut(&'a mut self) -> IterMut<'a, Id> {
-        self.mesh_buffers_to_write.iter_mut()
-    }
-}
-
 #[derive(Default, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
 pub struct SceneData {
     pub camera_position: [f32; 16],
 }
 
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
+pub enum BufferVisibility {
+    #[default]
+    Unspecified,
+    HostVisible,
+    DeviceOnly,
+}
+
 pub struct MemoryBucket {
-    pub buffers: Vec<AllocatedBuffer>,
-    buffers_map: HashMap<Id, AllocatedBuffer>,
+    device: Device,
+    allocator: Allocator,
+    buffers: Vec<Arc<AllocatedBuffer>>,
+    buffers_map: HashMap<Id, usize>,
+    staging_buffer_reference: BufferReference,
+    upload_command_group: CommandGroup,
+    transfer_queue: Queue,
 }
 
 impl MemoryBucket {
-    pub fn new() -> Self {
-        Self {
+    pub fn new(
+        device: Device,
+        allocator: Allocator,
+        upload_command_group: CommandGroup,
+        transfer_queue: Queue,
+    ) -> Self {
+        let mut memory_bucket = Self {
+            device,
+            allocator,
             buffers: Vec::with_capacity(1024),
             buffers_map: HashMap::with_capacity(1024),
+            staging_buffer_reference: Default::default(),
+            upload_command_group,
+            transfer_queue,
+        };
+
+        // Pre-allocate 64 MB for transfers.
+        let staging_buffer_reference = memory_bucket.create_buffer(
+            1024 * 1024 * 64,
+            BufferUsageFlags::TransferSrc,
+            BufferVisibility::HostVisible,
+        );
+        memory_bucket.staging_buffer_reference = staging_buffer_reference;
+
+        memory_bucket
+    }
+
+    pub fn create_buffer(
+        &mut self,
+        allocation_size: usize,
+        usage: BufferUsageFlags,
+        buffer_visibility: BufferVisibility,
+    ) -> BufferReference {
+        let buffer_kind_usage = if allocation_size < 1024 * 64 {
+            BufferUsageFlags::UniformBuffer
+        } else {
+            BufferUsageFlags::StorageBuffer
+        };
+
+        let buffer_create_info = BufferCreateInfo {
+            size: allocation_size as _,
+            usage: usage | buffer_kind_usage | BufferUsageFlags::ShaderDeviceAddress,
+            sharing_mode: vulkanite::vk::SharingMode::Exclusive,
+            ..Default::default()
+        };
+
+        if buffer_visibility == BufferVisibility::Unspecified {
+            panic!("Trying to create a buffer with unspecified visibility!");
+        }
+
+        let allocation_flags = match buffer_visibility {
+            BufferVisibility::HostVisible => {
+                AllocationCreateFlags::Mapped
+                    | AllocationCreateFlags::HostAccessSequentialWrite
+                    | AllocationCreateFlags::StrategyMinMemory
+            }
+            BufferVisibility::DeviceOnly => AllocationCreateFlags::StrategyMinMemory,
+            BufferVisibility::Unspecified => unreachable!(),
+        };
+
+        let preferred_flags = match buffer_visibility {
+            BufferVisibility::HostVisible => MemoryPropertyFlags::HostCoherent,
+            BufferVisibility::DeviceOnly => MemoryPropertyFlags::empty(),
+            BufferVisibility::Unspecified => unreachable!(),
+        };
+
+        let allocation_create_info = AllocationCreateInfo {
+            flags: allocation_flags,
+            usage: MemoryUsage::Auto,
+            required_flags: MemoryPropertyFlags::DeviceLocal,
+            preferred_flags: preferred_flags,
+            ..Default::default()
+        };
+
+        let (buffer, allocation) = unsafe {
+            self.allocator
+                .create_buffer(&buffer_create_info, &allocation_create_info)
+                .unwrap()
+        };
+        let buffer = Buffer::from_inner(buffer);
+        let device_address = unsafe { self.get_device_address(buffer) };
+
+        let buffer_info = BufferInfo::new(device_address, allocation_size as _, buffer_visibility);
+        let allocated_buffer = AllocatedBuffer {
+            id: Id::new(device_address),
+            buffer,
+            allocation,
+            buffer_info,
+        };
+        let allocated_buffer_size = allocated_buffer.buffer_info.size;
+        let allocated_buffer_id = allocated_buffer.id;
+        let weak_ptr_allocated_buffer = self.insert_buffer(allocated_buffer);
+
+        let allocated_buffer_reference = BufferReference::new(
+            allocated_buffer_id,
+            weak_ptr_allocated_buffer,
+            device_address,
+            allocated_buffer_size,
+            buffer_visibility,
+        );
+
+        allocated_buffer_reference
+    }
+
+    fn insert_buffer(&mut self, allocated_buffer: AllocatedBuffer) -> Weak<AllocatedBuffer> {
+        let allocated_buffer_id = allocated_buffer.id;
+        let allocated_buffer = Arc::new(allocated_buffer);
+        let weak_ptr_allocated_buffer = Arc::downgrade(&allocated_buffer);
+        self.buffers.push(allocated_buffer);
+        let buffer_index = self.buffers.len() - 1;
+
+        if let Some(already_presented_buffer_index) =
+            self.buffers_map.insert(allocated_buffer_id, buffer_index)
+        {
+            panic!("Memory Bucket already has buffer by index: {already_presented_buffer_index}");
+        }
+
+        weak_ptr_allocated_buffer
+    }
+
+    unsafe fn get_device_address(&self, buffer: Buffer) -> DeviceAddress {
+        let buffer_device_address = BufferDeviceAddressInfo::default().buffer(&buffer);
+
+        self.device.get_buffer_address(&buffer_device_address)
+    }
+
+    pub unsafe fn transfer_data_to_buffer(
+        &mut self,
+        buffer_reference: BufferReference,
+        src: &[u8],
+        size: usize,
+    ) {
+        let allocated_buffer = buffer_reference.get_buffer().unwrap();
+
+        let buffer_visibility = allocated_buffer.buffer_info.buffer_visibility;
+        let target_buffer = match buffer_visibility {
+            BufferVisibility::HostVisible => allocated_buffer,
+            BufferVisibility::DeviceOnly => self.staging_buffer_reference.get_buffer().unwrap(),
+            BufferVisibility::Unspecified => unreachable!(),
+        };
+
+        unsafe {
+            let p_mapped_memory = self.allocator.map_memory(target_buffer.allocation).unwrap();
+
+            std::ptr::copy_nonoverlapping(src.as_ptr(), p_mapped_memory as _, size);
+
+            self.allocator.unmap_memory(target_buffer.allocation);
+        }
+
+        if buffer_visibility == BufferVisibility::DeviceOnly {
+            let regions_to_copy = [BufferCopy {
+                size: size as _,
+                ..Default::default()
+            }];
+            unsafe {
+                self.copy_buffer_to_buffer(
+                    target_buffer.buffer,
+                    allocated_buffer.buffer,
+                    &regions_to_copy,
+                )
+            }
         }
     }
-}
 
-#[derive(Default)]
-pub struct SwappableBuffer<T>
-where
-    T: Sized,
-{
-    pub current_buffer_index: usize,
-    pub buffers_ids: Vec<Id>,
-    objects_to_write: Vec<T>,
-}
-
-impl<'a, T> SwappableBuffer<T> {
-    pub fn get_current_buffer_id(&self) -> Id {
-        self.buffers_ids[self.current_buffer_index]
+    pub fn get_staging_buffer_reference<'a>(&self) -> &BufferReference {
+        &self.staging_buffer_reference
     }
 
-    pub fn get_objects_to_write_as_slice(&'a self) -> &'a [T] {
+    pub unsafe fn transfer_data_to_buffer_raw(
+        &mut self,
+        buffer_reference: &BufferReference,
+        src: *const c_void,
+        size: usize,
+    ) {
+        let allocated_buffer = buffer_reference.get_buffer().unwrap();
+
+        let buffer_visibility = allocated_buffer.buffer_info.buffer_visibility;
+        let target_buffer = match buffer_visibility {
+            BufferVisibility::HostVisible => allocated_buffer,
+            BufferVisibility::DeviceOnly => self.staging_buffer_reference.get_buffer().unwrap(),
+            BufferVisibility::Unspecified => unreachable!(),
+        };
+
+        unsafe {
+            let p_mapped_memory = self.allocator.map_memory(target_buffer.allocation).unwrap();
+
+            std::ptr::copy_nonoverlapping(src, p_mapped_memory as _, size);
+
+            self.allocator.unmap_memory(target_buffer.allocation);
+        }
+
+        if buffer_visibility == BufferVisibility::DeviceOnly {
+            let regions_to_copy = [BufferCopy {
+                size: size as _,
+                ..Default::default()
+            }];
+            unsafe {
+                self.copy_buffer_to_buffer(
+                    target_buffer.buffer,
+                    allocated_buffer.buffer,
+                    &regions_to_copy,
+                )
+            }
+        }
+    }
+
+    pub unsafe fn transfer_data_to_buffer_with_offset(
+        &self,
+        buffer_reference: &BufferReference,
+        src: *const c_void,
+        regions_to_copy: &[BufferCopy],
+    ) {
+        let allocated_buffer = buffer_reference.get_buffer().unwrap();
+
+        let buffer_visibility = allocated_buffer.buffer_info.buffer_visibility;
+        let target_buffer = match buffer_visibility {
+            BufferVisibility::HostVisible => allocated_buffer,
+            BufferVisibility::DeviceOnly => self.staging_buffer_reference.get_buffer().unwrap(),
+            BufferVisibility::Unspecified => unreachable!(),
+        };
+
+        unsafe {
+            let ptr_mapped_memory = self.allocator.map_memory(target_buffer.allocation).unwrap();
+
+            for buffer_copy in regions_to_copy {
+                let src_with_offset = src.add(buffer_copy.src_offset as usize);
+
+                let ptr_mapped_memory_with_offset =
+                    ptr_mapped_memory.add(buffer_copy.dst_offset as usize);
+
+                std::ptr::copy_nonoverlapping(
+                    src_with_offset,
+                    ptr_mapped_memory_with_offset as _,
+                    buffer_copy.size as usize,
+                );
+            }
+
+            self.allocator.unmap_memory(target_buffer.allocation);
+        }
+
+        if buffer_visibility == BufferVisibility::DeviceOnly {
+            println!("HELLO");
+            unsafe {
+                self.copy_buffer_to_buffer(
+                    target_buffer.buffer,
+                    allocated_buffer.buffer,
+                    &regions_to_copy,
+                )
+            }
+        }
+    }
+
+    unsafe fn copy_buffer_to_buffer(
+        &self,
+        src_buffer: Buffer,
+        dst_buffer: Buffer,
+        regions_to_copy: &[BufferCopy],
+    ) {
+        let command_buffer = self.upload_command_group.command_buffer;
+
+        let command_buffer_begin_info = CommandBufferBeginInfo {
+            flags: CommandBufferUsageFlags::OneTimeSubmit,
+            ..Default::default()
+        };
+
+        command_buffer.begin(&command_buffer_begin_info).unwrap();
+
+        self.upload_command_group.command_buffer.copy_buffer(
+            src_buffer,
+            dst_buffer,
+            regions_to_copy,
+        );
+
+        command_buffer.end().unwrap();
+
+        let command_buffers = [command_buffer];
+        let queue_submits = [SubmitInfo::default().command_buffers(command_buffers.as_slice())];
+
+        self.transfer_queue
+            .submit(&queue_submits, Some(self.upload_command_group.fence))
+            .unwrap();
+
+        let fences_to_wait = [self.upload_command_group.fence];
+        self.device
+            .wait_for_fences(fences_to_wait.as_slice(), true, u64::MAX)
+            .unwrap();
+        self.device.reset_fences(fences_to_wait.as_slice()).unwrap();
+
+        self.device
+            .reset_command_pool(
+                self.upload_command_group.command_pool,
+                CommandPoolResetFlags::ReleaseResources,
+            )
+            .unwrap();
+    }
+}
+
+impl Drop for MemoryBucket {
+    fn drop(&mut self) {
+        todo!()
+    }
+}
+
+pub struct SwappableBuffer {
+    current_buffer_index: usize,
+    buffers: Vec<BufferReference>,
+    objects_to_write: Vec<u8>,
+}
+
+impl<'a> SwappableBuffer {
+    pub fn new(buffers: Vec<BufferReference>) -> Self {
+        Self {
+            current_buffer_index: Default::default(),
+            buffers,
+            objects_to_write: Default::default(),
+        }
+    }
+
+    pub fn next_buffer(&mut self) {
+        self.current_buffer_index += 1;
+        if self.current_buffer_index >= self.buffers.len() {
+            self.current_buffer_index = Default::default();
+        }
+    }
+
+    pub fn get_current_buffer(&self) -> BufferReference {
+        self.buffers[self.current_buffer_index].clone()
+    }
+
+    pub fn get_objects_to_write_as_slice(&'a self) -> &'a [u8] {
         self.objects_to_write.as_slice()
     }
 
-    pub fn get_objects_to_write_as_slice_mut(&'a mut self) -> &'a mut [T] {
+    pub fn get_objects_to_write_as_slice_mut(&'a mut self) -> &'a mut [u8] {
         self.objects_to_write.as_mut_slice()
     }
 
-    pub fn write_object_to_current_buffer(&mut self, object_to_write: T) -> usize {
-        self.objects_to_write.push(object_to_write);
+    pub fn write_object_to_current_buffer<T: NoUninit>(&mut self, object_to_write: &T) -> usize {
+        let object_to_write = bytemuck::bytes_of(object_to_write);
+        self.objects_to_write.extend_from_slice(object_to_write);
 
         self.objects_to_write.len() - 1
     }
 
     pub fn clear_objects_to_write(&mut self) {
         self.objects_to_write.clear();
-    }
-}
-
-pub struct InstancesPool {
-    pub current_instance_set_index: usize,
-    pub instance_sets_buffers_ids: Vec<Id>,
-    instance_objects_to_write: Vec<InstanceObject>,
-}
-
-impl<'a> InstancesPool {
-    pub fn get_current_instance_set_buffer_id(&self) -> Id {
-        self.instance_sets_buffers_ids[self.current_instance_set_index]
-    }
-
-    pub fn get_instances_objects_to_write_as_slice(&'a self) -> &'a [InstanceObject] {
-        self.instance_objects_to_write.as_slice()
-    }
-
-    pub fn get_instances_objects_to_write_as_slice_mut(&'a mut self) -> &'a mut [InstanceObject] {
-        self.instance_objects_to_write.as_mut_slice()
-    }
-
-    pub fn write_instance_object_to_current_instance_set(
-        &mut self,
-        instance_object: InstanceObject,
-    ) -> usize {
-        self.instance_objects_to_write.push(instance_object);
-
-        self.instance_objects_to_write.len() - 1
-    }
-}
-
-impl Default for InstancesPool {
-    fn default() -> Self {
-        Self {
-            current_instance_set_index: usize::MIN,
-            instance_sets_buffers_ids: Default::default(),
-            instance_objects_to_write: Default::default(),
-        }
     }
 }
 
@@ -262,8 +586,9 @@ pub struct MaterialInfo {
     pub device_adddress_materail_data: DeviceAddress,
 }
 
+#[derive(Default)]
 struct MaterialsPool {
-    pub materials_data_buffer_id: Id,
+    pub materials_data_buffer_reference: BufferReference,
     pub materials_to_write: Vec<u8>,
     pub material_labels: Vec<MaterialLabel>,
 }
@@ -288,12 +613,15 @@ impl MaterialsPool {
         self.materials_to_write.clear();
     }
 
-    pub fn get_materials_data_buffer_id(&self) -> Id {
-        self.materials_data_buffer_id
+    pub fn get_materials_data_buffer_reference(&self) -> BufferReference {
+        self.materials_data_buffer_reference.clone()
     }
 
-    pub fn set_materials_data_buffer_id(&mut self, materials_data_buffer_id: Id) {
-        self.materials_data_buffer_id = materials_data_buffer_id;
+    pub fn set_materials_data_buffer_reference(
+        &mut self,
+        materials_data_buffer_reference: BufferReference,
+    ) {
+        self.materials_data_buffer_reference = materials_data_buffer_reference;
     }
 
     pub fn set_materials_labels_device_addresses(
@@ -330,26 +658,38 @@ impl MaterialsPool {
     }
 }
 
-impl Default for MaterialsPool {
-    fn default() -> Self {
-        Self {
-            materials_data_buffer_id: Id::NULL,
-            materials_to_write: Vec::new(),
-            material_labels: Vec::new(),
-        }
-    }
-}
-
-#[derive(Default)]
 pub struct ResourcesPool {
+    pub memory_bucket: MemoryBucket,
     pub mesh_buffers: Vec<MeshBuffer>,
-    pub storage_buffers: Vec<AllocatedBuffer>,
     pub textures: Vec<AllocatedImage>,
     pub samplers: Vec<SamplerObject>,
-    pub instances_pool: InstancesPool,
-    pub scene_data: SwappableBuffer<SceneData>,
-    pub mesh_objects_pool: MeshObjectPool,
+    pub instances_buffer: Option<SwappableBuffer>,
+    pub scene_data_buffer: Option<SwappableBuffer>,
     materials_pool: MaterialsPool,
+}
+
+impl ResourcesPool {
+    pub fn new(
+        device: Device,
+        allocator: Allocator,
+        upload_command_group: CommandGroup,
+        transfer_queue: Queue,
+    ) -> Self {
+        Self {
+            memory_bucket: MemoryBucket::new(
+                device,
+                allocator,
+                upload_command_group,
+                transfer_queue,
+            ),
+            mesh_buffers: Default::default(),
+            textures: Default::default(),
+            samplers: Default::default(),
+            instances_buffer: Default::default(),
+            scene_data_buffer: Default::default(),
+            materials_pool: Default::default(),
+        }
+    }
 }
 
 #[derive(Resource)]
@@ -357,7 +697,7 @@ pub struct RendererResources {
     pub default_texture_id: Id,
     pub fallback_texture_id: Id,
     pub nearest_sampler_id: Id,
-    pub mesh_objects_buffers_ids: Vec<Id>,
+    pub mesh_objects_buffer_reference: BufferReference,
     pub resources_descriptor_set_handle: DescriptorSetHandle,
     pub gradient_compute_shader_object: ShaderObject,
     pub task_shader_object: ShaderObject,
@@ -381,16 +721,19 @@ impl<'a> RendererResources {
             .reset_materails_to_write();
     }
 
-    pub fn get_materials_data_buffer_id(&self) -> Id {
+    pub fn get_materials_data_buffer_reference(&self) -> BufferReference {
         self.resources_pool
             .materials_pool
-            .get_materials_data_buffer_id()
+            .get_materials_data_buffer_reference()
     }
 
-    pub fn set_materials_data_buffer_id(&mut self, materials_data_buffer_id: Id) {
+    pub fn set_materials_data_buffer_reference(
+        &mut self,
+        materials_data_buffer_reference: BufferReference,
+    ) {
         self.resources_pool
             .materials_pool
-            .set_materials_data_buffer_id(materials_data_buffer_id);
+            .set_materials_data_buffer_reference(materials_data_buffer_reference);
     }
 
     pub fn set_materials_labels_device_addresses(
@@ -420,41 +763,6 @@ impl<'a> RendererResources {
             .get_material_info_device_address_by_id(material_label_id)
     }
 
-    pub fn insert_mesh_objects_buffer_id(&mut self, mesh_objects_buffer_id: Id) {
-        self.resources_pool.mesh_objects_pool.mesh_objects_buffer_id = mesh_objects_buffer_id;
-    }
-
-    pub fn enqueue_mesh_buffer_to_write(&mut self, mesh_buffer_id: Id) {
-        self.resources_pool
-            .mesh_objects_pool
-            .enqueue_mesh_buffer_to_write(mesh_buffer_id);
-    }
-
-    pub fn get_mesh_buffer_to_write_iter(&'a self) -> Iter<'a, Id> {
-        self.resources_pool
-            .mesh_objects_pool
-            .get_mesh_buffers_to_write_iter()
-    }
-
-    pub fn insert_instance_set_buffer_id(&mut self, instance_set_buffer_id: Id) {
-        self.resources_pool
-            .instances_pool
-            .instance_sets_buffers_ids
-            .push(instance_set_buffer_id);
-    }
-
-    pub fn set_and_reset_current_instance_set_by_index(&mut self, index: usize) {
-        let instances_pool = &mut self.resources_pool.instances_pool;
-        instances_pool.current_instance_set_index = index;
-        instances_pool.instance_objects_to_write.clear();
-    }
-
-    pub fn get_current_instance_set_buffer_id(&self) -> Id {
-        self.resources_pool
-            .instances_pool
-            .get_current_instance_set_buffer_id()
-    }
-
     pub fn write_instance_object(
         &mut self,
         model_matrix: Mat4,
@@ -474,22 +782,12 @@ impl<'a> RendererResources {
 
         let last_instance_object_index = self
             .resources_pool
-            .instances_pool
-            .write_instance_object_to_current_instance_set(instance_object);
+            .instances_buffer
+            .as_mut()
+            .unwrap()
+            .write_object_to_current_buffer(&instance_object);
 
         last_instance_object_index
-    }
-
-    pub fn get_instances_objects_to_write_as_slice(&self) -> &[InstanceObject] {
-        self.resources_pool
-            .instances_pool
-            .get_instances_objects_to_write_as_slice()
-    }
-
-    pub fn get_instances_objects_to_write_as_slice_mut(&mut self) -> &mut [InstanceObject] {
-        self.resources_pool
-            .instances_pool
-            .get_instances_objects_to_write_as_slice_mut()
     }
 
     #[must_use]
@@ -506,22 +804,6 @@ impl<'a> RendererResources {
         }
 
         return mesh_buffer_id;
-    }
-
-    #[must_use]
-    pub fn insert_storage_buffer(&'a mut self, allocated_buffer: AllocatedBuffer) -> Id {
-        let allocated_buffer_id = allocated_buffer.id;
-
-        if !self
-            .resources_pool
-            .storage_buffers
-            .iter()
-            .any(|storage_buffer| storage_buffer.id == allocated_buffer_id)
-        {
-            self.resources_pool.storage_buffers.push(allocated_buffer);
-        }
-
-        return allocated_buffer_id;
     }
 
     #[must_use]
@@ -561,10 +843,6 @@ impl<'a> RendererResources {
         self.resources_pool.mesh_buffers.iter()
     }
 
-    pub fn get_storage_buffers_iter(&'a self) -> Iter<'a, AllocatedBuffer> {
-        self.resources_pool.storage_buffers.iter()
-    }
-
     #[must_use]
     pub fn get_textures_iter(&'a self) -> Iter<'a, AllocatedImage> {
         self.resources_pool.textures.iter()
@@ -578,11 +856,6 @@ impl<'a> RendererResources {
     #[must_use]
     pub fn get_mesh_buffers_iter_mut(&'a mut self) -> IterMut<'a, MeshBuffer> {
         self.resources_pool.mesh_buffers.iter_mut()
-    }
-
-    #[must_use]
-    pub fn get_storage_buffers_iter_mut(&'a mut self) -> IterMut<'a, AllocatedBuffer> {
-        self.resources_pool.storage_buffers.iter_mut()
     }
 
     #[must_use]
@@ -601,15 +874,6 @@ impl<'a> RendererResources {
             .mesh_buffers
             .iter()
             .find(|&mesh_buffer| mesh_buffer.id == id)
-            .unwrap()
-    }
-
-    #[must_use]
-    pub fn get_storage_buffer_ref(&'a self, id: Id) -> &'a AllocatedBuffer {
-        self.resources_pool
-            .storage_buffers
-            .iter()
-            .find(|storage_buffer| storage_buffer.id == id)
             .unwrap()
     }
 
@@ -638,15 +902,6 @@ impl<'a> RendererResources {
             .mesh_buffers
             .iter_mut()
             .find(|mesh_buffer| mesh_buffer.id == id)
-            .unwrap()
-    }
-
-    #[must_use]
-    pub fn get_storage_buffer_ref_mut(&'a mut self, id: Id) -> &'a mut AllocatedBuffer {
-        self.resources_pool
-            .storage_buffers
-            .iter_mut()
-            .find(|storage_buffer| storage_buffer.id == id)
             .unwrap()
     }
 

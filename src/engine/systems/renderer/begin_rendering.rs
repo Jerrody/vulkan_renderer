@@ -76,15 +76,15 @@ pub fn begin_rendering(
 
     frame_context.world_matrix = projection * view;
 
-    let instance_objects_buffer_id = renderer_resources.get_current_instance_set_buffer_id();
-    let device_address_instance_objects_buffer = renderer_resources
-        .get_storage_buffer_ref(instance_objects_buffer_id)
+    let instance_objects_buffer_reference = renderer_resources
+        .resources_pool
+        .instances_buffer
+        .as_ref()
+        .unwrap()
+        .get_current_buffer();
+    let device_address_instance_objects_buffer = instance_objects_buffer_reference
+        .get_buffer_info()
         .device_address;
-
-    /*     let nearest_sampler_index = renderer_resources
-           .get_sampler(renderer_resources.nearest_sampler_id)
-           .index;
-    */
 
     let mesh_push_constant = GraphicsPushConstant {
         view_projection: frame_context.world_matrix.to_cols_array(),
@@ -234,6 +234,7 @@ pub fn begin_rendering(
             renderer_resources
                 .resources_descriptor_set_handle
                 .buffer
+                .buffer_info
                 .device_address,
         );
     let descriptor_binding_infos = [descriptor_binding_info];
@@ -273,6 +274,7 @@ fn draw_gradient(
             renderer_resources
                 .resources_descriptor_set_handle
                 .buffer
+                .buffer_info
                 .device_address,
         );
 

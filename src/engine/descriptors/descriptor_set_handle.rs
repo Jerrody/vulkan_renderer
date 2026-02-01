@@ -75,7 +75,7 @@ impl DescriptorSetHandle {
             + (current_descriptor_slot_index.unwrap_or_default() as u64 * descriptor_size as u64);
         binding_info.next_empty_slot_index += 1;
 
-        let allocation = &mut self.buffer.allocation;
+        let allocation = self.buffer.allocation;
         let descriptor_buffer_address = unsafe { allocator.map_memory(allocation).unwrap() };
 
         let target_descriptor_buffer_address =
@@ -203,7 +203,7 @@ impl DescriptorSetHandle {
         };
 
         unsafe {
-            allocator.unmap_memory(&mut *allocation);
+            allocator.unmap_memory(allocation);
         }
 
         current_descriptor_slot_index

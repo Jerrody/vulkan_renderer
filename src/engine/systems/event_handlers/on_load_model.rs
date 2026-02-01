@@ -2,7 +2,9 @@ use asset_importer::{Matrix4x4, node::Node};
 use image::ImageReader;
 use ktx2_rw::{BasisCompressionParams, Ktx2Texture, VkFormat};
 use std::{collections::HashMap, ffi::c_void, io::Cursor};
-use vulkanite::vk::{BufferUsageFlags, DeviceAddress, Extent3D, Format, ImageUsageFlags};
+use vulkanite::vk::{
+    BufferCopy, BufferUsageFlags, DeviceAddress, Extent3D, Format, ImageUsageFlags,
+};
 
 use bevy_ecs::{
     observer::On,
@@ -13,8 +15,6 @@ use meshopt::{
     VertexDataAdapter, build_meshlets, optimize_vertex_cache_in_place, optimize_vertex_fetch,
     optimize_vertex_fetch_remap, remap_index_buffer, remap_vertex_buffer, typed_to_bytes,
 };
-use vma::Allocator;
-use vulkanite::vk::rs::Device;
 
 use crate::engine::{
     Engine,
@@ -26,10 +26,9 @@ use crate::engine::{
     events::{LoadModelEvent, SpawnEvent, SpawnEventRecord},
     id::Id,
     resources::{
-        AllocatedBuffer, MeshBuffer, MeshObject, Meshlet, RendererContext, RendererResources,
-        Vertex, VulkanContextResource, allocation::create_buffer,
+        BufferReference, MemoryBucket, MeshBuffer, MeshObject, Meshlet, RendererContext,
+        RendererResources, Vertex, VulkanContextResource,
     },
-    utils::get_device_address,
 };
 
 struct NodeData {
@@ -97,8 +96,6 @@ pub fn on_load_model(
     renderer_context_resource: Res<RendererContext>,
     mut renderer_resources: ResMut<RendererResources>,
 ) {
-    let device = vulkan_context.device;
-    let allocator = &vulkan_context.allocator;
     let model_loader = &renderer_resources.model_loader;
 
     let mut nodes = Vec::new();
@@ -287,51 +284,39 @@ pub fn on_load_model(
                     let (meshlets, vertex_indices, triangles) =
                         generate_meshlets(&indices, &vertex_data_adapter);
 
-                    let vertex_buffer = create_buffer_and_update::<Vertex>(
-                        device,
-                        allocator,
-                        vertices.as_ptr() as _,
-                        vertices.len(),
+                    let memory_bucket = &mut renderer_resources.resources_pool.memory_bucket;
+                    let vertex_bufer_reference = create_and_copy_to_buffer(
+                        memory_bucket,
+                        vertices.as_ptr() as *const _,
+                        vertices.len() * std::mem::size_of::<Vertex>(),
                     );
-                    let vertex_indices_buffer = create_buffer_and_update::<u32>(
-                        device,
-                        allocator,
+                    let vertex_indices_buffer_reference = create_and_copy_to_buffer(
+                        memory_bucket,
                         vertex_indices.as_ptr() as _,
-                        vertex_indices.len(),
+                        vertex_indices.len() * std::mem::size_of::<u32>(),
                     );
-                    let meshlets_buffer = create_buffer_and_update::<Meshlet>(
-                        device,
-                        allocator,
+                    let meshlets_buffer_reference = create_and_copy_to_buffer(
+                        memory_bucket,
                         meshlets.as_ptr() as _,
-                        meshlets.len(),
+                        meshlets.len() * std::mem::size_of::<Meshlet>(),
                     );
-                    let local_indices_buffer = create_buffer_and_update::<u8>(
-                        device,
-                        allocator,
+                    let local_indices_buffer_reference = create_and_copy_to_buffer(
+                        memory_bucket,
                         triangles.as_ptr() as _,
-                        triangles.len(),
+                        triangles.len() * std::mem::size_of::<u8>(),
                     );
-
-                    let vertex_buffer_id = renderer_resources.insert_storage_buffer(vertex_buffer);
-                    let vertex_indices_buffer_id =
-                        renderer_resources.insert_storage_buffer(vertex_indices_buffer);
-                    let meshlets_buffer_id =
-                        renderer_resources.insert_storage_buffer(meshlets_buffer);
-                    let local_indices_buffer_id =
-                        renderer_resources.insert_storage_buffer(local_indices_buffer);
 
                     let mesh_buffer = MeshBuffer {
-                        id: Id::new(vertex_buffer_id),
-                        mesh_object_device_address: Id::NULL.value(),
-                        vertex_buffer_id,
-                        vertex_indices_buffer_id,
-                        meshlets_buffer_id,
-                        local_indices_buffer_id,
+                        id: Id::new(vertex_bufer_reference.get_buffer_info().device_address),
+                        mesh_object_device_address: Default::default(),
+                        vertex_buffer: vertex_bufer_reference,
+                        vertex_indices_buffer: vertex_indices_buffer_reference,
+                        meshlets_buffer: meshlets_buffer_reference,
+                        local_indices_buffer: local_indices_buffer_reference,
                         meshlets_count: meshlets.len(),
                     };
 
                     mesh_buffer_id = renderer_resources.insert_mesh_buffer(mesh_buffer);
-                    renderer_resources.enqueue_mesh_buffer_to_write(mesh_buffer_id);
 
                     uploaded_mesh_buffers.insert(mesh_index, (mesh, mesh_buffer_id));
                 }
@@ -347,35 +332,23 @@ pub fn on_load_model(
         }
     }
 
-    let mesh_objects_to_write = renderer_resources
-        .get_mesh_buffer_to_write_iter()
-        .map(|&mesh_buffer_to_write_id| {
-            let mesh_buffer = renderer_resources.get_mesh_buffer_ref(mesh_buffer_to_write_id);
+    let mesh_objects_to_write = uploaded_mesh_buffers
+        .iter()
+        .map(|(_, (_, mesh_buffer_id))| {
+            let mesh_buffer = renderer_resources.get_mesh_buffer_ref(*mesh_buffer_id);
 
-            let device_address_vertex_buffer: DeviceAddress = get_device_address(
-                vulkan_context.device,
-                &renderer_resources
-                    .get_storage_buffer_ref(mesh_buffer.vertex_buffer_id)
-                    .buffer,
-            );
-            let device_address_vertex_indices_buffer: DeviceAddress = get_device_address(
-                vulkan_context.device,
-                &renderer_resources
-                    .get_storage_buffer_ref(mesh_buffer.vertex_indices_buffer_id)
-                    .buffer,
-            );
-            let device_address_meshlets_buffer: DeviceAddress = get_device_address(
-                vulkan_context.device,
-                &renderer_resources
-                    .get_storage_buffer_ref(mesh_buffer.meshlets_buffer_id)
-                    .buffer,
-            );
-            let device_address_local_indices_buffer: DeviceAddress = get_device_address(
-                vulkan_context.device,
-                &renderer_resources
-                    .get_storage_buffer_ref(mesh_buffer.local_indices_buffer_id)
-                    .buffer,
-            );
+            let device_address_vertex_buffer: DeviceAddress =
+                mesh_buffer.vertex_buffer.get_buffer_info().device_address;
+            let device_address_vertex_indices_buffer: DeviceAddress = mesh_buffer
+                .vertex_indices_buffer
+                .get_buffer_info()
+                .device_address;
+            let device_address_meshlets_buffer: DeviceAddress =
+                mesh_buffer.meshlets_buffer.get_buffer_info().device_address;
+            let device_address_local_indices_buffer: DeviceAddress = mesh_buffer
+                .local_indices_buffer
+                .get_buffer_info()
+                .device_address;
 
             let mesh_object = MeshObject {
                 device_address_vertex_buffer,
@@ -388,59 +361,102 @@ pub fn on_load_model(
         })
         .collect::<Vec<_>>();
 
-    let materials_data_buffer_id = renderer_resources.get_materials_data_buffer_id();
-    let materials_data_buffer_ref_mut: *mut AllocatedBuffer =
-        renderer_resources.get_storage_buffer_ref_mut(materials_data_buffer_id) as *mut _;
-    let materials_data_to_write_ref = renderer_resources.get_materials_data_to_write().as_ptr();
-
-    unsafe {
-        transfer_data_to_buffer(
-            &vulkan_context.allocator,
-            materials_data_buffer_ref_mut.as_mut().unwrap(),
-            materials_data_to_write_ref as *const _,
-            renderer_resources.get_materials_data_to_write_len(),
-        );
-
-        renderer_resources
-            .set_materials_labels_device_addresses((*materials_data_buffer_ref_mut).device_address);
-    }
-
-    // FIXME: Currently we use the first buffer of mesh objects,
-    // but later we need to use ring buffer pattern for safe read and write operations between the frames.
-    let first_mesh_objects_buffer_id =
-        *renderer_resources.mesh_objects_buffers_ids.first().unwrap();
-    let mesh_objects_buffer: &mut AllocatedBuffer = unsafe {
-        &mut *(renderer_resources.get_storage_buffer_ref_mut(first_mesh_objects_buffer_id)
-            as *mut _)
-    };
-    let device_addresss_mesh_objects_buffer: DeviceAddress =
-        get_device_address(vulkan_context.device, &mesh_objects_buffer.buffer);
-
     let mesh_object_size = std::mem::size_of::<MeshObject>();
-    renderer_resources
+    let mesh_objects_device_address = renderer_resources
+        .mesh_objects_buffer_reference
+        .get_buffer_info()
+        .device_address;
+    let mesh_objects_buffer_reference =
+        unsafe { &*(&renderer_resources.mesh_objects_buffer_reference as *const _) };
+    let memory_bucket: &MemoryBucket =
+        unsafe { &*(&renderer_resources.resources_pool.memory_bucket as *const _) };
+    let mesh_objects_to_copy_regions = renderer_resources
         .get_mesh_buffers_iter_mut()
-        .zip(mesh_objects_to_write.iter().enumerate())
-        .for_each(|(mesh_buffer, (mesh_object_index, mesh_object))| {
-            let ptr_mesh_object = mesh_object as *const _ as _;
-
-            let offset_dst = mesh_object_index * mesh_object_size;
+        .enumerate()
+        .map(|(mesh_object_index, mesh_buffer)| {
+            let src_offset = mesh_object_index * mesh_object_size;
+            let dst_offset = mesh_object_index * mesh_object_size;
 
             mesh_buffer.mesh_object_device_address =
-                device_addresss_mesh_objects_buffer + offset_dst as u64;
+                mesh_objects_device_address + dst_offset as u64;
 
+            let region = BufferCopy {
+                src_offset: Default::default(),
+                dst_offset: dst_offset as _,
+                size: mesh_object_size as _,
+            };
+
+            let regions = [region];
             unsafe {
-                transfer_data_to_buffer_with_offset(
-                    &vulkan_context.allocator,
-                    mesh_objects_buffer,
-                    ptr_mesh_object,
-                    mesh_object_size,
-                    Default::default(),
-                    offset_dst,
+                memory_bucket.transfer_data_to_buffer_with_offset(
+                    mesh_objects_buffer_reference,
+                    mesh_objects_to_write.as_ptr() as *const _,
+                    &regions,
                 );
             }
-        });
+
+            let region = BufferCopy {
+                src_offset: src_offset as _,
+                dst_offset: dst_offset as _,
+                size: mesh_object_size as _,
+            };
+
+            region
+        })
+        .collect::<Vec<BufferCopy>>();
+
+    /*     unsafe {
+        renderer_resources
+            .resources_pool
+            .memory_bucket
+            .transfer_data_to_buffer_with_offset(
+                &renderer_resources.mesh_objects_buffer_reference,
+                mesh_objects_to_write.as_ptr() as *const _,
+                &mesh_objects_to_copy_regions,
+            );
+    } */
+
+    let materials_data_buffer_reference = renderer_resources.get_materials_data_buffer_reference();
+    let materials_data_to_write_slice = renderer_resources.get_materials_data_to_write();
+    let ptr_materials_data_to_write = materials_data_to_write_slice.as_ptr();
+    let materials_data_to_write_len = materials_data_to_write_slice.len();
+
+    unsafe {
+        renderer_resources
+            .resources_pool
+            .memory_bucket
+            .transfer_data_to_buffer_raw(
+                &materials_data_buffer_reference,
+                ptr_materials_data_to_write as *const _,
+                materials_data_to_write_len,
+            );
+
+        renderer_resources.set_materials_labels_device_addresses(
+            materials_data_buffer_reference
+                .get_buffer_info()
+                .device_address,
+        );
+    }
 
     commands.trigger(spawn_event);
+}
+
+pub fn create_and_copy_to_buffer(
+    memory_bucket: &mut MemoryBucket,
+    src: *const c_void,
+    size: usize,
+) -> BufferReference {
+    let buffer_reference = memory_bucket.create_buffer(
+        size,
+        BufferUsageFlags::TransferDst,
+        crate::engine::resources::BufferVisibility::DeviceOnly,
+    );
+
+    unsafe {
+        memory_bucket.transfer_data_to_buffer_raw(&buffer_reference, src, size);
+    }
+
+    buffer_reference
 }
 
 fn try_upload_texture(
@@ -477,6 +493,7 @@ fn try_upload_texture(
             vulkan_context.transfer_data_to_image(
                 &allocated_texture,
                 texture_data.as_ptr() as *const _,
+                &mut renderer_resources.resources_pool.memory_bucket,
                 &renderer_context.upload_context,
                 Some(texture_data.len()),
             );
@@ -600,30 +617,6 @@ fn get_mesh_indices(node: &Node, num_meshes: usize) -> Vec<usize> {
     mesh_indices
 }
 
-fn create_buffer_and_update<T>(
-    device: Device,
-    allocator: &Allocator,
-    data: *const c_void,
-    len: usize,
-) -> AllocatedBuffer
-where
-    T: Sized,
-{
-    let allocation_size = len * std::mem::size_of::<T>();
-    let mut allocated_buffer = create_buffer(
-        device,
-        allocator,
-        allocation_size,
-        BufferUsageFlags::TransferDst,
-    );
-
-    unsafe {
-        transfer_data_to_buffer(&allocator, &mut allocated_buffer, data, allocation_size);
-    }
-
-    allocated_buffer
-}
-
 fn generate_meshlets(
     indices: &[u32],
     vertices: &VertexDataAdapter,
@@ -646,44 +639,4 @@ fn generate_meshlets(
     }
 
     (meshlets, raw_meshlets.vertices, raw_meshlets.triangles)
-}
-
-pub unsafe fn transfer_data_to_buffer(
-    allocator: &Allocator,
-    allocated_buffer: &mut AllocatedBuffer,
-    src: *const c_void,
-    size: usize,
-) {
-    unsafe {
-        let p_mapped_memory = allocator
-            .map_memory(&mut allocated_buffer.allocation)
-            .unwrap();
-
-        std::ptr::copy_nonoverlapping(src, p_mapped_memory as _, size);
-
-        allocator.unmap_memory(&mut allocated_buffer.allocation);
-    }
-}
-
-pub unsafe fn transfer_data_to_buffer_with_offset(
-    allocator: &Allocator,
-    allocated_buffer: &mut AllocatedBuffer,
-    mut src: *const c_void,
-    size: usize,
-    offset_src: usize,
-    offset_dst: usize,
-) {
-    unsafe {
-        src = src.add(offset_src);
-
-        let mut p_mapped_memory = allocator
-            .map_memory(&mut allocated_buffer.allocation)
-            .unwrap();
-
-        p_mapped_memory = p_mapped_memory.add(offset_dst);
-
-        std::ptr::copy_nonoverlapping(src, p_mapped_memory as _, size);
-
-        allocator.unmap_memory(&mut allocated_buffer.allocation);
-    }
 }

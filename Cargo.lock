@@ -2805,7 +2805,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "vk-mem"
 version = "0.4.0"
-source = "git+https://github.com/Jerrody/vulkanite-mem-rs?branch=vulkanite#c26d41386565415562d543d4de0f660f97a36840"
+source = "git+https://github.com/Jerrody/vulkanite-mem-rs?branch=vulkanite#33a9eca0a2ed25c06a65ca98901ef95898dbbaef"
 dependencies = [
  "bitflags",
  "cc",

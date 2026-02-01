@@ -5,7 +5,10 @@ use vma::*;
 use vulkanite::vk::{rs::*, *};
 
 use crate::engine::{
-    descriptors::*, id::Id, resources::AllocatedBuffer, utils::get_device_address,
+    descriptors::*,
+    id::Id,
+    resources::{AllocatedBuffer, BufferInfo},
+    utils::get_device_address,
 };
 
 pub enum DescriptorKind {
@@ -186,8 +189,11 @@ impl<'a> DescriptorSetBuilder<'a> {
             id: Id::new(buffer_device_address),
             buffer: descriptor_buffer,
             allocation,
-            device_address: buffer_device_address,
-            size: descriptor_buffer_size,
+            buffer_info: BufferInfo::new(
+                buffer_device_address,
+                descriptor_buffer_size,
+                crate::engine::resources::BufferVisibility::HostVisible,
+            ),
         }
     }
 

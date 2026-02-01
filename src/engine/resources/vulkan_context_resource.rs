@@ -1,21 +1,16 @@
 use bevy_ecs::resource::Resource;
 use vma::Allocator;
-use vulkanite::{
-    Handle,
-    vk::{
-        self, AccessFlags2, BufferImageCopy, BufferUsageFlags, CommandBufferBeginInfo,
-        CommandBufferUsageFlags, CommandPoolResetFlags, ImageLayout, ImageSubresourceLayers,
-        PipelineStageFlags2, SubmitInfo, SurfaceFormatKHR,
-        rs::{
-            DebugUtilsMessengerEXT, Device, Instance, PhysicalDevice, Queue, SurfaceKHR,
-            SwapchainKHR,
-        },
+use vulkanite::vk::{
+    AccessFlags2, BufferImageCopy, CommandBufferBeginInfo, CommandBufferUsageFlags,
+    CommandPoolResetFlags, ImageLayout, ImageSubresourceLayers, PipelineStageFlags2, SubmitInfo,
+    SurfaceFormatKHR,
+    rs::{
+        DebugUtilsMessengerEXT, Device, Instance, PhysicalDevice, Queue, SurfaceKHR, SwapchainKHR,
     },
 };
 
 use crate::engine::{
-    resources::{AllocatedImage, UploadContext, allocation::create_buffer},
-    systems::on_load_model::transfer_data_to_buffer,
+    resources::{AllocatedImage, MemoryBucket, UploadContext},
     utils::transition_image,
 };
 
@@ -39,6 +34,7 @@ impl VulkanContextResource {
         &self,
         allocated_image: &AllocatedImage,
         data_to_copy: *const std::ffi::c_void,
+        memory_bucket: &mut MemoryBucket,
         upload_context: &UploadContext,
         size: Option<usize>,
     ) {
@@ -57,15 +53,14 @@ impl VulkanContextResource {
             None => (image_extent.depth * image_extent.width * image_extent.height * 4) as usize,
         };
 
-        let mut upload_buffer = create_buffer(
-            self.device,
-            &self.allocator,
-            size as usize,
-            BufferUsageFlags::TransferSrc,
-        );
-
+        let staging_buffer_reference =
+            unsafe { &*(memory_bucket.get_staging_buffer_reference() as *const _) };
         unsafe {
-            transfer_data_to_buffer(&self.allocator, &mut upload_buffer, data_to_copy, size as _);
+            memory_bucket.transfer_data_to_buffer_raw(
+                staging_buffer_reference,
+                data_to_copy,
+                size as _,
+            );
         }
 
         transition_image(
@@ -95,7 +90,12 @@ impl VulkanContextResource {
             .command_group
             .command_buffer
             .copy_buffer_to_image(
-                upload_buffer.buffer,
+                memory_bucket
+                    .get_staging_buffer_reference()
+                    .get_buffer()
+                    .as_ref()
+                    .unwrap()
+                    .buffer,
                 allocated_image.image,
                 ImageLayout::General,
                 &buffer_image_copy,
@@ -134,11 +134,5 @@ impl VulkanContextResource {
                 CommandPoolResetFlags::ReleaseResources,
             )
             .unwrap();
-
-        unsafe {
-            let buffer_raw = vk::raw::Buffer::from_raw(upload_buffer.buffer.as_raw());
-            self.allocator
-                .destroy_buffer(buffer_raw, &mut upload_buffer.allocation);
-        }
     }
 }

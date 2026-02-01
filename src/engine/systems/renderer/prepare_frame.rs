@@ -30,7 +30,13 @@ pub fn prepare_frame(
         .unwrap();
     frame_ctx.swapchain_image_index = swapchain_image_index;
 
-    renderer_resources.set_and_reset_current_instance_set_by_index(swapchain_image_index as _);
+    let instance_buffer = renderer_resources
+        .resources_pool
+        .instances_buffer
+        .as_mut()
+        .unwrap();
+    instance_buffer.next_buffer();
+    instance_buffer.clear_objects_to_write();
 
     frame_data
         .command_group

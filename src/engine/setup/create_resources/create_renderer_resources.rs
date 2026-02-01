@@ -13,7 +13,7 @@ use crate::engine::{
         DescriptorSetHandle, DescriptorStorageImage,
     },
     id::Id,
-    resources::{allocation::create_buffer, model_loader::ModelLoader, *},
+    resources::{model_loader::ModelLoader, *},
     utils::*,
 };
 
@@ -25,60 +25,6 @@ impl Engine {
 
         let device = vulkan_context.device;
         let allocator = &vulkan_context.allocator;
-
-        let magenta = &Self::pack_unorm_4x8(Vec4::new(1.0, 0.0, 1.0, 1.0));
-        let black = &Self::pack_unorm_4x8(Vec4::new(0.0, 0.0, 0.0, 0.0));
-        let mut pixels: Vec<u32> = vec![0; 16 * 16];
-        for x in 0..16 {
-            for y in 0..16 {
-                pixels[y * 16 + x] = if (x % 2) ^ (y % 2) == 0 {
-                    *magenta
-                } else {
-                    *black
-                };
-            }
-        }
-
-        let checkerboard_image_extent = Extent3D {
-            width: 16,
-            height: 16,
-            depth: 1,
-        };
-        let checkerboard_image = Self::allocate_image(
-            device,
-            &allocator,
-            Format::R8G8B8A8Unorm,
-            checkerboard_image_extent,
-            ImageUsageFlags::Sampled | ImageUsageFlags::TransferDst,
-        );
-
-        vulkan_context.transfer_data_to_image(
-            &checkerboard_image,
-            pixels.as_ptr() as *const _,
-            &render_context.upload_context,
-            None,
-        );
-
-        let white_image_extent = Extent3D {
-            width: 1,
-            height: 1,
-            depth: 1,
-        };
-        let white_image = Self::allocate_image(
-            device,
-            &allocator,
-            Format::R8G8B8A8Srgb,
-            white_image_extent,
-            ImageUsageFlags::Sampled | ImageUsageFlags::TransferDst,
-        );
-
-        let white_image_pixels = [Self::pack_unorm_4x8(Vec4::new(1.0, 1.0, 1.0, 1.0))];
-        vulkan_context.transfer_data_to_image(
-            &white_image,
-            white_image_pixels.as_ptr() as *const _,
-            &render_context.upload_context,
-            None,
-        );
 
         let nearest_sampler_create_info = SamplerCreateInfo {
             mag_filter: Filter::Nearest,
@@ -146,20 +92,83 @@ impl Engine {
 
         let model_loader = ModelLoader::new();
 
+        let upload_command_group = render_context.upload_context.command_group;
+        let resources_pool = ResourcesPool::new(
+            device,
+            vulkan_context.allocator,
+            upload_command_group,
+            vulkan_context.transfer_queue,
+        );
         let mut renderer_resources = RendererResources {
             fallback_texture_id: Id::NULL,
             default_texture_id: Id::NULL,
             nearest_sampler_id: Id::NULL,
-            mesh_objects_buffers_ids: Vec::new(),
+            mesh_objects_buffer_reference: BufferReference::default(),
             resources_descriptor_set_handle,
             gradient_compute_shader_object: created_shaders[0],
             task_shader_object: created_shaders[1],
             mesh_shader_object: created_shaders[2],
             fragment_shader_object: created_shaders[3],
             model_loader,
-            resources_pool: Default::default(),
+            resources_pool,
             is_printed_scene_hierarchy: true,
         };
+
+        let magenta = &Self::pack_unorm_4x8(Vec4::new(1.0, 0.0, 1.0, 1.0));
+        let black = &Self::pack_unorm_4x8(Vec4::new(0.0, 0.0, 0.0, 0.0));
+        let mut pixels: Vec<u32> = vec![0; 16 * 16];
+        for x in 0..16 {
+            for y in 0..16 {
+                pixels[y * 16 + x] = if (x % 2) ^ (y % 2) == 0 {
+                    *magenta
+                } else {
+                    *black
+                };
+            }
+        }
+
+        let checkerboard_image_extent = Extent3D {
+            width: 16,
+            height: 16,
+            depth: 1,
+        };
+        let checkerboard_image = Self::allocate_image(
+            device,
+            &allocator,
+            Format::R8G8B8A8Unorm,
+            checkerboard_image_extent,
+            ImageUsageFlags::Sampled | ImageUsageFlags::TransferDst,
+        );
+
+        vulkan_context.transfer_data_to_image(
+            &checkerboard_image,
+            pixels.as_ptr() as *const _,
+            &mut renderer_resources.resources_pool.memory_bucket,
+            &render_context.upload_context,
+            None,
+        );
+
+        let white_image_extent = Extent3D {
+            width: 1,
+            height: 1,
+            depth: 1,
+        };
+        let white_image = Self::allocate_image(
+            device,
+            &allocator,
+            Format::R8G8B8A8Srgb,
+            white_image_extent,
+            ImageUsageFlags::Sampled | ImageUsageFlags::TransferDst,
+        );
+
+        let white_image_pixels = [Self::pack_unorm_4x8(Vec4::new(1.0, 1.0, 1.0, 1.0))];
+        vulkan_context.transfer_data_to_image(
+            &white_image,
+            white_image_pixels.as_ptr() as *const _,
+            &mut renderer_resources.resources_pool.memory_bucket,
+            &render_context.upload_context,
+            None,
+        );
 
         for frame_data_index in 0..render_context.frame_overlap {
             let frame_data = frames_data.wrapping_add(frame_data_index);
@@ -207,70 +216,40 @@ impl Engine {
             }
         }
 
-        let materials_data_buffer = create_buffer(
-            device,
-            allocator,
+        let memory_bucket = &mut renderer_resources.resources_pool.memory_bucket;
+        let materials_data_buffer_reference = memory_bucket.create_buffer(
             1024 * 1024 * 64,
             BufferUsageFlags::StorageBuffer
                 | BufferUsageFlags::ShaderDeviceAddress
                 | BufferUsageFlags::TransferDst,
+            BufferVisibility::HostVisible,
         );
-        let materials_data_buffer_id =
-            renderer_resources.insert_storage_buffer(materials_data_buffer);
-        renderer_resources.set_materials_data_buffer_id(materials_data_buffer_id);
-
         let mut instance_objects_buffers = Vec::with_capacity(render_context.frame_overlap);
-
         for _ in 0..instance_objects_buffers.capacity() {
-            let instance_objects_buffer = create_buffer(
-                device,
-                allocator,
+            let instance_objects_buffer_reference = memory_bucket.create_buffer(
                 std::mem::size_of::<InstanceObject>() * 4096,
                 BufferUsageFlags::StorageBuffer
                     | BufferUsageFlags::ShaderDeviceAddress
                     | BufferUsageFlags::TransferDst,
+                BufferVisibility::HostVisible,
             );
 
-            instance_objects_buffers.push(instance_objects_buffer);
+            instance_objects_buffers.push(instance_objects_buffer_reference);
         }
 
-        let mut instance_objects_buffers_ids = Vec::with_capacity(instance_objects_buffers.len());
-        instance_objects_buffers
-            .drain(..)
-            .for_each(|instance_object_buffer| {
-                instance_objects_buffers_ids
-                    .push(renderer_resources.insert_storage_buffer(instance_object_buffer));
-            });
-        instance_objects_buffers_ids
-            .drain(..)
-            .into_iter()
-            .for_each(|instance_objects_buffer_id| {
-                renderer_resources.insert_instance_set_buffer_id(instance_objects_buffer_id);
-            });
+        let mesh_objects_buffer_reference = memory_bucket.create_buffer(
+            std::mem::size_of::<MeshObject>() * 8192,
+            BufferUsageFlags::StorageBuffer
+                | BufferUsageFlags::ShaderDeviceAddress
+                | BufferUsageFlags::TransferDst,
+            BufferVisibility::HostVisible,
+        );
 
-        let mut mesh_objects_buffers = Vec::with_capacity(render_context.frame_overlap);
+        renderer_resources.resources_pool.instances_buffer =
+            Some(SwappableBuffer::new(instance_objects_buffers));
 
-        for _ in 0..mesh_objects_buffers.capacity() {
-            let mesh_objcets_buffer = create_buffer(
-                device,
-                allocator,
-                std::mem::size_of::<MeshObject>() * 8192,
-                BufferUsageFlags::StorageBuffer
-                    | BufferUsageFlags::ShaderDeviceAddress
-                    | BufferUsageFlags::TransferDst,
-            );
-
-            mesh_objects_buffers.push(mesh_objcets_buffer);
-        }
-
-        let mut mesh_objects_buffers_ids = Vec::with_capacity(mesh_objects_buffers.len());
-        mesh_objects_buffers
-            .drain(..)
-            .for_each(|mesh_object_buffer| {
-                mesh_objects_buffers_ids
-                    .push(renderer_resources.insert_storage_buffer(mesh_object_buffer));
-            });
-        renderer_resources.mesh_objects_buffers_ids = mesh_objects_buffers_ids;
+        renderer_resources.set_materials_data_buffer_reference(materials_data_buffer_reference);
+        renderer_resources.mesh_objects_buffer_reference = mesh_objects_buffer_reference;
 
         renderer_resources.fallback_texture_id = renderer_resources.insert_texture(white_image);
         renderer_resources.default_texture_id =

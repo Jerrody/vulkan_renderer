@@ -14,12 +14,14 @@ pub struct FrameData {
     pub depth_image_id: Id,
 }
 
+#[derive(Clone, Copy)]
 pub struct CommandGroup {
     pub command_pool: CommandPool,
     pub command_buffer: CommandBuffer,
     pub fence: Fence,
 }
 
+#[derive(Clone, Copy)]
 pub struct UploadContext {
     pub command_group: CommandGroup,
 }

@@ -127,7 +127,7 @@ impl Engine {
 
 impl Drop for Engine {
     fn drop(&mut self) {
-        let vulkan_context_resource = self
+        let mut vulkan_context_resource = self
             .world
             .remove_resource::<VulkanContextResource>()
             .unwrap();
@@ -165,13 +165,14 @@ impl Drop for Engine {
                 .for_each(|allocated_image| {
                     self.destroy_image(device, &vulkan_context_resource.allocator, allocated_image);
                 });
-            renderer_resources
-                .get_storage_buffers_iter_mut()
-                .for_each(|storage_buffer| {
-                    self.destroy_buffer(&vulkan_context_resource.allocator, storage_buffer);
-                });
+            /*             renderer_resources
+            .get_storage_buffers_iter_mut()
+            .for_each(|storage_buffer| {
+                self.destroy_buffer(&vulkan_context_resource.allocator, storage_buffer);
+            }); */
 
-            drop(vulkan_context_resource.allocator);
+            vulkan_context_resource.allocator.drop();
+            //drop(vulkan_context_resource.allocator);
 
             device.destroy_shader_ext(Some(
                 renderer_resources.gradient_compute_shader_object.shader,
