@@ -285,7 +285,7 @@ pub fn on_load_model(
                         generate_meshlets(&indices, &vertex_data_adapter);
 
                     let memory_bucket = &mut renderer_resources.resources_pool.memory_bucket;
-                    let vertex_bufer_reference = create_and_copy_to_buffer(
+                    let vertex_buffer_reference = create_and_copy_to_buffer(
                         memory_bucket,
                         vertices.as_ptr() as *const _,
                         vertices.len() * std::mem::size_of::<Vertex>(),
@@ -307,12 +307,12 @@ pub fn on_load_model(
                     );
 
                     let mesh_buffer = MeshBuffer {
-                        id: Id::new(vertex_bufer_reference.get_buffer_info().device_address),
+                        id: Id::new(vertex_buffer_reference.get_buffer_info().device_address),
                         mesh_object_device_address: Default::default(),
-                        vertex_buffer: vertex_bufer_reference,
-                        vertex_indices_buffer: vertex_indices_buffer_reference,
-                        meshlets_buffer: meshlets_buffer_reference,
-                        local_indices_buffer: local_indices_buffer_reference,
+                        vertex_buffer_reference,
+                        vertex_indices_buffer_reference,
+                        meshlets_buffer_reference,
+                        local_indices_buffer_reference,
                         meshlets_count: meshlets.len(),
                     };
 
@@ -332,21 +332,23 @@ pub fn on_load_model(
         }
     }
 
-    let mesh_objects_to_write = uploaded_mesh_buffers
-        .iter()
-        .map(|(_, (_, mesh_buffer_id))| {
-            let mesh_buffer = renderer_resources.get_mesh_buffer_ref(*mesh_buffer_id);
-
-            let device_address_vertex_buffer: DeviceAddress =
-                mesh_buffer.vertex_buffer.get_buffer_info().device_address;
-            let device_address_vertex_indices_buffer: DeviceAddress = mesh_buffer
-                .vertex_indices_buffer
+    let mesh_objects_to_write = renderer_resources
+        .get_mesh_buffers_iter()
+        .map(|mesh_buffer| {
+            let device_address_vertex_buffer: DeviceAddress = mesh_buffer
+                .vertex_buffer_reference
                 .get_buffer_info()
                 .device_address;
-            let device_address_meshlets_buffer: DeviceAddress =
-                mesh_buffer.meshlets_buffer.get_buffer_info().device_address;
+            let device_address_vertex_indices_buffer: DeviceAddress = mesh_buffer
+                .vertex_indices_buffer_reference
+                .get_buffer_info()
+                .device_address;
+            let device_address_meshlets_buffer: DeviceAddress = mesh_buffer
+                .meshlets_buffer_reference
+                .get_buffer_info()
+                .device_address;
             let device_address_local_indices_buffer: DeviceAddress = mesh_buffer
-                .local_indices_buffer
+                .local_indices_buffer_reference
                 .get_buffer_info()
                 .device_address;
 
@@ -372,10 +374,11 @@ pub fn on_load_model(
         unsafe { &*(&renderer_resources.resources_pool.memory_bucket as *const _) };
     let mesh_objects_to_copy_regions = renderer_resources
         .get_mesh_buffers_iter_mut()
-        .enumerate()
-        .map(|(mesh_object_index, mesh_buffer)| {
-            let src_offset = mesh_object_index * mesh_object_size;
+        .zip(mesh_objects_to_write.iter().enumerate())
+        .map(|(mesh_buffer, (mesh_object_index, mesh_object))| {
+            let src_offset = mesh_object_index;
             let dst_offset = mesh_object_index * mesh_object_size;
+            let ptr_mesh_object = mesh_object as *const _;
 
             mesh_buffer.mesh_object_device_address =
                 mesh_objects_device_address + dst_offset as u64;
@@ -387,12 +390,14 @@ pub fn on_load_model(
             };
 
             let regions = [region];
+            let src = mesh_objects_to_write.as_ptr();
+            let src = unsafe { src.add(src_offset) };
             unsafe {
                 memory_bucket.transfer_data_to_buffer_with_offset(
                     mesh_objects_buffer_reference,
-                    mesh_objects_to_write.as_ptr() as *const _,
+                    ptr_mesh_object as *const _,
                     &regions,
-                );
+                )
             }
 
             let region = BufferCopy {

@@ -73,10 +73,10 @@ pub struct GraphicsPushConstant {
 pub struct MeshBuffer {
     pub id: Id,
     pub mesh_object_device_address: DeviceAddress,
-    pub vertex_buffer: BufferReference,
-    pub vertex_indices_buffer: BufferReference,
-    pub meshlets_buffer: BufferReference,
-    pub local_indices_buffer: BufferReference,
+    pub vertex_buffer_reference: BufferReference,
+    pub vertex_indices_buffer_reference: BufferReference,
+    pub meshlets_buffer_reference: BufferReference,
+    pub local_indices_buffer_reference: BufferReference,
     pub meshlets_count: usize,
 }
 
@@ -448,14 +448,14 @@ impl MemoryBucket {
         unsafe {
             let ptr_mapped_memory = self.allocator.map_memory(target_buffer.allocation).unwrap();
 
-            for buffer_copy in regions_to_copy {
-                let src_with_offset = src.add(buffer_copy.src_offset as usize);
+            for &buffer_copy in regions_to_copy {
+                /*           let src_with_offset = src.add(buffer_copy.src_offset as usize); */
 
                 let ptr_mapped_memory_with_offset =
                     ptr_mapped_memory.add(buffer_copy.dst_offset as usize);
 
                 std::ptr::copy_nonoverlapping(
-                    src_with_offset,
+                    src,
                     ptr_mapped_memory_with_offset as _,
                     buffer_copy.size as usize,
                 );
@@ -465,7 +465,6 @@ impl MemoryBucket {
         }
 
         if buffer_visibility == BufferVisibility::DeviceOnly {
-            println!("HELLO");
             unsafe {
                 self.copy_buffer_to_buffer(
                     target_buffer.buffer,
