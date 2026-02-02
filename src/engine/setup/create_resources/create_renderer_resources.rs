@@ -256,7 +256,7 @@ impl Engine {
         let mesh_objects_buffer_reference = memory_bucket.create_buffer(
             std::mem::size_of::<MeshObject>() * 8192,
             BufferUsageFlags::ShaderDeviceAddress | BufferUsageFlags::TransferDst,
-            BufferVisibility::HostVisible,
+            BufferVisibility::DeviceOnly,
             Some("Mesh Objects Buffer"),
         );
 

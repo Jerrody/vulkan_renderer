@@ -61,6 +61,25 @@ impl ApplicationHandler for Application {
             } => {
                 event_loop.exit();
             }
+            winit::event::WindowEvent::KeyboardInput {
+                device_id: _,
+                event:
+                    KeyEvent {
+                        physical_key,
+                        logical_key: _,
+                        text: _,
+                        location: _,
+                        state: ElementState::Pressed,
+                        repeat: _,
+                        text_with_all_modifiers: _,
+                        key_without_modifiers: _,
+                    },
+
+                is_synthetic: _,
+            } => match physical_key {
+                PhysicalKey::Code(code) => {}
+                PhysicalKey::Unidentified(native_key_code) => {}
+            },
             winit::event::WindowEvent::RedrawRequested => {
                 let window = unsafe { self.window.as_ref().unwrap_unchecked() };
 

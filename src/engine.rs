@@ -13,6 +13,8 @@ use bevy_ecs::{
     schedule::{IntoScheduleConfigs, Schedule, ScheduleLabel},
     world::World,
 };
+use dolly::prelude::*;
+use glam::Vec3;
 use vulkanite::{
     Handle,
     vk::{self, rs::Device},
@@ -77,6 +79,11 @@ impl Engine {
             present::present.after(render_meshes::render_meshes),
         ));
 
+        let camera: CameraRig = CameraRig::builder()
+            .with(YawPitch::new().yaw_degrees(45.0).pitch_degrees(-30.0))
+            .with(Smooth::new_rotation(1.5))
+            .build();
+
         world.add_schedule(world_schedule);
         world.add_schedule(renderer_schedule);
 
@@ -96,6 +103,8 @@ impl Engine {
         self.world.run_schedule(ScheduleWorldUpdate);
         self.world.run_schedule(ScheduleRendererUpdate);
     }
+
+    pub fn process_input(&mut self) {}
 
     unsafe fn destroy_buffer(
         &self,
