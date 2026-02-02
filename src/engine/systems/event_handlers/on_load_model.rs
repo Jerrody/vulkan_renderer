@@ -368,37 +368,15 @@ pub fn on_load_model(
         .mesh_objects_buffer_reference
         .get_buffer_info()
         .device_address;
-    let mesh_objects_buffer_reference =
-        unsafe { &*(&renderer_resources.mesh_objects_buffer_reference as *const _) };
-    let memory_bucket: &MemoryBucket =
-        unsafe { &*(&renderer_resources.resources_pool.memory_bucket as *const _) };
     let mesh_objects_to_copy_regions = renderer_resources
         .get_mesh_buffers_iter_mut()
-        .zip(mesh_objects_to_write.iter().enumerate())
-        .map(|(mesh_buffer, (mesh_object_index, mesh_object))| {
-            let src_offset = mesh_object_index;
-            let dst_offset = mesh_object_index * mesh_object_size;
-            let ptr_mesh_object = mesh_object as *const _;
+        .enumerate()
+        .map(|(mesh_buffer_index, mesh_buffer)| {
+            let src_offset = mesh_buffer_index * mesh_object_size;
+            let dst_offset = src_offset;
 
             mesh_buffer.mesh_object_device_address =
                 mesh_objects_device_address + dst_offset as u64;
-
-            let region = BufferCopy {
-                src_offset: Default::default(),
-                dst_offset: dst_offset as _,
-                size: mesh_object_size as _,
-            };
-
-            let regions = [region];
-            let src = mesh_objects_to_write.as_ptr();
-            let src = unsafe { src.add(src_offset) };
-            unsafe {
-                memory_bucket.transfer_data_to_buffer_with_offset(
-                    mesh_objects_buffer_reference,
-                    ptr_mesh_object as *const _,
-                    &regions,
-                )
-            }
 
             let region = BufferCopy {
                 src_offset: src_offset as _,
@@ -410,7 +388,7 @@ pub fn on_load_model(
         })
         .collect::<Vec<BufferCopy>>();
 
-    /*     unsafe {
+    unsafe {
         renderer_resources
             .resources_pool
             .memory_bucket
@@ -419,7 +397,7 @@ pub fn on_load_model(
                 mesh_objects_to_write.as_ptr() as *const _,
                 &mesh_objects_to_copy_regions,
             );
-    } */
+    }
 
     let materials_data_buffer_reference = renderer_resources.get_materials_data_buffer_reference();
     let materials_data_to_write_slice = renderer_resources.get_materials_data_to_write();

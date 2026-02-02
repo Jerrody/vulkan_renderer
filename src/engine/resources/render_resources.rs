@@ -449,13 +449,13 @@ impl MemoryBucket {
             let ptr_mapped_memory = self.allocator.map_memory(target_buffer.allocation).unwrap();
 
             for &buffer_copy in regions_to_copy {
-                /*           let src_with_offset = src.add(buffer_copy.src_offset as usize); */
+                let src_with_offset = src.add(buffer_copy.src_offset as usize);
 
                 let ptr_mapped_memory_with_offset =
                     ptr_mapped_memory.add(buffer_copy.dst_offset as usize);
 
                 std::ptr::copy_nonoverlapping(
-                    src,
+                    src_with_offset,
                     ptr_mapped_memory_with_offset as _,
                     buffer_copy.size as usize,
                 );
