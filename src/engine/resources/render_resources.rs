@@ -10,6 +10,7 @@ use ahash::{HashMap, HashMapExt};
 use bevy_ecs::resource::Resource;
 use bytemuck::{NoUninit, Pod, Zeroable};
 use glam::Mat4;
+use image::buffer;
 use vma::{Alloc, Allocation, AllocationCreateFlags, AllocationCreateInfo, Allocator, MemoryUsage};
 use vulkanite::{
     Handle,
@@ -518,11 +519,13 @@ impl MemoryBucket {
             )
             .unwrap();
     }
-}
 
-impl Drop for MemoryBucket {
-    fn drop(&mut self) {
-        todo!()
+    pub unsafe fn free_allocations(&mut self) {
+        self.buffers.drain(..).for_each(|allocated_buffer| unsafe {
+            let mut allocation = allocated_buffer.allocation;
+            self.allocator
+                .destroy_buffer(*allocated_buffer.buffer, &mut allocation);
+        });
     }
 }
 
