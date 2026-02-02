@@ -219,9 +219,7 @@ impl Engine {
         let memory_bucket = &mut renderer_resources.resources_pool.memory_bucket;
         let materials_data_buffer_reference = memory_bucket.create_buffer(
             1024 * 1024 * 64,
-            BufferUsageFlags::StorageBuffer
-                | BufferUsageFlags::ShaderDeviceAddress
-                | BufferUsageFlags::TransferDst,
+            BufferUsageFlags::ShaderDeviceAddress | BufferUsageFlags::TransferDst,
             BufferVisibility::HostVisible,
             Some("Materials Data Buffer"),
         );
@@ -229,9 +227,7 @@ impl Engine {
         for instances_objects_buffer_index in 0..instance_objects_buffers.capacity() {
             let instance_objects_buffer_reference = memory_bucket.create_buffer(
                 std::mem::size_of::<InstanceObject>() * 4096,
-                BufferUsageFlags::StorageBuffer
-                    | BufferUsageFlags::ShaderDeviceAddress
-                    | BufferUsageFlags::TransferDst,
+                BufferUsageFlags::ShaderDeviceAddress | BufferUsageFlags::TransferDst,
                 BufferVisibility::HostVisible,
                 Some(
                     std::format!(
@@ -249,9 +245,7 @@ impl Engine {
         for scene_data_buffer_index in 0..scene_data_buffers.capacity() {
             let scene_data_buffer_reference = memory_bucket.create_buffer(
                 std::mem::size_of::<SceneData>(),
-                BufferUsageFlags::UniformBuffer
-                    | BufferUsageFlags::ShaderDeviceAddress
-                    | BufferUsageFlags::TransferDst,
+                BufferUsageFlags::ShaderDeviceAddress | BufferUsageFlags::TransferDst,
                 BufferVisibility::HostVisible,
                 Some(std::format!("Scene Data Buffer {}", scene_data_buffer_index).as_str()),
             );
@@ -261,9 +255,7 @@ impl Engine {
 
         let mesh_objects_buffer_reference = memory_bucket.create_buffer(
             std::mem::size_of::<MeshObject>() * 8192,
-            BufferUsageFlags::StorageBuffer
-                | BufferUsageFlags::ShaderDeviceAddress
-                | BufferUsageFlags::TransferDst,
+            BufferUsageFlags::ShaderDeviceAddress | BufferUsageFlags::TransferDst,
             BufferVisibility::HostVisible,
             Some("Mesh Objects Buffer"),
         );
