@@ -36,6 +36,22 @@ impl ApplicationHandler for Application {
         };
     }
 
+    fn device_event(
+        &mut self,
+        _: &dyn winit::event_loop::ActiveEventLoop,
+        _: Option<winit::event::DeviceId>,
+        event: winit::event::DeviceEvent,
+    ) {
+        match event {
+            winit::event::DeviceEvent::PointerMotion { delta } => {
+                if let Some(engine) = &mut self.engine {
+                    engine.process_mouse((delta.0 as _, delta.1 as _));
+                }
+            }
+            _ => {}
+        }
+    }
+
     fn window_event(
         &mut self,
         event_loop: &dyn winit::event_loop::ActiveEventLoop,

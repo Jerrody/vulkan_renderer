@@ -67,7 +67,7 @@ impl Engine {
         let frame_context = FrameContext::default();
         world.insert_resource(frame_context);
 
-        world.insert_resource(Camera::new(0.5));
+        world.insert_resource(Camera::new(0.5, 0.5));
 
         let mut world_schedule = Schedule::new(ScheduleWorldUpdate);
         world_schedule.add_systems((
@@ -113,6 +113,11 @@ impl Engine {
     pub fn process_input(&mut self, key_code: KeyCode, state: ElementState) {
         let mut camera = unsafe { self.world.get_resource_mut::<Camera>().unwrap_unchecked() };
         camera.process_keycode(key_code, state);
+    }
+
+    pub fn process_mouse(&mut self, mouse_delta: (f32, f32)) {
+        let mut camera = unsafe { self.world.get_resource_mut::<Camera>().unwrap_unchecked() };
+        camera.process_mouse(mouse_delta.0, mouse_delta.1);
     }
 
     unsafe fn destroy_buffer(

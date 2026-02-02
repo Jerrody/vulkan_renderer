@@ -23,7 +23,11 @@ pub fn update_resources(
     let memory_bucket = &renderer_resources.resources_pool.memory_bucket;
     update_buffer_data(instances_objects_buffer, memory_bucket);
 
-    let view = Mat4::from_translation(camera.get_position());
+    let view = Mat4::from_scale_rotation_translation(
+        Vec3::ONE,
+        camera.get_rotation(),
+        camera.get_position(),
+    );
     //let view = Mat4::from_translation(Vec3::new(0.0, 0.0, -5.0));
 
     let projection = Mat4::perspective_rh(
