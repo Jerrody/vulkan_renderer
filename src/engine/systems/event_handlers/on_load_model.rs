@@ -158,11 +158,12 @@ pub fn on_load_model(
         spawn_event.spawn_records.push(spawn_event_record.clone());
     });
 
+    let mut mesh_buffers_to_upload = Vec::with_capacity(scene.num_meshes());
     let mut uploaded_mesh_buffers: HashMap<usize, (asset_importer::mesh::Mesh, Id)> =
         HashMap::with_capacity(scene.num_meshes());
     let mut uploaded_textures: HashMap<usize, Id> =
         HashMap::with_capacity(uploaded_mesh_buffers.capacity());
-    let mut uploaded_materials: HashMap<usize, Id> = HashMap::with_capacity(scene.num_materials());
+    let uploaded_materials: HashMap<usize, Id> = HashMap::with_capacity(scene.num_materials());
 
     renderer_resources.reset_materails_to_write();
     std::fs::create_dir_all("shaders/_outputs").unwrap();
@@ -317,6 +318,7 @@ pub fn on_load_model(
                     };
 
                     mesh_buffer_id = renderer_resources.insert_mesh_buffer(mesh_buffer);
+                    mesh_buffers_to_upload.push(mesh_buffer_id);
 
                     uploaded_mesh_buffers.insert(mesh_index, (mesh, mesh_buffer_id));
                 }
@@ -332,22 +334,24 @@ pub fn on_load_model(
         }
     }
 
-    let mesh_objects_to_write = renderer_resources
-        .get_mesh_buffers_iter()
+    let mesh_objects_to_write = mesh_buffers_to_upload
+        .iter()
         .map(|mesh_buffer| {
-            let device_address_vertex_buffer: DeviceAddress = mesh_buffer
+            let mesh_buffer_ref = renderer_resources.get_mesh_buffer_ref(*mesh_buffer);
+
+            let device_address_vertex_buffer: DeviceAddress = mesh_buffer_ref
                 .vertex_buffer_reference
                 .get_buffer_info()
                 .device_address;
-            let device_address_vertex_indices_buffer: DeviceAddress = mesh_buffer
+            let device_address_vertex_indices_buffer: DeviceAddress = mesh_buffer_ref
                 .vertex_indices_buffer_reference
                 .get_buffer_info()
                 .device_address;
-            let device_address_meshlets_buffer: DeviceAddress = mesh_buffer
+            let device_address_meshlets_buffer: DeviceAddress = mesh_buffer_ref
                 .meshlets_buffer_reference
                 .get_buffer_info()
                 .device_address;
-            let device_address_local_indices_buffer: DeviceAddress = mesh_buffer
+            let device_address_local_indices_buffer: DeviceAddress = mesh_buffer_ref
                 .local_indices_buffer_reference
                 .get_buffer_info()
                 .device_address;
