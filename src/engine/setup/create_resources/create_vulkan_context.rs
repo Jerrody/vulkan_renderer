@@ -10,9 +10,8 @@ use vulkanite::{
         PhysicalDeviceDescriptorBufferFeaturesEXT, PhysicalDeviceMeshShaderFeaturesEXT,
         PhysicalDeviceRobustness2FeaturesKHR, PhysicalDeviceShaderObjectFeaturesEXT,
         PhysicalDeviceUnifiedImageLayoutsFeaturesKHR, PhysicalDeviceVulkan11Features,
-        PhysicalDeviceVulkan12Features, PhysicalDeviceVulkan13Features,
-        PhysicalDeviceVulkan14Features, SurfaceFormatKHR, ValidationFeatureEnableEXT,
-        ValidationFeaturesEXT,
+        PhysicalDeviceVulkan12Features, PhysicalDeviceVulkan13Features, SurfaceFormatKHR,
+        ValidationFeatureEnableEXT, ValidationFeaturesEXT,
         rs::{PhysicalDevice, SwapchainKHR},
     },
     window,
@@ -210,8 +209,8 @@ impl Engine {
 
         enabled_validation_features.push(ValidationFeatureEnableEXT::SynchronizationValidation);
         enabled_validation_features.push(ValidationFeatureEnableEXT::BestPractices);
-        enabled_validation_features.push(ValidationFeatureEnableEXT::DebugPrintf);
-        enabled_validation_features.push(ValidationFeatureEnableEXT::GpuAssisted);
+        //enabled_validation_features.push(ValidationFeatureEnableEXT::DebugPrintf);
+        //enabled_validation_features.push(ValidationFeatureEnableEXT::GpuAssisted);
 
         let mut validation_features = ValidationFeaturesEXT::default()
             .enabled_validation_features(enabled_validation_features.as_slice());
@@ -288,7 +287,7 @@ impl Engine {
             KHR_UNIFIED_IMAGE_LAYOUTS.name,
             EXT_SHADER_OBJECT.name,
             EXT_MESH_SHADER.name,
-            KHR_SHADER_NON_SEMANTIC_INFO.name,
+            // KHR_SHADER_NON_SEMANTIC_INFO.name,
         ];
         let mut missing_extensions: HashSet<&CStr> =
             required_extensions.iter().map(|ext| ext.get()).collect();
