@@ -52,10 +52,10 @@ impl Engine {
             .descriptor_set_layout_handle
             .descriptor_set_layout];
 
-        let mesh_shader_path = r"shaders\_outputs\mesh.slang.spv";
+        let mesh_shader_path = r"intermediate\shaders\mesh.slang.spv";
         let shaders_info = [
             ShaderInfo {
-                path: r"shaders\_outputs\gradient.slang.spv",
+                path: r"intermediate\shaders\gradient.slang.spv",
                 flags: ShaderCreateFlagsEXT::empty(),
                 stage: ShaderStageFlags::Compute,
                 next_stage: ShaderStageFlags::empty(),
@@ -223,15 +223,23 @@ impl Engine {
                 | BufferUsageFlags::ShaderDeviceAddress
                 | BufferUsageFlags::TransferDst,
             BufferVisibility::HostVisible,
+            Some("Materials Data Buffer"),
         );
         let mut instance_objects_buffers = Vec::with_capacity(render_context.frame_overlap);
-        for _ in 0..instance_objects_buffers.capacity() {
+        for instances_objects_buffer_index in 0..instance_objects_buffers.capacity() {
             let instance_objects_buffer_reference = memory_bucket.create_buffer(
                 std::mem::size_of::<InstanceObject>() * 4096,
                 BufferUsageFlags::StorageBuffer
                     | BufferUsageFlags::ShaderDeviceAddress
                     | BufferUsageFlags::TransferDst,
                 BufferVisibility::HostVisible,
+                Some(
+                    std::format!(
+                        "Instances Objects Buffer {}",
+                        instances_objects_buffer_index
+                    )
+                    .as_str(),
+                ),
             );
 
             instance_objects_buffers.push(instance_objects_buffer_reference);
@@ -243,6 +251,7 @@ impl Engine {
                 | BufferUsageFlags::ShaderDeviceAddress
                 | BufferUsageFlags::TransferDst,
             BufferVisibility::HostVisible,
+            Some("Mesh Objects Buffer"),
         );
 
         renderer_resources.resources_pool.instances_buffer =

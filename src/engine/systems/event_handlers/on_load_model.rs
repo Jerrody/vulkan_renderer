@@ -1,7 +1,13 @@
 use asset_importer::{Matrix4x4, node::Node};
 use image::ImageReader;
 use ktx2_rw::{BasisCompressionParams, Ktx2Texture, VkFormat};
-use std::{collections::HashMap, ffi::c_void, io::Cursor};
+use nameof::name_of;
+use std::{
+    collections::HashMap,
+    ffi::{CStr, CString, c_void},
+    io::Cursor,
+    str::FromStr,
+};
 use vulkanite::vk::{
     BufferCopy, BufferUsageFlags, DeviceAddress, Extent3D, Format, ImageUsageFlags,
 };
@@ -166,7 +172,6 @@ pub fn on_load_model(
     let uploaded_materials: HashMap<usize, Id> = HashMap::with_capacity(scene.num_materials());
 
     renderer_resources.reset_materails_to_write();
-    std::fs::create_dir_all("shaders/_outputs").unwrap();
     for node_data in nodes.into_iter() {
         if node_data.mesh_indices.len() > Default::default() {
             let mut mesh_name: String;
@@ -290,21 +295,25 @@ pub fn on_load_model(
                         memory_bucket,
                         vertices.as_ptr() as *const _,
                         vertices.len() * std::mem::size_of::<Vertex>(),
+                        std::format!("{}_{}", mesh_name, name_of!(vertices)).as_str(),
                     );
                     let vertex_indices_buffer_reference = create_and_copy_to_buffer(
                         memory_bucket,
                         vertex_indices.as_ptr() as _,
                         vertex_indices.len() * std::mem::size_of::<u32>(),
+                        std::format!("{}_{}", mesh_name, name_of!(vertex_indices)).as_str(),
                     );
                     let meshlets_buffer_reference = create_and_copy_to_buffer(
                         memory_bucket,
                         meshlets.as_ptr() as _,
                         meshlets.len() * std::mem::size_of::<Meshlet>(),
+                        std::format!("{}_{}", mesh_name, name_of!(meshlets)).as_str(),
                     );
                     let local_indices_buffer_reference = create_and_copy_to_buffer(
                         memory_bucket,
                         triangles.as_ptr() as _,
                         triangles.len() * std::mem::size_of::<u8>(),
+                        std::format!("{}_{}", mesh_name, name_of!(triangles)).as_str(),
                     );
 
                     let mesh_buffer = MeshBuffer {
@@ -432,11 +441,13 @@ pub fn create_and_copy_to_buffer(
     memory_bucket: &mut MemoryBucket,
     src: *const c_void,
     size: usize,
+    name: &str,
 ) -> BufferReference {
     let buffer_reference = memory_bucket.create_buffer(
         size,
         BufferUsageFlags::TransferDst,
         crate::engine::resources::BufferVisibility::DeviceOnly,
+        Some(&name),
     );
 
     unsafe {

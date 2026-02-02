@@ -19,7 +19,7 @@ fn main() -> io::Result<()> {
     let slangc_path = sdk_bin.join(format!("slangc{}", exe_suffix));
     let spirv_opt_path = sdk_bin.join(format!("spirv-opt{}", exe_suffix));
 
-    fs::create_dir_all("shaders/_outputs")?;
+    fs::create_dir_all("intermediate/shaders")?;
 
     let mut file_paths = Vec::new();
     for entry in fs::read_dir(dir)? {
@@ -36,7 +36,7 @@ fn main() -> io::Result<()> {
 
     for path in file_paths {
         let filename = path.file_name().unwrap().to_str().unwrap();
-        let output_filename = format!("shaders/_outputs/{}.spv", filename);
+        let output_filename = format!("intermediate/shaders/{}.spv", filename);
 
         let slang_status = Command::new(&slangc_path)
             .arg("-I")

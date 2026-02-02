@@ -1,8 +1,9 @@
 pub mod model_loader;
 
 use std::{
-    ffi::c_void,
+    ffi::{CString, c_void},
     slice::{Iter, IterMut},
+    str::FromStr,
     sync::{Arc, Weak},
 };
 
@@ -246,6 +247,7 @@ impl MemoryBucket {
             1024 * 1024 * 64,
             BufferUsageFlags::TransferSrc,
             BufferVisibility::HostVisible,
+            Some("Staging Buffer"),
         );
         memory_bucket.staging_buffer_reference = staging_buffer_reference;
 
@@ -257,6 +259,7 @@ impl MemoryBucket {
         allocation_size: usize,
         usage: BufferUsageFlags,
         buffer_visibility: BufferVisibility,
+        name: Option<&str>,
     ) -> BufferReference {
         let buffer_kind_usage = if allocation_size < 1024 * 64 {
             BufferUsageFlags::UniformBuffer
@@ -306,6 +309,20 @@ impl MemoryBucket {
         };
         let buffer = Buffer::from_inner(buffer);
         let device_address = unsafe { self.get_device_address(buffer) };
+
+        if let Some(name) = name {
+            let name = CString::from_str(name).unwrap();
+            let debug_utils_object_name = DebugUtilsObjectNameInfoEXT {
+                object_type: ObjectType::Buffer,
+                object_handle: buffer.as_raw().get(),
+                p_object_name: name.as_ptr() as *const _,
+                ..Default::default()
+            };
+
+            self.device
+                .set_debug_utils_object_name_ext(&debug_utils_object_name)
+                .unwrap();
+        }
 
         let buffer_info = BufferInfo::new(device_address, allocation_size as _, buffer_visibility);
         let allocated_buffer = AllocatedBuffer {
