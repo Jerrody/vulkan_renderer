@@ -48,7 +48,7 @@ func main(
         let v = ptr_mesh_object.vertices[globalVertexId];
         outVerts[group_index] = process_vertex(v,
                                                instance_object.model_matrix,
-                                               push_constants.view_projection_matrix);
+                                               push_constants.ptr_scene_data.camera_view_matrix);
     }
 
     if (group_index < meshlet.triangle_count)

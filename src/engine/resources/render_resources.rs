@@ -65,11 +65,10 @@ pub struct InstanceObject {
 #[repr(C)]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
 pub struct GraphicsPushConstant {
-    pub view_projection: [f32; 16],
+    pub device_address_scene_data: DeviceAddress,
     pub device_address_instance_object: DeviceAddress,
     pub draw_image_index: u32,
-    pub current_material_type: u8,
-    pub _pad: [u8; 3],
+    pub current_material_type: u32,
 }
 
 pub struct MeshBuffer {
@@ -204,7 +203,7 @@ impl SamplerObject {
 #[derive(Default, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
 pub struct SceneData {
-    pub camera_position: [f32; 16],
+    pub camera_view_matrix: [f32; 16],
 }
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
@@ -369,7 +368,7 @@ impl MemoryBucket {
     }
 
     pub unsafe fn transfer_data_to_buffer(
-        &mut self,
+        &self,
         buffer_reference: BufferReference,
         src: &[u8],
         size: usize,
@@ -549,7 +548,7 @@ impl MemoryBucket {
 pub struct SwappableBuffer {
     current_buffer_index: usize,
     buffers: Vec<BufferReference>,
-    objects_to_write: Vec<u8>,
+    data_to_write: Vec<u8>,
 }
 
 impl<'a> SwappableBuffer {
@@ -557,7 +556,7 @@ impl<'a> SwappableBuffer {
         Self {
             current_buffer_index: Default::default(),
             buffers,
-            objects_to_write: Default::default(),
+            data_to_write: Default::default(),
         }
     }
 
@@ -566,6 +565,7 @@ impl<'a> SwappableBuffer {
         if self.current_buffer_index >= self.buffers.len() {
             self.current_buffer_index = Default::default();
         }
+        self.data_to_write.clear();
     }
 
     pub fn get_current_buffer(&self) -> BufferReference {
@@ -573,22 +573,18 @@ impl<'a> SwappableBuffer {
     }
 
     pub fn get_objects_to_write_as_slice(&'a self) -> &'a [u8] {
-        self.objects_to_write.as_slice()
+        self.data_to_write.as_slice()
     }
 
     pub fn get_objects_to_write_as_slice_mut(&'a mut self) -> &'a mut [u8] {
-        self.objects_to_write.as_mut_slice()
+        self.data_to_write.as_mut_slice()
     }
 
-    pub fn write_object_to_current_buffer<T: NoUninit>(&mut self, object_to_write: &T) -> usize {
+    pub fn write_data_to_current_buffer<T: NoUninit>(&mut self, object_to_write: &T) -> usize {
         let object_to_write = bytemuck::bytes_of(object_to_write);
-        self.objects_to_write.extend_from_slice(object_to_write);
+        self.data_to_write.extend_from_slice(object_to_write);
 
-        self.objects_to_write.len() - 1
-    }
-
-    pub fn clear_objects_to_write(&mut self) {
-        self.objects_to_write.clear();
+        self.data_to_write.len() - 1
     }
 }
 
@@ -804,7 +800,7 @@ impl<'a> RendererResources {
             .instances_buffer
             .as_mut()
             .unwrap()
-            .write_object_to_current_buffer(&instance_object);
+            .write_data_to_current_buffer(&instance_object);
 
         last_instance_object_index
     }

@@ -245,6 +245,20 @@ impl Engine {
             instance_objects_buffers.push(instance_objects_buffer_reference);
         }
 
+        let mut scene_data_buffers = Vec::with_capacity(render_context.frame_overlap);
+        for scene_data_buffer_index in 0..scene_data_buffers.capacity() {
+            let scene_data_buffer_reference = memory_bucket.create_buffer(
+                std::mem::size_of::<SceneData>(),
+                BufferUsageFlags::UniformBuffer
+                    | BufferUsageFlags::ShaderDeviceAddress
+                    | BufferUsageFlags::TransferDst,
+                BufferVisibility::HostVisible,
+                Some(std::format!("Scene Data Buffer {}", scene_data_buffer_index).as_str()),
+            );
+
+            scene_data_buffers.push(scene_data_buffer_reference);
+        }
+
         let mesh_objects_buffer_reference = memory_bucket.create_buffer(
             std::mem::size_of::<MeshObject>() * 8192,
             BufferUsageFlags::StorageBuffer
@@ -256,6 +270,8 @@ impl Engine {
 
         renderer_resources.resources_pool.instances_buffer =
             Some(SwappableBuffer::new(instance_objects_buffers));
+        renderer_resources.resources_pool.scene_data_buffer =
+            Some(SwappableBuffer::new(scene_data_buffers));
 
         renderer_resources.set_materials_data_buffer_reference(materials_data_buffer_reference);
         renderer_resources.mesh_objects_buffer_reference = mesh_objects_buffer_reference;

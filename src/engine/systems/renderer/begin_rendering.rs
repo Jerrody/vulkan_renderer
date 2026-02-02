@@ -64,18 +64,6 @@ pub fn begin_rendering(
         height: draw_image_extent3d.height,
     };
 
-    let view = Mat4::from_translation(Vec3::new(-85.45, 0.0, 2.52));
-    //let view = Mat4::from_translation(Vec3::new(0.0, 0.0, -5.0));
-
-    let projection = Mat4::perspective_rh(
-        70.0_f32.to_radians(),
-        draw_image_extent2d.width as f32 / draw_image_extent2d.height as f32,
-        10000.0,
-        0.1,
-    );
-
-    frame_context.world_matrix = projection * view;
-
     let instance_objects_buffer_reference = renderer_resources
         .resources_pool
         .instances_buffer
@@ -86,8 +74,17 @@ pub fn begin_rendering(
         .get_buffer_info()
         .device_address;
 
+    let scene_data_buffer_reference = renderer_resources
+        .resources_pool
+        .scene_data_buffer
+        .as_ref()
+        .unwrap()
+        .get_current_buffer();
+    let device_address_scene_data_buffer =
+        scene_data_buffer_reference.get_buffer_info().device_address;
+
     let mesh_push_constant = GraphicsPushConstant {
-        view_projection: frame_context.world_matrix.to_cols_array(),
+        device_address_scene_data: device_address_scene_data_buffer,
         device_address_instance_object: device_address_instance_objects_buffer,
         draw_image_index: draw_image.index as _,
         ..Default::default()

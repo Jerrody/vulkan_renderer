@@ -27,7 +27,7 @@ use crate::engine::{
     },
     systems::{
         begin_rendering, collect_instance_objects, end_rendering, on_load_model, on_spawn_mesh,
-        prepare_frame, present, propogate_transforms, render_meshes, write_instance_objects,
+        prepare_frame, present, propogate_transforms, render_meshes, update_resources,
     },
 };
 
@@ -69,9 +69,9 @@ impl Engine {
         renderer_schedule.add_systems((
             prepare_frame::prepare_frame,
             collect_instance_objects::collect_instance_objects.after(prepare_frame::prepare_frame),
-            write_instance_objects::write_instance_objects
+            update_resources::update_resources
                 .after(collect_instance_objects::collect_instance_objects),
-            begin_rendering::begin_rendering.after(write_instance_objects::write_instance_objects),
+            begin_rendering::begin_rendering.after(update_resources::update_resources),
             render_meshes::render_meshes.after(begin_rendering::begin_rendering),
             end_rendering::end_rendering.after(render_meshes::render_meshes),
             present::present.after(render_meshes::render_meshes),

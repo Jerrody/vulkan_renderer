@@ -102,9 +102,14 @@ struct DefaultMaterial : IMaterial
     }
 }
 
+struct SceneData
+{
+    const let camera_view_matrix : float4x4;
+}
+
 struct GlobalPushConstants
 {
-    const let view_projection_matrix : float4x4;
+    const let ptr_scene_data : ImmutablePtr<SceneData>;
     const let ptr_instance_object : ImmutablePtr<InstanceObject>;
     const let draw_image_index : uint32_t;
     const let current_material_type : MaterialType;
