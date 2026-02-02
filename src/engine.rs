@@ -19,17 +19,20 @@ use vulkanite::{
     Handle,
     vk::{self, rs::Device},
 };
-use winit::window::Window;
+use winit::{event::ElementState, keyboard::KeyCode, window::Window};
 
 use crate::engine::{
+    components::{camera::Camera, time::Time},
     events::LoadModelEvent,
     resources::{
         AllocatedBuffer, AllocatedImage, FrameContext, RendererContext, RendererResources,
         VulkanContextResource,
     },
     systems::{
-        begin_rendering, collect_instance_objects, end_rendering, on_load_model, on_spawn_mesh,
-        prepare_frame, present, propogate_transforms, render_meshes, update_resources,
+        begin_rendering, collect_instance_objects, end_rendering,
+        general::{update_camera, update_time},
+        on_load_model, on_spawn_mesh, prepare_frame, present, propogate_transforms, render_meshes,
+        update_resources,
     },
 };
 
@@ -64,8 +67,14 @@ impl Engine {
         let frame_context = FrameContext::default();
         world.insert_resource(frame_context);
 
+        world.insert_resource(Camera::new(0.5));
+
         let mut world_schedule = Schedule::new(ScheduleWorldUpdate);
-        world_schedule.add_systems((propogate_transforms,));
+        world_schedule.add_systems((
+            propogate_transforms,
+            update_time::update_time,
+            update_camera::update_camera.after(update_time::update_time),
+        ));
 
         let mut renderer_schedule = Schedule::new(ScheduleRendererUpdate);
         renderer_schedule.add_systems((
@@ -79,11 +88,6 @@ impl Engine {
             present::present.after(render_meshes::render_meshes),
         ));
 
-        let camera: CameraRig = CameraRig::builder()
-            .with(YawPitch::new().yaw_degrees(45.0).pitch_degrees(-30.0))
-            .with(Smooth::new_rotation(1.5))
-            .build();
-
         world.add_schedule(world_schedule);
         world.add_schedule(renderer_schedule);
 
@@ -95,6 +99,8 @@ impl Engine {
             path: PathBuf::from(r"assets/structure.glb"),
         });
 
+        world.insert_resource(Time::new());
+
         Self { world }
     }
 
@@ -104,7 +110,10 @@ impl Engine {
         self.world.run_schedule(ScheduleRendererUpdate);
     }
 
-    pub fn process_input(&mut self) {}
+    pub fn process_input(&mut self, key_code: KeyCode, state: ElementState) {
+        let mut camera = unsafe { self.world.get_resource_mut::<Camera>().unwrap_unchecked() };
+        camera.process_keycode(key_code, state);
+    }
 
     unsafe fn destroy_buffer(
         &self,

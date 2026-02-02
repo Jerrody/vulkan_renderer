@@ -69,7 +69,7 @@ impl ApplicationHandler for Application {
                         logical_key: _,
                         text: _,
                         location: _,
-                        state: ElementState::Pressed,
+                        state,
                         repeat: _,
                         text_with_all_modifiers: _,
                         key_without_modifiers: _,
@@ -77,8 +77,12 @@ impl ApplicationHandler for Application {
 
                 is_synthetic: _,
             } => match physical_key {
-                PhysicalKey::Code(code) => {}
-                PhysicalKey::Unidentified(native_key_code) => {}
+                PhysicalKey::Code(code) => {
+                    if let Some(engine) = &mut self.engine {
+                        engine.process_input(code, state);
+                    }
+                }
+                PhysicalKey::Unidentified(_) => {}
             },
             winit::event::WindowEvent::RedrawRequested => {
                 let window = unsafe { self.window.as_ref().unwrap_unchecked() };

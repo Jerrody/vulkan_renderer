@@ -1,14 +1,18 @@
 use bevy_ecs::system::{Res, ResMut};
 use glam::{Mat4, Vec3};
 
-use crate::engine::resources::{
-    MemoryBucket, RendererContext, RendererResources, SceneData, SwappableBuffer, frame_context,
+use crate::engine::{
+    components::camera::Camera,
+    resources::{
+        MemoryBucket, RendererContext, RendererResources, SceneData, SwappableBuffer, frame_context,
+    },
 };
 
 pub fn update_resources(
     render_context: Res<RendererContext>,
     mut renderer_resources: ResMut<RendererResources>,
     mut frame_context: ResMut<frame_context::FrameContext>,
+    camera: Res<Camera>,
 ) {
     let instances_objects_buffer = renderer_resources
         .resources_pool
@@ -19,7 +23,7 @@ pub fn update_resources(
     let memory_bucket = &renderer_resources.resources_pool.memory_bucket;
     update_buffer_data(instances_objects_buffer, memory_bucket);
 
-    let view = Mat4::from_translation(Vec3::new(-85.45, 0.0, 2.52));
+    let view = Mat4::from_translation(camera.get_position());
     //let view = Mat4::from_translation(Vec3::new(0.0, 0.0, -5.0));
 
     let projection = Mat4::perspective_rh(
