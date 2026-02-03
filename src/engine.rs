@@ -67,7 +67,7 @@ impl Engine {
         let frame_context = FrameContext::default();
         world.insert_resource(frame_context);
 
-        world.insert_resource(Camera::new(0.5, 0.5));
+        world.insert_resource(Camera::new(0.25, 0.5));
 
         let mut world_schedule = Schedule::new(ScheduleWorldUpdate);
         world_schedule.add_systems((

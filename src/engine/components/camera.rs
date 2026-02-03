@@ -17,7 +17,7 @@ pub struct Camera {
 impl Camera {
     pub fn new(move_speed: f32, rotation_speed: f32) -> Self {
         let camera_rig = CameraRig::builder()
-            .with(Position::new(Vec3::new(-85.45, 0.0, 2.52).to_array()))
+            .with(Position::new(Vec3::new(85.45, 0.0, 2.52).to_array()))
             .with(YawPitch::default())
             .with(Smooth::new_position_rotation(1.0, 1.0))
             .build();
@@ -68,14 +68,25 @@ impl Camera {
         self.mouse_delta = Vec2::new(delta_x, delta_y).normalize();
 
         self.camera_rig.driver_mut::<YawPitch>().rotate_yaw_pitch(
-            self.rotation_speed * self.mouse_delta.x,
-            self.rotation_speed * self.mouse_delta.y,
+            -self.rotation_speed * self.mouse_delta.x,
+            -self.rotation_speed * self.mouse_delta.y,
         );
     }
 
     pub fn update(&mut self, delta_time: f32) {
+        let current_rotation = self.get_rotation();
+
         let camera_position = self.camera_rig.driver_mut::<Position>();
         let mut original_position = camera_position.position;
+        let mut original_position_vec = Vec3::new(
+            original_position.x,
+            original_position.y,
+            original_position.z,
+        );
+
+        let forward = current_rotation * -Vec3::Z;
+        let right = current_rotation * Vec3::X;
+        let up = Vec3::Y;
 
         let move_speed = self.move_speed;
         self.keyboard_state.iter().for_each(|(key_code, state)| {
@@ -84,29 +95,32 @@ impl Camera {
             if is_pressed {
                 match key_code {
                     KeyCode::KeyW => {
-                        original_position.z += move_speed;
+                        original_position_vec += move_speed * forward;
                     }
                     KeyCode::KeyA => {
-                        original_position.x += move_speed;
+                        original_position_vec -= move_speed * right;
                     }
                     KeyCode::KeyS => {
-                        original_position.z -= move_speed;
+                        original_position_vec -= move_speed * forward;
                     }
                     KeyCode::KeyD => {
-                        original_position.x -= move_speed;
+                        original_position_vec += move_speed * right;
                     }
                     KeyCode::KeyE => {
-                        original_position.y += move_speed;
+                        original_position_vec += move_speed * up;
                     }
                     KeyCode::KeyQ => {
-                        original_position.y -= move_speed;
+                        original_position_vec -= move_speed * up;
                     }
                     _ => {}
                 }
             }
         });
 
-        //println!("{}", self.mouse_delta);
+        original_position.x = original_position_vec.x;
+        original_position.y = original_position_vec.y;
+        original_position.z = original_position_vec.z;
+
         camera_position.position = original_position;
 
         self.camera_rig.update(delta_time);
