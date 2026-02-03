@@ -27,15 +27,8 @@ pub fn update_resources(
         Vec3::ONE,
         camera.get_rotation(),
         camera.get_position(),
-    );
-    //let view = Mat4::from_translation(Vec3::new(0.0, 0.0, -5.0));
-
-    /*     let view = Mat4::from_scale_rotation_translation(
-        Vec3::ONE,
-        Quat::from_euler(glam::EulerRot::XYZ, 20.0, 20.0, 0.0),
-        Vec3::new(85.45, 0.0, 2.52),
-    ); */
-    let view = view.inverse();
+    )
+    .inverse();
 
     let projection = Mat4::perspective_rh(
         70.0_f32.to_radians(),
@@ -54,6 +47,14 @@ pub fn update_resources(
 
     let scene_data = SceneData {
         camera_view_matrix: frame_context.world_matrix.to_cols_array(),
+        light_color: Vec3 {
+            x: 1.0,
+            y: 1.0,
+            z: 1.0,
+        },
+        ambient_strength: 0.5,
+        light_position: Vec3::new(85.45, 0.0, 2.52),
+        specular_strength: 0.5,
     };
     scene_data_buffer.write_data_to_current_buffer(&scene_data);
 

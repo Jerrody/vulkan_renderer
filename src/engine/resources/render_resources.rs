@@ -10,7 +10,7 @@ use std::{
 use ahash::{HashMap, HashMapExt};
 use bevy_ecs::resource::Resource;
 use bytemuck::{NoUninit, Pod, Zeroable};
-use glam::Mat4;
+use glam::{Mat4, Vec3};
 use image::buffer;
 use vma::{Alloc, Allocation, AllocationCreateFlags, AllocationCreateInfo, Allocator, MemoryUsage};
 use vulkanite::{
@@ -204,6 +204,10 @@ impl SamplerObject {
 #[repr(C)]
 pub struct SceneData {
     pub camera_view_matrix: [f32; 16],
+    pub light_color: Vec3,
+    pub ambient_strength: f32,
+    pub light_position: Vec3,
+    pub specular_strength: f32,
 }
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]

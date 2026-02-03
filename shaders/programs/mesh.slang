@@ -70,8 +70,9 @@ func process_vertex(const v: Vertex, const model_matrix: float4x4, const view_pr
     let position = float4(v.position, 1.0);
     let world_position = mul(model_matrix, position);
     let clip_position = mul(view_projection_matrix, world_position);
+    let normal = mul(model_matrix, float4(v.normal, 0.0)).xyz;
 
-    let vertex_output : VertexOutput = VertexOutput(clip_position, v.normal, v.uv);
+    let vertex_output : VertexOutput = VertexOutput(clip_position, v.uv, normal);
 
     return vertex_output;
 }
@@ -81,10 +82,36 @@ func process_vertex(const v: Vertex, const model_matrix: float4x4, const view_pr
 [shader("fragment")]
 func main(const vertex_output: VertexOutput, const primitive_data: PrimitiveData)->float4
 {
+    let scene_data = push_constants.ptr_scene_data;
     let material = primitive_data.device_address_material;
-    const let surface_data = material.eval(SurfaceData(), vertex_output.uv);
+    let surface_data = material.eval(SurfaceData(), vertex_output.uv);
 
-    const let final_color = surface_data.color;
+    let ambient_color = scene_data.light_color * scene_data.ambient_strength;
+
+    let normal = normalize(vertex_output.normal);
+    let light_direction = normalize(scene_data.light_position - vertex_output.position.xyz);
+    let diff = max(dot(normal, light_direction), 0.0);
+
+    let diffuse = diff * scene_data.light_color;
+
+    let view_direction = normalize(get_camera_position_from_view(scene_data.camera_view_matrix) - vertex_output.position.xyz);
+    let reflect_direction = reflect(-light_direction, normal);
+    let spec = pow(max(dot(view_direction, reflect_direction), 0.0), 32);
+    let specular = scene_data.specular_strength * spec * scene_data.light_color;
+
+    let final_color = float4(ambient_color * diffuse * specular, 1.0) * surface_data.color;
 
     return final_color;
+}
+
+float3 get_camera_position_from_view(float4x4 viewMatrix)
+{
+    float3x3 R = float3x3(
+        viewMatrix[0].xyz,
+        viewMatrix[1].xyz,
+        viewMatrix[2].xyz);
+
+    float3 T = viewMatrix[3].xyz;
+
+    return mul(transpose(R), -T);
 }

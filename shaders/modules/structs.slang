@@ -27,8 +27,8 @@ struct Vertex
 struct VertexOutput
 {
     const float4 position : SV_Position;
-    const float3 color : COLOR0;
     const float2 uv : TEXCOORD0;
+    const let normal : float3;
 };
 
 struct Meshlet
@@ -105,6 +105,10 @@ struct DefaultMaterial : IMaterial
 struct SceneData
 {
     const let camera_view_matrix : float4x4;
+    const let light_color : float3;
+    const let ambient_strength : float32_t;
+    const let light_position : float3;
+    const let specular_strength : float32_t;
 }
 
 struct GlobalPushConstants
