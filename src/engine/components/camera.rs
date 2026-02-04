@@ -17,7 +17,7 @@ pub struct Camera {
 impl Camera {
     pub fn new(move_speed: f32, rotation_speed: f32) -> Self {
         let camera_rig = CameraRig::builder()
-            .with(Position::new(Vec3::new(85.45, 0.0, 2.52).to_array()))
+            .with(Position::new(Vec3::new(85.45, -5.0, 2.52).to_array()))
             .with(YawPitch::default())
             .with(Smooth::new_position_rotation(1.0, 1.0))
             .build();

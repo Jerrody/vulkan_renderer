@@ -204,6 +204,7 @@ impl SamplerObject {
 #[repr(C)]
 pub struct SceneData {
     pub camera_view_matrix: [f32; 16],
+    pub camera_position: Vec3,
     pub light_color: Vec3,
     pub ambient_strength: f32,
     pub light_position: Vec3,

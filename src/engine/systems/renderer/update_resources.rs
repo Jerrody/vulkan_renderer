@@ -23,6 +23,7 @@ pub fn update_resources(
     let memory_bucket = &renderer_resources.resources_pool.memory_bucket;
     update_buffer_data(instances_objects_buffer, memory_bucket);
 
+    let camera_position = camera.get_position();
     let view = Mat4::from_scale_rotation_translation(
         Vec3::ONE,
         camera.get_rotation(),
@@ -47,14 +48,15 @@ pub fn update_resources(
 
     let scene_data = SceneData {
         camera_view_matrix: frame_context.world_matrix.to_cols_array(),
+        camera_position,
         light_color: Vec3 {
             x: 1.0,
             y: 1.0,
             z: 1.0,
         },
-        ambient_strength: 0.5,
-        light_position: Vec3::new(85.45, 0.0, 2.52),
-        specular_strength: 0.5,
+        ambient_strength: 0.1,
+        light_position: Vec3::new(85.45, -6.0, 2.52),
+        specular_strength: 1.0,
     };
     scene_data_buffer.write_data_to_current_buffer(&scene_data);
 

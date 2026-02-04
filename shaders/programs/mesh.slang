@@ -70,9 +70,9 @@ func process_vertex(const v: Vertex, const model_matrix: float4x4, const view_pr
     let position = float4(v.position, 1.0);
     let world_position = mul(model_matrix, position);
     let clip_position = mul(view_projection_matrix, world_position);
-    let normal = mul(model_matrix, float4(v.normal, 0.0)).xyz;
+    let normal = mul(model_matrix, float4(v.normal, 1.0)).xyz;
 
-    let vertex_output : VertexOutput = VertexOutput(clip_position, v.uv, normal);
+    let vertex_output : VertexOutput = VertexOutput(clip_position, v.uv, normal, world_position.xyz);
 
     return vertex_output;
 }
@@ -86,20 +86,21 @@ func main(const vertex_output: VertexOutput, const primitive_data: PrimitiveData
     let material = primitive_data.device_address_material;
     let surface_data = material.eval(SurfaceData(), vertex_output.uv);
 
-    let ambient_color = scene_data.light_color * scene_data.ambient_strength;
+    let ambient = scene_data.ambient_strength * scene_data.light_color;
 
     let normal = normalize(vertex_output.normal);
-    let light_direction = normalize(scene_data.light_position - vertex_output.position.xyz);
-    let diff = max(dot(normal, light_direction), 0.0);
-
+    let light_dir = normalize(scene_data.light_position - vertex_output.world_position);
+    let diff = max(dot(normal, light_dir), 0.0);
     let diffuse = diff * scene_data.light_color;
 
-    let view_direction = normalize(get_camera_position_from_view(scene_data.camera_view_matrix) - vertex_output.position.xyz);
-    let reflect_direction = reflect(-light_direction, normal);
-    let spec = pow(max(dot(view_direction, reflect_direction), 0.0), 32);
+    let view_dir = normalize(scene_data.camera_position - vertex_output.world_position);
+    let reflet_dir = reflect(-light_dir, normal);
+    let spec = pow(max(dot(view_dir, reflet_dir), 0.0), 32);
     let specular = scene_data.specular_strength * spec * scene_data.light_color;
 
-    let final_color = float4(ambient_color * diffuse * specular, 1.0) * surface_data.color;
+    let phong = ambient + diffuse + specular;
+
+    var final_color = float4(phong, 1.0) * surface_data.color;
 
     return final_color;
 }
