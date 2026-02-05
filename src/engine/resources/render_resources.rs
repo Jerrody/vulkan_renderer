@@ -10,8 +10,7 @@ use std::{
 use ahash::{HashMap, HashMapExt};
 use bevy_ecs::resource::Resource;
 use bytemuck::{NoUninit, Pod, Zeroable};
-use glam::{Mat4, Vec3};
-use image::buffer;
+use glam::{Mat4, Vec2, Vec3, Vec4};
 use vma::{Alloc, Allocation, AllocationCreateFlags, AllocationCreateInfo, Allocator, MemoryUsage};
 use vulkanite::{
     Handle,
@@ -40,6 +39,7 @@ pub struct Vertex {
     pub position: [f32; 3],
     pub normal: [f32; 3],
     pub uv: [f32; 2],
+    pub color: [f32; 3],
 }
 
 #[repr(C)]
@@ -200,15 +200,31 @@ impl SamplerObject {
     }
 }
 
-#[derive(Default, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
+#[derive(Default, Clone, Copy, Pod, Zeroable)]
+pub struct LightProperties {
+    pub ambient_color: Vec4,
+    pub ambient_strength: f32,
+    pub specular_strength: f32,
+    pub _padding: Vec2,
+}
+
+#[repr(C)]
+#[derive(Default, Clone, Copy, Pod, Zeroable)]
+pub struct DirectionalLight {
+    pub light_color: Vec3,
+    pub light_derection: Vec3,
+    pub _padding: Vec2,
+}
+
+#[repr(C)]
+#[derive(Default, Clone, Copy, Pod, Zeroable)]
 pub struct SceneData {
     pub camera_view_matrix: [f32; 16],
     pub camera_position: Vec3,
-    pub light_color: Vec3,
-    pub ambient_strength: f32,
-    pub light_position: Vec3,
-    pub specular_strength: f32,
+    pub _padding: f32,
+    pub light_properties: LightProperties,
+    pub directional_light: DirectionalLight,
 }
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]

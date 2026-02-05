@@ -25,7 +25,9 @@ use meshopt::{
 use crate::engine::{
     Engine,
     components::{
-        material::{MaterialData, MaterialState, MaterialType},
+        material::{
+            MaterialData, MaterialProperties, MaterialState, MaterialTextures, MaterialType,
+        },
         transform::Transform,
     },
     descriptors::{DescriptorKind, DescriptorSampledImage},
@@ -217,10 +219,28 @@ pub fn on_load_model(
                         base_color_raw.z,
                         base_color_raw.w,
                     );
-                    let texture_index = renderer_resources.get_texture_ref(texture_id).index;
+
+                    let metallic_value = material.metallic_factor().unwrap_or(0.5);
+                    let roughness_value = material.roughness_factor().unwrap_or(0.5);
+                    let albedo_texture_index = renderer_resources.get_texture_ref(texture_id).index;
+                    let metallic_texture_index = renderer_resources
+                        .get_texture_ref(renderer_resources.default_texture_id)
+                        .index;
+                    let roughness_texture_index = renderer_resources
+                        .get_texture_ref(renderer_resources.default_texture_id)
+                        .index;
+
                     let material_data = MaterialData {
-                        color: base_color.to_array(),
-                        texture_index: texture_index as _,
+                        material_properties: MaterialProperties::new(
+                            base_color,
+                            metallic_value,
+                            roughness_value,
+                        ),
+                        material_textures: MaterialTextures::new(
+                            albedo_texture_index,
+                            metallic_texture_index,
+                            roughness_texture_index,
+                        ),
                         sampler_index: Default::default(),
                     };
 
@@ -250,6 +270,15 @@ pub fn on_load_model(
                         .vertices_iter()
                         .map(|v| Vec3::new(v.x, v.y, v.z))
                         .collect();
+                    let colors: Vec<Vec3> = mesh
+                        .vertex_colors(Default::default())
+                        .map(|colors| {
+                            colors
+                                .iter()
+                                .map(|color| Vec3::new(color.x, color.y, color.z))
+                                .collect()
+                        })
+                        .unwrap_or_else(|| vec![Vec3::ZERO; positions.len()]);
                     let normals: Vec<Vec3> = mesh
                         .normals()
                         .map(|ns| ns.iter().map(|n| Vec3::new(n.x, n.y, n.z)).collect())
@@ -269,6 +298,7 @@ pub fn on_load_model(
                             position: positions[i].to_array(),
                             normal: normals[i].to_array(),
                             uv: uvs[i].to_array(),
+                            color: colors[i].to_array(),
                         });
                     }
 

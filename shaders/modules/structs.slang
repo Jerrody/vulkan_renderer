@@ -19,17 +19,19 @@ enum MaterialType : uint8_t
 
 struct Vertex
 {
-    const let position : float3;
-    const let normal : float3;
-    const let uv : float2;
+    let position : float3;
+    let normal : float3;
+    let uv : float2;
+    let color : float3;
 };
 
 struct VertexOutput
 {
-    const float4 position : SV_Position;
-    const float2 uv : TEXCOORD0;
-    const let normal : float3;
-    const let world_position : float3;
+    float4 position : SV_Position;
+    var normal : float3;
+    var uv : float2;
+    var color : float3;
+    var world_position : float3;
 };
 
 struct Meshlet
@@ -72,20 +74,34 @@ interface IMaterial
     func eval(surface_data: SurfaceData, const uv: float2)->SurfaceData;
 }
 
+struct MaterialProperties
+{
+    let base_color : float4;
+    let metallic_value : float32_t;
+    let roughness_value : float32_t;
+}
+
+struct MaterialTextures
+{
+    let albedo_texture_index : uint32_t;
+    let metallic_texture_index : uint32_t;
+    let roughness_texture_index : uint32_t;
+}
+
 struct UnlitMaterial : IMaterial
 {
-    const let base_color : float4;
-    const let texture_index : uint32_t;
-    const let sampler_index : uint32_t;
+    let material_properties : MaterialProperties;
+    let material_textures : MaterialTextures;
+    let sampler_index : uint32_t;
 
     [ForceInline]
     func eval(SurfaceData surface_data, const uv: float2)->SurfaceData
     {
         const let sampler = samplers[sampler_index];
-        const let texture = sampled_images[texture_index];
+        const let texture = sampled_images[material_textures.albedo_texture_index];
 
         var color = texture.Sample(sampler, uv);
-        color *= base_color;
+        color *= material_properties.base_color;
 
         surface_data.color = color;
 
@@ -103,14 +119,28 @@ struct DefaultMaterial : IMaterial
     }
 }
 
+struct LightProperties
+{
+    let ambient_color : float4;
+    let ambient_strength : float32_t;
+    let specular_strength : float32_t;
+    let _padding : float2;
+}
+
+struct DirectionalLight
+{
+    let light_color : float3;
+    let light_derection : float3;
+    let _padding : float2;
+}
+
 struct SceneData
 {
-    const let camera_view_matrix : float4x4;
-    const let camera_position : float3;
-    const let light_color : float3;
-    const let ambient_strength : float32_t;
-    const let light_position : float3;
-    const let specular_strength : float32_t;
+    let camera_view_matrix : float4x4;
+    let camera_position : float3;
+    let _padding : float32_t;
+    let light_properties : LightProperties;
+    let directional_light : DirectionalLight;
 }
 
 struct GlobalPushConstants

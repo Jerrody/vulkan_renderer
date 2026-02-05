@@ -72,7 +72,7 @@ func process_vertex(const v: Vertex, const model_matrix: float4x4, const view_pr
     let clip_position = mul(view_projection_matrix, world_position);
     let normal = mul(model_matrix, float4(v.normal, 1.0)).xyz;
 
-    let vertex_output : VertexOutput = VertexOutput(clip_position, v.uv, normal, world_position.xyz);
+    let vertex_output : VertexOutput = VertexOutput(clip_position, normal, v.uv, v.color, world_position.xyz);
 
     return vertex_output;
 }
@@ -84,19 +84,24 @@ func main(const vertex_output: VertexOutput, const primitive_data: PrimitiveData
 {
     let scene_data = push_constants.ptr_scene_data;
     let material = primitive_data.device_address_material;
-    let surface_data = material.eval(SurfaceData(), vertex_output.uv);
+    var surface_data = material.eval(SurfaceData(), vertex_output.uv);
 
-    let ambient = scene_data.ambient_strength * scene_data.light_color;
+    let light_properties = scene_data.light_properties;
+    let directional_light = scene_data.directional_light;
+
+    let light_value = max(dot(vertex_output.normal, scene_data.directional_light.light_derection.xyz), 0.1);
+
+    let ambient = light_properties.ambient_strength * directional_light.light_color;
 
     let normal = normalize(vertex_output.normal);
-    let light_dir = normalize(scene_data.light_position - vertex_output.world_position);
+    let light_dir = normalize(directional_light.light_derection);
     let diff = max(dot(normal, light_dir), 0.0);
-    let diffuse = diff * scene_data.light_color;
+    let diffuse = diff * directional_light.light_color;
 
     let view_dir = normalize(scene_data.camera_position - vertex_output.world_position);
     let reflet_dir = reflect(-light_dir, normal);
     let spec = pow(max(dot(view_dir, reflet_dir), 0.0), 32);
-    let specular = scene_data.specular_strength * spec * scene_data.light_color;
+    let specular = light_properties.specular_strength * spec * directional_light.light_color;
 
     let phong = ambient + diffuse + specular;
 

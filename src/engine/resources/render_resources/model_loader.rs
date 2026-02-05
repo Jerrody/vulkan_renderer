@@ -1,7 +1,4 @@
-use asset_importer::{
-    Importer, Scene, mesh::Mesh, postprocess::PostProcessSteps, scene::MeshIterator,
-};
-use bevy_ecs::entity::{hash_set::IntoIter, index_set::Iter};
+use asset_importer::{Importer, Scene, postprocess::PostProcessSteps};
 
 pub struct MeshAsset {}
 
@@ -22,7 +19,7 @@ impl ModelLoader {
         let scene = self
             .importer
             .read_file(path)
-            .with_post_process(PostProcessSteps::REALTIME | PostProcessSteps::FLIP_UVS)
+            .with_post_process(PostProcessSteps::FLIP_UVS)
             .import()
             .unwrap();
 

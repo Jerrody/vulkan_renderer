@@ -1,10 +1,11 @@
 use bevy_ecs::system::{Res, ResMut};
-use glam::{Mat4, Quat, Vec3};
+use glam::{Mat4, Vec3, Vec4};
 
 use crate::engine::{
     components::camera::Camera,
     resources::{
-        MemoryBucket, RendererContext, RendererResources, SceneData, SwappableBuffer, frame_context,
+        DirectionalLight, LightProperties, MemoryBucket, RendererContext, RendererResources,
+        SceneData, SwappableBuffer, frame_context,
     },
 };
 
@@ -49,14 +50,18 @@ pub fn update_resources(
     let scene_data = SceneData {
         camera_view_matrix: frame_context.world_matrix.to_cols_array(),
         camera_position,
-        light_color: Vec3 {
-            x: 1.0,
-            y: 1.0,
-            z: 1.0,
+        _padding: Default::default(),
+        light_properties: LightProperties {
+            ambient_color: Vec4::new(0.1, 0.1, 0.1, 0.1),
+            ambient_strength: 0.1,
+            specular_strength: 0.7,
+            _padding: Default::default(),
         },
-        ambient_strength: 0.1,
-        light_position: Vec3::new(85.45, -6.0, 2.52),
-        specular_strength: 1.0,
+        directional_light: DirectionalLight {
+            light_color: Vec3::new(0.31, 0.5, 0.21),
+            light_derection: Vec3::new(0.1, 0.5, 0.5),
+            _padding: Default::default(),
+        },
     };
     scene_data_buffer.write_data_to_current_buffer(&scene_data);
 
