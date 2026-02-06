@@ -63,7 +63,7 @@ impl Engine {
         let frame_context = FrameContext::default();
         world.insert_resource(frame_context);
 
-        world.insert_resource(Camera::new(0.25, 0.5));
+        world.insert_resource(Camera::new(0.15, 0.5));
 
         let mut world_schedule = Schedule::new(ScheduleWorldUpdate);
         world_schedule.add_systems((
@@ -92,7 +92,7 @@ impl Engine {
 
         // TODO: TEMP
         world.trigger(LoadModelEvent {
-            path: PathBuf::from(r"assets/helmet.glb"),
+            path: PathBuf::from(r"assets/structure.glb"),
         });
 
         world.insert_resource(Time::new());

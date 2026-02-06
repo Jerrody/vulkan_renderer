@@ -94,7 +94,11 @@ func main(const vertex_output: VertexOutput, const primitive_data: PrimitiveData
     let L = normalize(scene_data.directional_light.light_position - vertex_output.world_position);
     let shiness = (1.0 - surface_data.roughness) * 256.0; 
 
-    let final_color = blinn_phong(surface_data.color, N, V, L, shiness) * float4(directional_light.light_color, 1.0);
+    let lighting = blinn_phong(surface_data.color, N, V, L, shiness);
+
+    let ambient = float4(0.1, 0.1, 0.1, 1.0) * surface_data.color;
+    
+    let final_color = ambient + (lighting * float4(directional_light.light_color, 1.0));
 
     return final_color;
 }
@@ -113,7 +117,7 @@ func blinn_phong(const albedo: float4,
     let NdotH = saturate(dot(N, H));
 
     var spec = pow(NdotH, shiness);
-    if (distance(diffuse, float3(0.0)) < 0.001) {
+    if (diffuse <= 0.0) {
         spec = 0.0;
     }
 
