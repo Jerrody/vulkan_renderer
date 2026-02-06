@@ -91,7 +91,8 @@ func main(const vertex_output: VertexOutput, const primitive_data: PrimitiveData
 
     let N = normalize(vertex_output.normal);
     let V = normalize(scene_data.camera_position - vertex_output.world_position);
-    let L = normalize(scene_data.directional_light.light_position - vertex_output.world_position);
+    //let L = normalize(scene_data.directional_light.light_position - vertex_output.world_position);
+    let L = normalize(-directional_light.light_position);
     let shiness = (1.0 - surface_data.roughness) * 256.0; 
 
     let lighting = blinn_phong(surface_data.color, N, V, L, shiness);
