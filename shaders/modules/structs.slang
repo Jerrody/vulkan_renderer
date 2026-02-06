@@ -67,6 +67,8 @@ struct Payload
 struct SurfaceData
 {
     var color : float4 = float4(1.0);
+    var metallic: float32_t = 0.0;
+    var roughness: float32_t = 0.0;
 }
 
 interface IMaterial
@@ -104,6 +106,8 @@ struct UnlitMaterial : IMaterial
         color *= material_properties.base_color;
 
         surface_data.color = color;
+        surface_data.metallic = material_properties.metallic_value;
+        surface_data.roughness = material_properties.roughness_value;
 
         return surface_data;
     }
@@ -130,7 +134,7 @@ struct LightProperties
 struct DirectionalLight
 {
     let light_color : float3;
-    let light_derection : float3;
+    let light_position : float3;
     let _padding : float2;
 }
 

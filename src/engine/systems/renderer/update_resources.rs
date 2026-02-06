@@ -52,14 +52,14 @@ pub fn update_resources(
         camera_position,
         _padding: Default::default(),
         light_properties: LightProperties {
-            ambient_color: Vec4::new(0.1, 0.1, 0.1, 0.1),
+            ambient_color: Vec4::new(0.1, 0.1, 0.1, 1.0),
             ambient_strength: 0.1,
             specular_strength: 0.7,
             _padding: Default::default(),
         },
         directional_light: DirectionalLight {
-            light_color: Vec3::new(0.31, 0.5, 0.21),
-            light_derection: Vec3::new(0.1, 0.5, 0.5),
+            light_color: Vec3::new(0.65, 0.76, 0.93),
+            light_position: Vec3::new(85.45, -5.0, 2.52),
             _padding: Default::default(),
         },
     };

@@ -72,7 +72,7 @@ func process_vertex(const v: Vertex, const model_matrix: float4x4, const view_pr
     let clip_position = mul(view_projection_matrix, world_position);
     let normal = mul(model_matrix, float4(v.normal, 1.0)).xyz;
 
-    let vertex_output : VertexOutput = VertexOutput(clip_position, normal, v.uv, v.color, world_position.xyz);
+    let vertex_output : VertexOutput = VertexOutput(clip_position, v.normal, v.uv, v.color, world_position.xyz);
 
     return vertex_output;
 }
@@ -89,25 +89,38 @@ func main(const vertex_output: VertexOutput, const primitive_data: PrimitiveData
     let light_properties = scene_data.light_properties;
     let directional_light = scene_data.directional_light;
 
-    let light_value = max(dot(vertex_output.normal, scene_data.directional_light.light_derection.xyz), 0.1);
+    let N = normalize(vertex_output.normal);
+    let V = normalize(scene_data.camera_position - vertex_output.world_position);
+    let L = normalize(scene_data.directional_light.light_position - vertex_output.world_position);
+    let shiness = (1.0 - surface_data.roughness) * 256.0; 
 
-    let ambient = light_properties.ambient_strength * directional_light.light_color;
-
-    let normal = normalize(vertex_output.normal);
-    let light_dir = normalize(directional_light.light_derection);
-    let diff = max(dot(normal, light_dir), 0.0);
-    let diffuse = diff * directional_light.light_color;
-
-    let view_dir = normalize(scene_data.camera_position - vertex_output.world_position);
-    let reflet_dir = reflect(-light_dir, normal);
-    let spec = pow(max(dot(view_dir, reflet_dir), 0.0), 32);
-    let specular = light_properties.specular_strength * spec * directional_light.light_color;
-
-    let phong = ambient + diffuse + specular;
-
-    var final_color = float4(phong, 1.0) * surface_data.color;
+    let final_color = blinn_phong(surface_data.color, N, V, L, shiness) * float4(directional_light.light_color, 1.0);
 
     return final_color;
+}
+
+[ForceInline]
+func blinn_phong(const albedo: float4,
+    const N: float3,
+    const V: float3,
+    const L: float3,
+    const shiness: float32_t)->float4
+{
+    let diffuse = saturate(dot(N, L));
+
+    let H = normalize(L + V);
+
+    let NdotH = saturate(dot(N, H));
+
+    var spec = pow(NdotH, shiness);
+    if (distance(diffuse, float3(0.0)) < 0.001) {
+        spec = 0.0;
+    }
+
+    let diffuse_color = albedo * diffuse;
+    let specular_color = albedo * spec;
+
+    return diffuse_color + specular_color;
 }
 
 float3 get_camera_position_from_view(float4x4 viewMatrix)

@@ -92,7 +92,7 @@ impl Engine {
 
         // TODO: TEMP
         world.trigger(LoadModelEvent {
-            path: PathBuf::from(r"assets/structure.glb"),
+            path: PathBuf::from(r"assets/helmet.glb"),
         });
 
         world.insert_resource(Time::new());

@@ -213,7 +213,7 @@ pub struct LightProperties {
 #[derive(Default, Clone, Copy, Pod, Zeroable)]
 pub struct DirectionalLight {
     pub light_color: Vec3,
-    pub light_derection: Vec3,
+    pub light_position: Vec3,
     pub _padding: Vec2,
 }
 

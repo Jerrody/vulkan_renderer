@@ -197,9 +197,9 @@ pub fn on_load_model(
                     )
                     .unwrap();
                     let mut material_type = MaterialType::Opaque;
-                    if alpha_mode.contains("BLEND") {
+                    /*       if alpha_mode.contains("BLEND") {
                         material_type = MaterialType::Transparent;
-                    }
+                    } */
 
                     try_upload_texture(
                         &vulkan_context,
@@ -507,9 +507,12 @@ fn try_upload_texture(
             *texture_id = *uploaded_textures.get(&texture_index).unwrap();
         } else {
             let texture = scene.texture(texture_index).unwrap();
+            let texture_name = texture
+                .filename()
+                .unwrap_or(std::format!("{model_name}_texture_{texture_index}"));
 
             let (texture_data, image_extent) =
-                try_to_load_cached_texture(model_name, texture.clone());
+                try_to_load_cached_texture(model_name, texture.clone(), &texture_name);
 
             let allocated_texture = Engine::allocate_image(
                 vulkan_context.device,
@@ -543,7 +546,7 @@ fn try_upload_texture(
                 texture_resource_index.unwrap();
             println!(
                 "Name: {} | Index: {} | Extent: {}x{}x{}",
-                texture.filename_str().unwrap(),
+                texture_name,
                 texture_resource_index.unwrap(),
                 image_extent.width,
                 image_extent.height,
@@ -558,12 +561,13 @@ fn try_upload_texture(
 fn try_to_load_cached_texture(
     model_name: &str,
     texture: asset_importer::Texture,
+    texture_name: &str,
 ) -> (Vec<u8>, Extent3D) {
     let mut path = std::path::PathBuf::from("intermediate/textures/");
     path.push(model_name);
     std::fs::create_dir_all(&path).unwrap();
 
-    path.push(texture.filename().unwrap());
+    path.push(String::from_str(texture_name).unwrap());
     let does_exist = std::fs::exists(&path).unwrap();
 
     let image_extent: Extent3D;
