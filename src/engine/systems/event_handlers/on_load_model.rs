@@ -197,9 +197,9 @@ pub fn on_load_model(
                     )
                     .unwrap();
                     let mut material_type = MaterialType::Opaque;
-                    /*             if alpha_mode.contains("BLEND") {
+                    if alpha_mode.contains("BLEND") {
                         material_type = MaterialType::Transparent;
-                    } */
+                    }
 
                     try_upload_texture(
                         &vulkan_context,
