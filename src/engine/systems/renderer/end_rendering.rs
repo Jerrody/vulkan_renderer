@@ -35,6 +35,7 @@ pub fn end_rendering(
         AccessFlags2::ColorAttachmentWrite,
         AccessFlags2::TransferRead,
         ImageAspectFlags::Color,
+        None,
     );
 
     transition_image(
@@ -47,6 +48,7 @@ pub fn end_rendering(
         AccessFlags2::None,
         AccessFlags2::TransferWrite,
         ImageAspectFlags::Color,
+        None,
     );
 
     copy_image_to_image(
@@ -67,6 +69,7 @@ pub fn end_rendering(
         AccessFlags2::TransferWrite,
         AccessFlags2::None,
         ImageAspectFlags::Color,
+        None,
     );
 
     command_buffer.end().unwrap();

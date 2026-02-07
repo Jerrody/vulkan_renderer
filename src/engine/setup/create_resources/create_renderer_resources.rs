@@ -27,8 +27,14 @@ impl Engine {
         let allocator = &vulkan_context.allocator;
 
         let nearest_sampler_create_info = SamplerCreateInfo {
-            mag_filter: Filter::Nearest,
-            min_filter: Filter::Nearest,
+            mag_filter: Filter::Linear,
+            min_filter: Filter::Linear,
+            mipmap_mode: SamplerMipmapMode::Linear,
+            address_mode_u: SamplerAddressMode::Repeat,
+            address_mode_v: SamplerAddressMode::Repeat,
+            address_mode_w: SamplerAddressMode::Repeat,
+            compare_op: CompareOp::Always,
+            max_lod: LOD_CLAMP_NONE,
             ..Default::default()
         };
         let nearest_sampler_object =
@@ -138,6 +144,7 @@ impl Engine {
             Format::R8G8B8A8Unorm,
             checkerboard_image_extent,
             ImageUsageFlags::Sampled | ImageUsageFlags::TransferDst,
+            None,
         );
 
         vulkan_context.transfer_data_to_image(
@@ -145,6 +152,7 @@ impl Engine {
             pixels.as_ptr() as *const _,
             &mut renderer_resources.resources_pool.memory_bucket,
             &render_context.upload_context,
+            None,
             None,
         );
 
@@ -159,6 +167,7 @@ impl Engine {
             Format::R8G8B8A8Srgb,
             white_image_extent,
             ImageUsageFlags::Sampled | ImageUsageFlags::TransferDst,
+            None,
         );
 
         let white_image_pixels = [Self::pack_unorm_4x8(Vec4::new(1.0, 1.0, 1.0, 1.0))];
@@ -167,6 +176,7 @@ impl Engine {
             white_image_pixels.as_ptr() as *const _,
             &mut renderer_resources.resources_pool.memory_bucket,
             &render_context.upload_context,
+            None,
             None,
         );
 
@@ -187,6 +197,7 @@ impl Engine {
                 ImageUsageFlags::TransferSrc
                     | ImageUsageFlags::Storage
                     | ImageUsageFlags::ColorAttachment,
+                None,
             );
 
             let depth_image = Self::allocate_image(
@@ -195,6 +206,7 @@ impl Engine {
                 Format::D32Sfloat,
                 draw_image_extent,
                 ImageUsageFlags::DepthStencilAttachment,
+                None,
             );
 
             let draw_image_id = renderer_resources.insert_texture(draw_image);
@@ -320,6 +332,7 @@ impl Engine {
         format: Format,
         extent: Extent3D,
         usage_flags: ImageUsageFlags,
+        level_count: Option<u32>,
     ) -> AllocatedImage {
         let mut aspect_flags = ImageAspectFlags::Color;
         if format == Format::D32Sfloat {
@@ -332,8 +345,13 @@ impl Engine {
             ..Default::default()
         };
 
-        let image_create_info =
-            create_image_info(format, usage_flags, extent, ImageLayout::Undefined);
+        let image_create_info = create_image_info(
+            format,
+            usage_flags,
+            extent,
+            ImageLayout::Undefined,
+            level_count,
+        );
         let (allocated_image, allocation) = unsafe {
             allocator
                 .create_image(&image_create_info, &allocation_info)
@@ -341,7 +359,8 @@ impl Engine {
         };
 
         let image = rs::Image::from_inner(allocated_image);
-        let image_view_create_info = create_image_view_info(format, &image, aspect_flags);
+        let image_view_create_info =
+            create_image_view_info(format, &image, aspect_flags, level_count);
         let image_view = device.create_image_view(&image_view_create_info).unwrap();
 
         AllocatedImage {

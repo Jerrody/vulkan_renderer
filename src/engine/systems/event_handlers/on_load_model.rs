@@ -1,4 +1,5 @@
-use asset_importer::{Matrix4x4, node::Node};
+use asset_importer::{Matrix4x4, Texture, node::Node};
+use bytemuck::{Pod, Zeroable};
 use fast_image_resize::IntoImageView;
 use image::ImageReader;
 use ktx2_rw::{BasisCompressionParams, Ktx2Texture, VkFormat};
@@ -512,15 +513,20 @@ fn try_upload_texture(
                 .filename()
                 .unwrap_or(std::format!("{model_name}_texture_{texture_index}"));
 
-            let (texture_data, image_extent) =
+            let (texture_data, texture_metadata) =
                 try_to_load_cached_texture(model_name, texture.clone(), &texture_name);
 
             let allocated_texture = Engine::allocate_image(
                 vulkan_context.device,
                 &vulkan_context.allocator,
                 Format::Bc1RgbSrgbBlock,
-                image_extent,
+                Extent3D {
+                    width: texture_metadata.width,
+                    height: texture_metadata.height,
+                    depth: 1,
+                },
                 ImageUsageFlags::Sampled | ImageUsageFlags::TransferDst,
+                Some(texture_metadata.mip_levels_count),
             );
             vulkan_context.transfer_data_to_image(
                 &allocated_texture,
@@ -528,6 +534,7 @@ fn try_upload_texture(
                 &mut renderer_resources.resources_pool.memory_bucket,
                 &renderer_context.upload_context,
                 Some(texture_data.len()),
+                Some(texture_metadata),
             );
 
             *texture_id = renderer_resources.insert_texture(allocated_texture);
@@ -549,9 +556,9 @@ fn try_upload_texture(
                 "Name: {} | Index: {} | Extent: {}x{}x{}",
                 texture_name,
                 texture_resource_index.unwrap(),
-                image_extent.width,
-                image_extent.height,
-                image_extent.depth,
+                texture_metadata.width,
+                texture_metadata.height,
+                1,
             );
 
             uploaded_textures.insert(texture_index, *texture_id);
@@ -559,11 +566,19 @@ fn try_upload_texture(
     }
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+pub struct TextureMetadata {
+    pub width: u32,
+    pub height: u32,
+    pub mip_levels_count: u32,
+}
+
 fn try_to_load_cached_texture(
     model_name: &str,
     texture: asset_importer::Texture,
     texture_name: &str,
-) -> (Vec<u8>, Extent3D) {
+) -> (Vec<u8>, TextureMetadata) {
     let mut path = std::path::PathBuf::from("intermediate/textures/");
     path.push(model_name);
     std::fs::create_dir_all(&path).unwrap();
@@ -571,14 +586,16 @@ fn try_to_load_cached_texture(
     path.push(String::from_str(texture_name).unwrap());
     let does_exist = std::fs::exists(&path).unwrap();
 
-    let image_extent: Extent3D;
+    let texture_metadata: TextureMetadata;
     let mut texture_data: Vec<u8> = Vec::new();
     if does_exist {
         let texture = Ktx2Texture::from_file(&path).unwrap();
-        let image_extent_raw = texture.get_metadata("image_extent").unwrap();
-        image_extent = unsafe { std::ptr::read(image_extent_raw.as_ptr() as *const Extent3D) };
+        let texture_metadata_raw = texture.get_metadata("Texture Metadata").unwrap();
+        texture_metadata = *bytemuck::from_bytes::<TextureMetadata>(&texture_metadata_raw);
 
-        texture_data.extend_from_slice(texture.get_image_data(0, 0, 0).unwrap());
+        for mip_level_index in 0..texture_metadata.mip_levels_count {
+            texture_data.extend_from_slice(texture.get_image_data(mip_level_index, 0, 0).unwrap());
+        }
     } else {
         let data = texture.data_bytes_ref().unwrap();
         let image = ImageReader::new(Cursor::new(data))
@@ -587,20 +604,20 @@ fn try_to_load_cached_texture(
             .decode()
             .unwrap();
         let image_rgba = image.to_rgba8();
-
-        image_extent = Extent3D {
-            width: image.width(),
-            height: image.height(),
-            depth: 1,
-        };
         let mip_levels_count = f32::max(image.width() as _, image.height() as _)
             .log2()
             .floor() as u32
             + 1;
 
+        texture_metadata = TextureMetadata {
+            width: image.width(),
+            height: image.height(),
+            mip_levels_count,
+        };
+
         let mut texture = Ktx2Texture::create(
-            image_extent.width,
-            image_extent.height,
+            texture_metadata.width,
+            texture_metadata.height,
             1,
             1,
             1,
@@ -610,8 +627,8 @@ fn try_to_load_cached_texture(
         .unwrap();
 
         for mip_level_index in 0..mip_levels_count {
-            let current_width = image_extent.width >> mip_level_index.max(1);
-            let current_height = image_extent.height >> mip_level_index.max(1);
+            let current_width = (texture_metadata.width >> mip_level_index).max(1);
+            let current_height = (texture_metadata.height >> mip_level_index).max(1);
 
             let mut dst_image = fast_image_resize::images::Image::new(
                 current_width,
@@ -620,6 +637,10 @@ fn try_to_load_cached_texture(
             );
 
             let mut resizer = fast_image_resize::Resizer::new();
+            unsafe {
+                resizer.set_cpu_extensions(fast_image_resize::CpuExtensions::Avx2);
+            }
+
             resizer.resize(&image_rgba, &mut dst_image, None).unwrap();
 
             let image_bytes = dst_image.buffer();
@@ -642,22 +663,19 @@ fn try_to_load_cached_texture(
         texture
             .transcode_basis(ktx2_rw::TranscodeFormat::Bc1Rgb)
             .unwrap();
-        let texture_data_ref = texture.get_image_data(mip_levels_count, 0, 0).unwrap();
-        texture_data.extend_from_slice(texture_data_ref);
 
-        // TODO
+        for mip_level_index in 0..mip_levels_count {
+            let texture_data_ref = texture.get_image_data(mip_level_index, 0, 0).unwrap();
+            texture_data.extend_from_slice(texture_data_ref);
+        }
+
         texture
-            .set_metadata("image_extent", unsafe {
-                std::slice::from_raw_parts(
-                    (&image_extent as *const Extent3D) as *const u8,
-                    std::mem::size_of::<Extent3D>(),
-                )
-            })
+            .set_metadata("Texture Metadata", bytemuck::bytes_of(&texture_metadata))
             .unwrap();
         texture.write_to_file(path).unwrap();
     }
 
-    (texture_data, image_extent)
+    (texture_data, texture_metadata)
 }
 
 fn get_mesh_indices(node: &Node, num_meshes: usize) -> Vec<usize> {

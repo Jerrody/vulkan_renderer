@@ -45,6 +45,7 @@ pub fn begin_rendering(
         AccessFlags2::TransferRead,
         AccessFlags2::ShaderStorageWrite,
         ImageAspectFlags::Color,
+        None,
     );
     transition_image(
         command_buffer,
@@ -56,6 +57,7 @@ pub fn begin_rendering(
         AccessFlags2::DepthStencilAttachmentWrite,
         AccessFlags2::DepthStencilAttachmentWrite,
         ImageAspectFlags::Depth,
+        None,
     );
 
     let draw_image_extent3d = draw_image.extent;
@@ -120,6 +122,7 @@ pub fn begin_rendering(
         AccessFlags2::ShaderStorageWrite,
         AccessFlags2::ColorAttachmentRead,
         ImageAspectFlags::Color,
+        None,
     );
 
     let color_attachment_infos = [RenderingAttachmentInfo {
@@ -308,8 +311,8 @@ fn draw_background(
         float32: [0.0, 0.0, flash, 1.0],
     };
 
-    let clear_range = image_subresource_range(ImageAspectFlags::Color);
+    //let clear_range = image_subresource_range(ImageAspectFlags::Color);
 
-    let ranges = [clear_range];
-    command_buffer.clear_color_image(*draw_image, ImageLayout::General, &clear_value, &ranges);
+    /*   let ranges = [clear_range];
+    command_buffer.clear_color_image(*draw_image, ImageLayout::General, &clear_value, &ranges); */
 }

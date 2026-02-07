@@ -32,6 +32,7 @@ pub fn transition_image(
     src_access_mask: AccessFlags2,
     dst_access_mask: AccessFlags2,
     image_aspect_flags: ImageAspectFlags,
+    mip_levels_count: Option<u32>,
 ) {
     let mut image_memory_barrier = ImageMemoryBarrier2::default()
         .src_stage_mask(src_stage_mask)
@@ -40,7 +41,10 @@ pub fn transition_image(
         .dst_access_mask(dst_access_mask)
         .old_layout(old_image_layout)
         .new_layout(new_image_layout)
-        .subresource_range(image_subresource_range(image_aspect_flags));
+        .subresource_range(image_subresource_range(
+            image_aspect_flags,
+            mip_levels_count.unwrap_or(REMAINING_MIP_LEVELS),
+        ));
 
     image_memory_barrier = image_memory_barrier.image(&image);
 
@@ -50,11 +54,14 @@ pub fn transition_image(
     command_buffer.pipeline_barrier2(&dependency_info);
 }
 
-pub fn image_subresource_range(aspect_mask: ImageAspectFlags) -> ImageSubresourceRange {
+pub fn image_subresource_range(
+    aspect_mask: ImageAspectFlags,
+    mip_levels_count: u32,
+) -> ImageSubresourceRange {
     ImageSubresourceRange {
         aspect_mask,
         base_mip_level: Default::default(),
-        level_count: REMAINING_MIP_LEVELS,
+        level_count: mip_levels_count,
         base_array_layer: Default::default(),
         layer_count: REMAINING_ARRAY_LAYERS,
     }

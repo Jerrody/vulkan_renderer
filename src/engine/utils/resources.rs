@@ -5,12 +5,13 @@ pub fn create_image_info<'a>(
     usage_flags: ImageUsageFlags,
     extent: Extent3D,
     initial_layout: ImageLayout,
+    mip_levels: Option<u32>,
 ) -> ImageCreateInfo<'a> {
     ImageCreateInfo::default()
         .image_type(ImageType::Type2D)
         .format(format)
         .extent(extent)
-        .mip_levels(1)
+        .mip_levels(mip_levels.unwrap_or(1))
         .array_layers(1)
         .samples(SampleCountFlags::Count1)
         .tiling(ImageTiling::Optimal)
@@ -23,6 +24,7 @@ pub fn create_image_view_info<'a>(
     format: Format,
     image: &'a Image,
     image_aspect_flags: ImageAspectFlags,
+    level_count: Option<u32>,
 ) -> ImageViewCreateInfo<'a> {
     let mut image_view_create_info = ImageViewCreateInfo::default()
         .view_type(ImageViewType::Type2D)
@@ -37,7 +39,7 @@ pub fn create_image_view_info<'a>(
             ImageSubresourceRange::default()
                 .aspect_mask(image_aspect_flags)
                 .base_mip_level(Default::default())
-                .level_count(1)
+                .level_count(level_count.unwrap_or(1))
                 .base_array_layer(Default::default())
                 .layer_count(1),
         );
