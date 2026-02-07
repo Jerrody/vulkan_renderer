@@ -72,7 +72,7 @@ func process_vertex(const v: Vertex, const model_matrix: float4x4, const view_pr
     let clip_position = mul(view_projection_matrix, world_position);
     let normal = mul(model_matrix, float4(v.normal, 1.0)).xyz;
 
-    let vertex_output : VertexOutput = VertexOutput(clip_position, v.normal, v.uv, v.color, world_position.xyz);
+    let vertex_output : VertexOutput = VertexOutput(clip_position, normal, v.uv, v.color, world_position.xyz);
 
     return vertex_output;
 }
@@ -91,41 +91,83 @@ func main(const vertex_output: VertexOutput, const primitive_data: PrimitiveData
 
     let N = normalize(vertex_output.normal);
     let V = normalize(scene_data.camera_position - vertex_output.world_position);
-    //let L = normalize(scene_data.directional_light.light_position - vertex_output.world_position);
-    let L = normalize(-directional_light.light_position);
-    let shiness = (1.0 - surface_data.roughness) * 256.0; 
+    let L = normalize(directional_light.light_position);
 
-    let lighting = blinn_phong(surface_data.color, N, V, L, shiness);
+    var color = brdf(surface_data.color.rgb, N, V, L, surface_data.metallic, surface_data.roughness, directional_light);
 
-    let ambient = float4(0.1, 0.1, 0.1, 1.0) * surface_data.color;
-    
-    let final_color = ambient + (lighting * float4(directional_light.light_color, 1.0));
+    color = color / (color + float3(1.0));
+    color = pow(color, float3(1.0 / 2.2));
 
-    return final_color;
+    return float4(color, surface_data.color.a);
 }
 
 [ForceInline]
-func blinn_phong(const albedo: float4,
-    const N: float3,
-    const V: float3,
-    const L: float3,
-    const shiness: float32_t)->float4
+func brdf(const albedo: float3,
+          const N: float3,
+          const V: float3,
+          const L: float3,
+          const metallic: float32_t,
+          const roughness: float32_t,
+          const light: DirectionalLight)
+    ->float3
 {
-    let diffuse = saturate(dot(N, L));
-
     let H = normalize(L + V);
 
-    let NdotH = saturate(dot(N, H));
+    let NoV = abs(dot(N, V)) + 1e-5;
+    let NoL = saturate(dot(N, L));
+    let NoH = saturate(dot(N, H));
+    let LoH = saturate(dot(L, H));
 
-    var spec = pow(NdotH, shiness);
-    if (diffuse <= 0.0) {
-        spec = 0.0;
-    }
+    let roughness = roughness * roughness;
 
-    let diffuse_color = albedo * diffuse;
-    let specular_color = albedo * spec;
+    let D = d_ggx(NoH, roughness);
 
-    return diffuse_color + specular_color;
+    let f0 = 0.16 * 1.0 * 1.0 * (1.0 - metallic) + albedo * metallic;
+    let F = f_shlick(LoH, f0);
+    let G = g_smith(NoV, NoL, roughness);
+
+    let Fr = (D * G) * F;
+    let Fd = albedo * fd_lambert();
+
+    let kS = F;
+    let kD = (1.0 - kS) * (1.0 - metallic);
+
+    let radiance = light.light_color * 0.5;
+    let color = (kD * Fd + Fr) * radiance * NoL;
+
+    return color;
+}
+
+[ForceInline]
+func fd_lambert()->float32_t
+{
+    return 1.0 / float32_t.getPi();
+}
+
+[ForceInline]
+func d_ggx(const NoH: float32_t, const a: float32_t)->float32_t
+{
+    let a2 = a * a;
+    let f = (NoH * a2 - NoH) * NoH + 1.0;
+
+    return a2 / (float32_t.getPi() * f * f);
+}
+
+[ForceInline]
+func g_smith(const NoV: float32_t, const NoL: float32_t, const a: float32_t)->float32_t
+{
+    let a2 = a * a;
+
+    let GGXL = NoV * sqrt((-NoL * a2 + NoL) * NoL + a2);
+    let GGXV = NoL * sqrt((-NoV * a2 + NoV) * NoV + a2);
+
+    return 0.5 / (GGXV + GGXL);
+}
+
+[ForceInline]
+func f_shlick(const u: float32_t, const f0: float3)->float3
+{
+    return f0 + (float3(1.0) - f0) * pow(1.0 - u, 5.0);
 }
 
 float3 get_camera_position_from_view(float4x4 viewMatrix)

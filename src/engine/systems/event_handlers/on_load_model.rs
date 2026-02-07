@@ -220,8 +220,8 @@ pub fn on_load_model(
                         base_color_raw.w,
                     );
 
-                    let metallic_value = material.metallic_factor().unwrap_or(0.5);
-                    let roughness_value = material.roughness_factor().unwrap_or(0.5);
+                    let metallic_value = material.metallic_factor().unwrap_or(0.0);
+                    let roughness_value = material.roughness_factor().unwrap_or(0.0);
                     let albedo_texture_index = renderer_resources.get_texture_ref(texture_id).index;
                     let metallic_texture_index = renderer_resources
                         .get_texture_ref(renderer_resources.default_texture_id)

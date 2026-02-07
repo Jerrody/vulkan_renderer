@@ -59,7 +59,7 @@ pub fn update_resources(
         },
         directional_light: DirectionalLight {
             light_color: Vec3::new(1.0, 1.0, 1.0),
-            light_position: Vec3::new(-0.2, -1.0, -0.3),
+            light_position: Vec3::new(0.1, 0.5, 1.0),
             _padding: Default::default(),
         },
     };
