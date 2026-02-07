@@ -1,4 +1,5 @@
 use asset_importer::{Matrix4x4, node::Node};
+use fast_image_resize::IntoImageView;
 use image::ImageReader;
 use ktx2_rw::{BasisCompressionParams, Ktx2Texture, VkFormat};
 use nameof::name_of;
@@ -586,14 +587,16 @@ fn try_to_load_cached_texture(
             .decode()
             .unwrap();
         let image_rgba = image.to_rgba8();
-        let image_bytes = image_rgba.as_raw();
-        let image_bytes = (*image_bytes).as_slice();
 
         image_extent = Extent3D {
             width: image.width(),
             height: image.height(),
             depth: 1,
         };
+        let mip_levels_count = f32::max(image.width() as _, image.height() as _)
+            .log2()
+            .floor() as u32
+            + 1;
 
         let mut texture = Ktx2Texture::create(
             image_extent.width,
@@ -601,11 +604,30 @@ fn try_to_load_cached_texture(
             1,
             1,
             1,
-            1,
+            mip_levels_count,
             VkFormat::R8G8B8A8Srgb,
         )
         .unwrap();
-        texture.set_image_data(0, 0, 0, image_bytes).unwrap();
+
+        for mip_level_index in 0..mip_levels_count {
+            let current_width = image_extent.width >> mip_level_index.max(1);
+            let current_height = image_extent.height >> mip_level_index.max(1);
+
+            let mut dst_image = fast_image_resize::images::Image::new(
+                current_width,
+                current_height,
+                image_rgba.pixel_type().unwrap(),
+            );
+
+            let mut resizer = fast_image_resize::Resizer::new();
+            resizer.resize(&image_rgba, &mut dst_image, None).unwrap();
+
+            let image_bytes = dst_image.buffer();
+
+            texture
+                .set_image_data(mip_level_index, 0, 0, image_bytes)
+                .unwrap();
+        }
 
         texture
             .compress_basis(
@@ -620,7 +642,7 @@ fn try_to_load_cached_texture(
         texture
             .transcode_basis(ktx2_rw::TranscodeFormat::Bc1Rgb)
             .unwrap();
-        let texture_data_ref = texture.get_image_data(0, 0, 0).unwrap();
+        let texture_data_ref = texture.get_image_data(mip_levels_count, 0, 0).unwrap();
         texture_data.extend_from_slice(texture_data_ref);
 
         // TODO
