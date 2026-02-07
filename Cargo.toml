@@ -24,7 +24,11 @@ vulkanite = { git = "https://github.com/Jerrody/vulkanite", features = [
     "ext_validation_features",
 ] }
 vma = { package = "vk-mem", git = "https://github.com/Jerrody/vulkanite-mem-rs", branch = "vulkanite" }
-asset-importer = { version = "0.7.0", features = ["bytemuck", "glam"] }
+asset-importer = { version = "0.7.0", default-features = false, features = [
+    "bytemuck",
+    "glam",
+    "build-assimp",
+] }
 glam = { version = "0.31.0", features = ["fast-math", "bytemuck"] }
 bytemuck = "1.24.0"
 meshopt = "0.6.2"
