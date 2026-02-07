@@ -19,7 +19,7 @@ impl ModelLoader {
         let scene = self
             .importer
             .read_file(path)
-            .with_post_process(PostProcessSteps::REALTIME | PostProcessSteps::FLIP_UVS)
+            .with_post_process(PostProcessSteps::MAX_QUALITY | PostProcessSteps::FLIP_UVS)
             .import()
             .unwrap();
 

@@ -58,7 +58,7 @@ pub fn update_resources(
             _padding: Default::default(),
         },
         directional_light: DirectionalLight {
-            light_color: Vec3::new(1.0, 1.0, 1.0),
+            light_color: Vec3::new(0.72, 0.72, 0.93),
             light_position: Vec3::new(0.1, 0.5, 1.0),
             _padding: Default::default(),
         },

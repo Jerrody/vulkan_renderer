@@ -93,7 +93,7 @@ func main(const vertex_output: VertexOutput, const primitive_data: PrimitiveData
     let V = normalize(scene_data.camera_position - vertex_output.world_position);
     let L = normalize(directional_light.light_position);
 
-    var color = brdf(surface_data.color.rgb, N, V, L, surface_data.metallic, surface_data.roughness, directional_light);
+    var color = brdf(surface_data.color.rgb, N, V, L, surface_data.metallic, max(surface_data.roughness, 0.045), directional_light);
 
     color = color / (color + float3(1.0));
     color = pow(color, float3(1.0 / 2.2));
@@ -117,31 +117,33 @@ func brdf(const albedo: float3,
     let NoL = saturate(dot(N, L));
     let NoH = saturate(dot(N, H));
     let LoH = saturate(dot(L, H));
+    let LoN = saturate(dot(L, N));
+    let VoN = saturate(dot(V, N));
 
-    let roughness = roughness * roughness;
+    let D = d_ggx(NoH, roughness * roughness);
 
-    let D = d_ggx(NoH, roughness);
-
-    let f0 = 0.16 * 1.0 * 1.0 * (1.0 - metallic) + albedo * metallic;
+    let f0 = 0.16 * 0.5 * 0.5 * (1.0 - metallic) + albedo * metallic;
     let F = f_shlick(LoH, f0);
-    let G = g_smith(NoV, NoL, roughness);
+
+    let G = g_smith(NoV, NoL, roughness * roughness);
 
     let Fr = (D * G) * F;
-    let Fd = albedo * fd_lambert();
+    let Fd = fd_burley(albedo, roughness, LoH, LoN, VoN);
 
     let kS = F;
     let kD = (1.0 - kS) * (1.0 - metallic);
 
-    let radiance = light.light_color * 0.5;
+    let radiance = light.light_color * 3.0;
     let color = (kD * Fd + Fr) * radiance * NoL;
 
     return color;
 }
 
 [ForceInline]
-func fd_lambert()->float32_t
+func fd_burley(base_color: float3, a: float32_t, LoH: float32_t, LoN: float32_t, VoN: float32_t)->float3
 {
-    return 1.0 / float32_t.getPi();
+    let F90 = 0.5 + 2 * a * (LoH * LoH);
+    return base_color * 1.0 / float32_t.getPi() * (1.0 + (F90 - 1.0) * pow(1 - LoN, 5.0)) * (1 + (F90 - 1.0) * pow(1.0 - VoN, 5.0));
 }
 
 [ForceInline]
