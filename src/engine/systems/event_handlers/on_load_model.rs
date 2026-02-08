@@ -37,7 +37,7 @@ use crate::engine::{
     id::Id,
     resources::{
         BufferReference, MemoryBucket, MeshBuffer, MeshObject, Meshlet, RendererContext,
-        RendererResources, Vertex, VulkanContextResource,
+        RendererResources, Vertex, VulkanContextResource, textures_pool::TextureMetadata,
     },
 };
 
@@ -564,14 +564,6 @@ fn try_upload_texture(
             uploaded_textures.insert(texture_index, *texture_id);
         }
     }
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
-pub struct TextureMetadata {
-    pub width: u32,
-    pub height: u32,
-    pub mip_levels_count: u32,
 }
 
 fn try_to_load_cached_texture(

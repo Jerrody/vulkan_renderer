@@ -10,8 +10,7 @@ use vulkanite::vk::{
 };
 
 use crate::engine::{
-    resources::{AllocatedImage, MemoryBucket, UploadContext},
-    systems::on_load_model::TextureMetadata,
+    resources::{AllocatedImage, MemoryBucket, UploadContext, textures_pool::TextureMetadata},
     utils::transition_image,
 };
 

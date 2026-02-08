@@ -1,4 +1,5 @@
 pub mod model_loader;
+pub mod textures_pool;
 
 use std::{
     ffi::{CString, c_void},
