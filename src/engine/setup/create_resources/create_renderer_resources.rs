@@ -106,8 +106,8 @@ impl Engine {
             vulkan_context.transfer_queue,
         );
         let mut renderer_resources = RendererResources {
-            fallback_texture_id: Id::NULL,
-            default_texture_id: Id::NULL,
+            fallback_texture_reference: Default::default(),
+            default_texture_reference: Default::default(),
             nearest_sampler_id: Id::NULL,
             mesh_objects_buffer_reference: BufferReference::default(),
             resources_descriptor_set_handle,
@@ -138,17 +138,16 @@ impl Engine {
             height: 16,
             depth: 1,
         };
-        let checkerboard_image = Self::allocate_image(
-            device,
-            &allocator,
+        let checkerboard_texture_reference = renderer_resources.create_texture(
+            None,
             Format::R8G8B8A8Unorm,
             checkerboard_image_extent,
             ImageUsageFlags::Sampled | ImageUsageFlags::TransferDst,
-            None,
+            false,
         );
 
         vulkan_context.transfer_data_to_image(
-            &checkerboard_image,
+            checkerboard_texture_reference,
             pixels.as_ptr() as *const _,
             &mut renderer_resources.resources_pool.memory_bucket,
             &render_context.upload_context,
@@ -161,18 +160,17 @@ impl Engine {
             height: 1,
             depth: 1,
         };
-        let white_image = Self::allocate_image(
-            device,
-            &allocator,
+        let white_texture_reference = renderer_resources.create_texture(
+            None,
             Format::R8G8B8A8Srgb,
             white_image_extent,
             ImageUsageFlags::Sampled | ImageUsageFlags::TransferDst,
-            None,
+            false,
         );
 
         let white_image_pixels = [Self::pack_unorm_4x8(Vec4::new(1.0, 1.0, 1.0, 1.0))];
         vulkan_context.transfer_data_to_image(
-            &white_image,
+            white_texture_reference,
             white_image_pixels.as_ptr() as *const _,
             &mut renderer_resources.resources_pool.memory_bucket,
             &render_context.upload_context,
@@ -189,42 +187,35 @@ impl Engine {
                 depth: 1,
             };
 
-            let draw_image = Self::allocate_image(
-                device,
-                allocator,
+            let draw_texture_reference = renderer_resources.create_texture(
+                None,
                 Format::R16G16B16A16Sfloat,
                 draw_image_extent,
                 ImageUsageFlags::TransferSrc
                     | ImageUsageFlags::Storage
                     | ImageUsageFlags::ColorAttachment,
-                None,
+                false,
             );
 
-            let depth_image = Self::allocate_image(
-                device,
-                allocator,
+            let depth_texture_reference = renderer_resources.create_texture(
+                None,
                 Format::D32Sfloat,
                 draw_image_extent,
                 ImageUsageFlags::DepthStencilAttachment,
-                None,
+                false,
             );
 
-            let draw_image_id = renderer_resources.insert_texture(draw_image);
-
-            let draw_image_ref = renderer_resources.get_texture_ref(draw_image_id);
             let descriptor_draw_image = DescriptorKind::StorageImage(DescriptorStorageImage {
-                image_view: draw_image_ref.image_view,
+                image_view: draw_texture_reference.get_image().unwrap().image_view,
+                index: draw_texture_reference.index,
             });
-            let draw_image_index = renderer_resources
+            renderer_resources
                 .resources_descriptor_set_handle
                 .update_binding(device, allocator, descriptor_draw_image);
-            renderer_resources.get_texture_ref_mut(draw_image_id).index = draw_image_index.unwrap();
-
-            let depth_image_id = renderer_resources.insert_texture(depth_image);
 
             unsafe {
-                (*frame_data).draw_image_id = draw_image_id;
-                (*frame_data).depth_image_id = depth_image_id;
+                (*frame_data).draw_texture_reference = draw_texture_reference;
+                (*frame_data).depth_texture_reference = depth_texture_reference;
             }
         }
 
@@ -280,37 +271,27 @@ impl Engine {
         renderer_resources.set_materials_data_buffer_reference(materials_data_buffer_reference);
         renderer_resources.mesh_objects_buffer_reference = mesh_objects_buffer_reference;
 
-        renderer_resources.fallback_texture_id = renderer_resources.insert_texture(white_image);
-        renderer_resources.default_texture_id =
-            renderer_resources.insert_texture(checkerboard_image);
         renderer_resources.nearest_sampler_id =
             renderer_resources.insert_sampler(nearest_sampler_object);
 
-        // TODO: Need to make this mess more ergonomic and simpler.
-
-        let checkerboard_image_ref =
-            renderer_resources.get_texture_ref(renderer_resources.default_texture_id);
         let descriptor_checkerboard_image = DescriptorKind::SampledImage(DescriptorSampledImage {
-            image_view: checkerboard_image_ref.image_view,
+            image_view: checkerboard_texture_reference
+                .get_image()
+                .unwrap()
+                .image_view,
+            index: checkerboard_texture_reference.index,
         });
         let checkerboard_image_index = renderer_resources
             .resources_descriptor_set_handle
             .update_binding(device, allocator, descriptor_checkerboard_image);
-        renderer_resources
-            .get_texture_ref_mut(renderer_resources.default_texture_id)
-            .index = checkerboard_image_index.unwrap();
 
-        let white_image_ref =
-            renderer_resources.get_texture_ref(renderer_resources.fallback_texture_id);
         let descriptor_white_image = DescriptorKind::SampledImage(DescriptorSampledImage {
-            image_view: white_image_ref.image_view,
+            image_view: white_texture_reference.get_image().unwrap().image_view,
+            index: checkerboard_texture_reference.index,
         });
         let white_image_index = renderer_resources
             .resources_descriptor_set_handle
             .update_binding(device, allocator, descriptor_white_image);
-        renderer_resources
-            .get_texture_ref_mut(renderer_resources.fallback_texture_id)
-            .index = white_image_index.unwrap();
 
         let sampler_object = renderer_resources.get_sampler(renderer_resources.nearest_sampler_id);
         let sampler_descriptor = DescriptorKind::Sampler(DescriptorSampler {
@@ -324,55 +305,6 @@ impl Engine {
             .index = sampler_object_index.unwrap();
 
         renderer_resources
-    }
-
-    pub fn allocate_image(
-        device: Device,
-        allocator: &Allocator,
-        format: Format,
-        extent: Extent3D,
-        usage_flags: ImageUsageFlags,
-        level_count: Option<u32>,
-    ) -> AllocatedImage {
-        let mut aspect_flags = ImageAspectFlags::Color;
-        if format == Format::D32Sfloat {
-            aspect_flags = ImageAspectFlags::Depth;
-        }
-
-        let allocation_info = AllocationCreateInfo {
-            usage: MemoryUsage::Auto,
-            required_flags: MemoryPropertyFlags::DeviceLocal,
-            ..Default::default()
-        };
-
-        let image_create_info = create_image_info(
-            format,
-            usage_flags,
-            extent,
-            ImageLayout::Undefined,
-            level_count,
-        );
-        let (allocated_image, allocation) = unsafe {
-            allocator
-                .create_image(&image_create_info, &allocation_info)
-                .unwrap()
-        };
-
-        let image = rs::Image::from_inner(allocated_image);
-        let image_view_create_info =
-            create_image_view_info(format, &image, aspect_flags, level_count);
-        let image_view = device.create_image_view(&image_view_create_info).unwrap();
-
-        AllocatedImage {
-            id: Id::new(image.as_raw()),
-            index: usize::MIN,
-            image,
-            image_view,
-            allocation,
-            extent,
-            format,
-            subresource_range: image_view_create_info.subresource_range,
-        }
     }
 
     fn create_descriptors(

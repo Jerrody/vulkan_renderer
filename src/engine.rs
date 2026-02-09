@@ -180,11 +180,6 @@ impl Drop for Engine {
                     device.destroy_sampler(Some(sampler_object.sampler));
                 });
             renderer_resources
-                .get_textures_iter_mut()
-                .for_each(|allocated_image| {
-                    self.destroy_image(device, &vulkan_context_resource.allocator, allocated_image);
-                });
-            renderer_resources
                 .resources_pool
                 .memory_bucket
                 .free_allocations();

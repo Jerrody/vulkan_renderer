@@ -10,7 +10,10 @@ use vulkanite::vk::{
 };
 
 use crate::engine::{
-    resources::{AllocatedImage, MemoryBucket, UploadContext, textures_pool::TextureMetadata},
+    resources::{
+        AllocatedImage, MemoryBucket, UploadContext,
+        textures_pool::{TextureMetadata, TextureReference},
+    },
     utils::transition_image,
 };
 
@@ -32,7 +35,7 @@ pub struct VulkanContextResource {
 impl VulkanContextResource {
     pub fn transfer_data_to_image(
         &self,
-        allocated_image: &AllocatedImage,
+        texture_reference: TextureReference,
         data_to_copy: *const std::ffi::c_void,
         memory_bucket: &mut MemoryBucket,
         upload_context: &UploadContext,
@@ -47,6 +50,8 @@ impl VulkanContextResource {
         };
 
         command_buffer.begin(&command_buffer_begin_info).unwrap();
+
+        let allocated_image = texture_reference.get_image().unwrap();
 
         let image_extent = allocated_image.extent;
         let size = match size {

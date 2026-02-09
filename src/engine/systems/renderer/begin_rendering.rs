@@ -1,5 +1,4 @@
 use bevy_ecs::system::{Res, ResMut};
-use glam::{Mat4, Vec3};
 use vulkanite::{
     Handle,
     vk::{
@@ -10,7 +9,7 @@ use vulkanite::{
 
 use crate::engine::{
     resources::{FrameContext, GraphicsPushConstant, RendererContext, RendererResources},
-    utils::{self, image_subresource_range, transition_image},
+    utils::{self, transition_image},
 };
 
 pub fn begin_rendering(
@@ -22,22 +21,22 @@ pub fn begin_rendering(
 
     let command_buffer = frame_data.command_group.command_buffer;
     frame_context.command_buffer = Some(command_buffer);
-    frame_context.draw_image_id = frame_data.draw_image_id;
-    frame_context.depth_image_id = frame_data.depth_image_id;
+    frame_context.draw_texture_reference = frame_data.draw_texture_reference;
+    frame_context.depth_texture_reference = frame_data.depth_texture_reference;
 
     let command_buffer_begin_info =
         utils::create_command_buffer_begin_info(CommandBufferUsageFlags::OneTimeSubmit);
 
     command_buffer.begin(&command_buffer_begin_info).unwrap();
 
-    let draw_image = &*renderer_resources.get_texture_ref(frame_context.draw_image_id);
-    let draw_image_view = draw_image.image_view;
+    let draw_texture_ref = frame_context.draw_texture_reference.get_image().unwrap();
+    let draw_image_view = draw_texture_ref.image_view;
 
-    let depth_image = renderer_resources.get_texture_ref(frame_context.depth_image_id);
+    let depth_image = frame_context.depth_texture_reference.get_image().unwrap();
 
     transition_image(
         command_buffer,
-        draw_image.image,
+        draw_texture_ref.image,
         ImageLayout::Undefined,
         ImageLayout::General,
         PipelineStageFlags2::Blit,
@@ -60,7 +59,7 @@ pub fn begin_rendering(
         None,
     );
 
-    let draw_image_extent3d = draw_image.extent;
+    let draw_image_extent3d = draw_texture_ref.extent;
     let draw_image_extent2d = Extent2D {
         width: draw_image_extent3d.width,
         height: draw_image_extent3d.height,
@@ -88,7 +87,7 @@ pub fn begin_rendering(
     let mesh_push_constant = GraphicsPushConstant {
         device_address_scene_data: device_address_scene_data_buffer,
         device_address_instance_object: device_address_instance_objects_buffer,
-        draw_image_index: draw_image.index as _,
+        draw_image_index: draw_texture_ref.index as _,
         ..Default::default()
     };
 
@@ -109,12 +108,12 @@ pub fn begin_rendering(
         renderer_resources.as_ref(),
         command_buffer,
         draw_image_extent2d,
-        draw_image.index,
+        draw_texture_ref.index,
     );
 
     transition_image(
         command_buffer,
-        draw_image.image,
+        draw_texture_ref.image,
         ImageLayout::General,
         ImageLayout::General,
         PipelineStageFlags2::ComputeShader,

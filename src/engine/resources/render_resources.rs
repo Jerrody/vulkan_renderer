@@ -22,7 +22,11 @@ use crate::engine::{
     components::material::{MaterialState, MaterialType},
     descriptors::DescriptorSetHandle,
     id::Id,
-    resources::{CommandGroup, render_resources::model_loader::ModelLoader},
+    resources::{
+        CommandGroup,
+        render_resources::model_loader::ModelLoader,
+        textures_pool::{TextureReference, TexturesPool},
+    },
 };
 
 #[repr(C)]
@@ -698,7 +702,7 @@ impl MaterialsPool {
 pub struct ResourcesPool {
     pub memory_bucket: MemoryBucket,
     pub mesh_buffers: Vec<MeshBuffer>,
-    pub textures: Vec<AllocatedImage>,
+    pub textures_pool: TexturesPool,
     pub samplers: Vec<SamplerObject>,
     pub instances_buffer: Option<SwappableBuffer>,
     pub scene_data_buffer: Option<SwappableBuffer>,
@@ -720,7 +724,7 @@ impl ResourcesPool {
                 transfer_queue,
             ),
             mesh_buffers: Default::default(),
-            textures: Default::default(),
+            textures_pool: TexturesPool::new(device, allocator),
             samplers: Default::default(),
             instances_buffer: Default::default(),
             scene_data_buffer: Default::default(),
@@ -731,8 +735,8 @@ impl ResourcesPool {
 
 #[derive(Resource)]
 pub struct RendererResources {
-    pub default_texture_id: Id,
-    pub fallback_texture_id: Id,
+    pub default_texture_reference: TextureReference,
+    pub fallback_texture_reference: TextureReference,
     pub nearest_sampler_id: Id,
     pub mesh_objects_buffer_reference: BufferReference,
     pub resources_descriptor_set_handle: DescriptorSetHandle,
@@ -800,6 +804,25 @@ impl<'a> RendererResources {
             .get_material_info_device_address_by_id(material_label_id)
     }
 
+    pub fn create_texture(
+        &mut self,
+        data: Option<&mut [u8]>,
+        format: Format,
+        extent: Extent3D,
+        usage_flags: ImageUsageFlags,
+        mip_map_enabled: bool,
+    ) -> TextureReference {
+        let (texture_reference, ktx_texture) = self.resources_pool.textures_pool.create_texture(
+            data,
+            format,
+            extent,
+            usage_flags,
+            mip_map_enabled,
+        );
+
+        texture_reference
+    }
+
     pub fn write_instance_object(
         &mut self,
         model_matrix: Mat4,
@@ -844,22 +867,6 @@ impl<'a> RendererResources {
     }
 
     #[must_use]
-    pub fn insert_texture(&'a mut self, allocated_image: AllocatedImage) -> Id {
-        let allocated_image_id = allocated_image.id;
-
-        if !self
-            .resources_pool
-            .textures
-            .iter()
-            .any(|allocated_image| allocated_image.id == allocated_image_id)
-        {
-            self.resources_pool.textures.push(allocated_image);
-        }
-
-        return allocated_image_id;
-    }
-
-    #[must_use]
     pub fn insert_sampler(&'a mut self, sampler_object: SamplerObject) -> Id {
         let sampler_object_id = sampler_object.id;
 
@@ -881,11 +888,6 @@ impl<'a> RendererResources {
     }
 
     #[must_use]
-    pub fn get_textures_iter(&'a self) -> Iter<'a, AllocatedImage> {
-        self.resources_pool.textures.iter()
-    }
-
-    #[must_use]
     pub fn get_samplers_iter(&'a self) -> Iter<'a, SamplerObject> {
         self.resources_pool.samplers.iter()
     }
@@ -893,11 +895,6 @@ impl<'a> RendererResources {
     #[must_use]
     pub fn get_mesh_buffers_iter_mut(&'a mut self) -> IterMut<'a, MeshBuffer> {
         self.resources_pool.mesh_buffers.iter_mut()
-    }
-
-    #[must_use]
-    pub fn get_textures_iter_mut(&'a mut self) -> IterMut<'a, AllocatedImage> {
-        self.resources_pool.textures.iter_mut()
     }
 
     #[must_use]
@@ -911,15 +908,6 @@ impl<'a> RendererResources {
             .mesh_buffers
             .iter()
             .find(|&mesh_buffer| mesh_buffer.id == id)
-            .unwrap()
-    }
-
-    #[must_use]
-    pub fn get_texture_ref(&'a self, id: Id) -> &'a AllocatedImage {
-        self.resources_pool
-            .textures
-            .iter()
-            .find(|&texture| texture.id == id)
             .unwrap()
     }
 
@@ -939,15 +927,6 @@ impl<'a> RendererResources {
             .mesh_buffers
             .iter_mut()
             .find(|mesh_buffer| mesh_buffer.id == id)
-            .unwrap()
-    }
-
-    #[must_use]
-    pub fn get_texture_ref_mut(&'a mut self, id: Id) -> &'a mut AllocatedImage {
-        self.resources_pool
-            .textures
-            .iter_mut()
-            .find(|texture| texture.id == id)
             .unwrap()
     }
 

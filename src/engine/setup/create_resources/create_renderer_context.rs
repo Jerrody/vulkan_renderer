@@ -72,8 +72,8 @@ impl Engine {
                     command_group,
                     swapchain_semaphore,
                     render_semaphore,
-                    draw_image_id: Id::NULL,
-                    depth_image_id: Id::NULL,
+                    draw_texture_reference: Default::default(),
+                    depth_texture_reference: Default::default(),
                 }
             })
             .collect();

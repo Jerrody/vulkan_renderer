@@ -3,7 +3,7 @@ use bytemuck::{Pod, Zeroable};
 use fast_image_resize::IntoImageView;
 use image::ImageReader;
 use ktx2_rw::{BasisCompressionParams, Ktx2Texture, VkFormat};
-use nameof::name_of;
+use nameof::{name_of, name_of_type};
 use std::{
     collections::HashMap,
     ffi::{CStr, CString, c_void},
@@ -37,7 +37,8 @@ use crate::engine::{
     id::Id,
     resources::{
         BufferReference, MemoryBucket, MeshBuffer, MeshObject, Meshlet, RendererContext,
-        RendererResources, Vertex, VulkanContextResource, textures_pool::TextureMetadata,
+        RendererResources, Vertex, VulkanContextResource,
+        textures_pool::{TextureMetadata, TextureReference},
     },
 };
 
@@ -180,9 +181,9 @@ pub fn on_load_model(
         if node_data.mesh_indices.len() > Default::default() {
             let mut mesh_name: String;
             let mut mesh_buffer_id: Id;
-            let mut texture_id: Id;
+            let mut texture_reference: TextureReference;
             for &mesh_index in node_data.mesh_indices.iter() {
-                texture_id = renderer_resources.fallback_texture_id;
+                texture_reference = renderer_resources.fallback_texture_reference;
                 let mesh = scene.mesh(mesh_index).unwrap();
 
                 let material_index = mesh.material_index();
@@ -210,7 +211,7 @@ pub fn on_load_model(
                         &scene,
                         &mut uploaded_textures,
                         material.clone(),
-                        &mut texture_id,
+                        &mut texture_reference,
                         load_model_event.path.file_stem().unwrap().to_str().unwrap(),
                     );
 
@@ -224,12 +225,13 @@ pub fn on_load_model(
 
                     let metallic_value = material.metallic_factor().unwrap_or(0.0);
                     let roughness_value = material.roughness_factor().unwrap_or(0.0);
-                    let albedo_texture_index = renderer_resources.get_texture_ref(texture_id).index;
+                    let albedo_texture_index =
+                        renderer_resources.get_texture_ref(texture_reference).index;
                     let metallic_texture_index = renderer_resources
-                        .get_texture_ref(renderer_resources.default_texture_id)
+                        .get_texture_ref(renderer_resources.default_texture_reference)
                         .index;
                     let roughness_texture_index = renderer_resources
-                        .get_texture_ref(renderer_resources.default_texture_id)
+                        .get_texture_ref(renderer_resources.default_texture_reference)
                         .index;
 
                     let material_data = MaterialData {
@@ -516,9 +518,7 @@ fn try_upload_texture(
             let (texture_data, texture_metadata) =
                 try_to_load_cached_texture(model_name, texture.clone(), &texture_name);
 
-            let allocated_texture = Engine::allocate_image(
-                vulkan_context.device,
-                &vulkan_context.allocator,
+            let allocated_texture = renderer_resources.create_texture(
                 Format::Bc1RgbSrgbBlock,
                 Extent3D {
                     width: texture_metadata.width,
@@ -582,7 +582,8 @@ fn try_to_load_cached_texture(
     let mut texture_data: Vec<u8> = Vec::new();
     if does_exist {
         let texture = Ktx2Texture::from_file(&path).unwrap();
-        let texture_metadata_raw = texture.get_metadata("Texture Metadata").unwrap();
+        let texture_metadata_raw: Vec<u8> =
+            texture.get_metadata(stringify!(TextureMetadata)).unwrap();
         texture_metadata = *bytemuck::from_bytes::<TextureMetadata>(&texture_metadata_raw);
 
         for mip_level_index in 0..texture_metadata.mip_levels_count {
@@ -590,81 +591,10 @@ fn try_to_load_cached_texture(
         }
     } else {
         let data = texture.data_bytes_ref().unwrap();
-        let image = ImageReader::new(Cursor::new(data))
-            .with_guessed_format()
-            .unwrap()
-            .decode()
-            .unwrap();
-        let image_rgba = image.to_rgba8();
-        let mip_levels_count = f32::max(image.width() as _, image.height() as _)
-            .log2()
-            .floor() as u32
-            + 1;
 
-        texture_metadata = TextureMetadata {
-            width: image.width(),
-            height: image.height(),
-            mip_levels_count,
-        };
+        //let (texture_reference, ktx_texture) = renderer_
 
-        let mut texture = Ktx2Texture::create(
-            texture_metadata.width,
-            texture_metadata.height,
-            1,
-            1,
-            1,
-            mip_levels_count,
-            VkFormat::R8G8B8A8Srgb,
-        )
-        .unwrap();
-
-        for mip_level_index in 0..mip_levels_count {
-            let current_width = (texture_metadata.width >> mip_level_index).max(1);
-            let current_height = (texture_metadata.height >> mip_level_index).max(1);
-
-            let mut dst_image = fast_image_resize::images::Image::new(
-                current_width,
-                current_height,
-                image_rgba.pixel_type().unwrap(),
-            );
-
-            let mut resizer = fast_image_resize::Resizer::new();
-            unsafe {
-                resizer.set_cpu_extensions(fast_image_resize::CpuExtensions::Avx2);
-            }
-
-            resizer.resize(&image_rgba, &mut dst_image, None).unwrap();
-
-            let image_bytes = dst_image.buffer();
-
-            texture
-                .set_image_data(mip_level_index, 0, 0, image_bytes)
-                .unwrap();
-        }
-
-        texture
-            .compress_basis(
-                &BasisCompressionParams::builder()
-                    .uastc(false)
-                    .compression_level(0)
-                    .quality_level(255)
-                    .thread_count(8)
-                    .build(),
-            )
-            .unwrap();
-        texture
-            .transcode_basis(ktx2_rw::TranscodeFormat::Bc1Rgb)
-            .unwrap();
-
-        for mip_level_index in 0..mip_levels_count {
-            let texture_data_ref = texture.get_image_data(mip_level_index, 0, 0).unwrap();
-            texture_data.extend_from_slice(texture_data_ref);
-        }
-
-        texture
-            .set_metadata("Texture Metadata", bytemuck::bytes_of(&texture_metadata))
-            .unwrap();
-        texture.write_to_file(path).unwrap();
+        ktx_texture.write_to_file(path).unwrap();
     }
 
     (texture_data, texture_metadata)

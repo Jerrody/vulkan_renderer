@@ -27,6 +27,7 @@ impl DescriptorUniformBuffer {
 #[derive(Clone, Copy)]
 pub struct DescriptorStorageImage {
     pub image_view: ImageView,
+    pub index: usize,
 }
 
 impl DescriptorStorageImage {
@@ -50,6 +51,7 @@ impl DescriptorCombinedImageSampler {
 #[derive(Clone, Copy)]
 pub struct DescriptorSampledImage {
     pub image_view: ImageView,
+    pub index: usize,
 }
 
 impl DescriptorSampledImage {

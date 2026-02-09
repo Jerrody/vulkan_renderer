@@ -27,7 +27,6 @@ pub struct DescriptorsSizes {
 #[derive(Clone, Copy)]
 pub struct BindingInfo {
     pub binding_offset: DeviceSize,
-    // TODO: Pick next free slot index for simplicity, in reality, we should take free slot based on slot occupancy.
     pub next_empty_slot_index: usize,
 }
 
@@ -66,7 +65,21 @@ impl DescriptorSetHandle {
         let binding_info = self.bindings_infos.get_mut(&descriptor_type_raw).unwrap();
 
         let current_descriptor_slot_index = if descriptor_type != DescriptorType::StorageBuffer {
-            Some(binding_info.next_empty_slot_index)
+            // TODO: Temp before migration to fully slot architecture.
+            match descriptor_type {
+                DescriptorType::SampledImage | DescriptorType::StorageImage => {
+                    Some(match descriptor_kind {
+                        DescriptorKind::StorageImage(descriptor_storage_image) => {
+                            descriptor_storage_image.index
+                        }
+                        DescriptorKind::SampledImage(descriptor_sampled_image) => {
+                            descriptor_sampled_image.index
+                        }
+                        _ => binding_info.next_empty_slot_index,
+                    })
+                }
+                _ => Some(binding_info.next_empty_slot_index),
+            }
         } else {
             None
         };
