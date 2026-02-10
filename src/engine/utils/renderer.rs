@@ -32,7 +32,7 @@ pub fn transition_image(
     src_access_mask: AccessFlags2,
     dst_access_mask: AccessFlags2,
     image_aspect_flags: ImageAspectFlags,
-    mip_levels_count: Option<u32>,
+    mip_levels_count: u32,
 ) {
     let mut image_memory_barrier = ImageMemoryBarrier2::default()
         .src_stage_mask(src_stage_mask)
@@ -43,7 +43,7 @@ pub fn transition_image(
         .new_layout(new_image_layout)
         .subresource_range(image_subresource_range(
             image_aspect_flags,
-            mip_levels_count.unwrap_or(REMAINING_MIP_LEVELS),
+            mip_levels_count,
         ));
 
     image_memory_barrier = image_memory_barrier.image(&image);

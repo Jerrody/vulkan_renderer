@@ -12,6 +12,7 @@ use ahash::{HashMap, HashMapExt};
 use bevy_ecs::resource::Resource;
 use bytemuck::{NoUninit, Pod, Zeroable};
 use glam::{Mat4, Vec2, Vec3, Vec4};
+use ktx2_rw::Ktx2Texture;
 use vma::{Alloc, Allocation, AllocationCreateFlags, AllocationCreateInfo, Allocator, MemoryUsage};
 use vulkanite::{
     Handle,
@@ -25,7 +26,7 @@ use crate::engine::{
     resources::{
         CommandGroup,
         render_resources::model_loader::ModelLoader,
-        textures_pool::{TextureReference, TexturesPool},
+        textures_pool::{AllocatedImage, TextureReference, TexturesPool},
     },
 };
 
@@ -84,17 +85,6 @@ pub struct MeshBuffer {
     pub meshlets_buffer_reference: BufferReference,
     pub local_indices_buffer_reference: BufferReference,
     pub meshlets_count: usize,
-}
-
-pub struct AllocatedImage {
-    pub id: Id,
-    pub index: usize,
-    pub image: Image,
-    pub image_view: ImageView,
-    pub allocation: Allocation,
-    pub extent: Extent3D,
-    pub format: Format,
-    pub subresource_range: ImageSubresourceRange,
 }
 
 pub struct AllocatedBuffer {
@@ -807,20 +797,28 @@ impl<'a> RendererResources {
     pub fn create_texture(
         &mut self,
         data: Option<&mut [u8]>,
+        is_cached: bool,
         format: Format,
         extent: Extent3D,
         usage_flags: ImageUsageFlags,
         mip_map_enabled: bool,
-    ) -> TextureReference {
+    ) -> (TextureReference, Option<Ktx2Texture>) {
         let (texture_reference, ktx_texture) = self.resources_pool.textures_pool.create_texture(
             data,
+            is_cached,
             format,
             extent,
             usage_flags,
             mip_map_enabled,
         );
 
-        texture_reference
+        (texture_reference, ktx_texture)
+    }
+
+    pub fn get_image(&'a self, texture_reference: TextureReference) -> Option<&'a AllocatedImage> {
+        self.resources_pool
+            .textures_pool
+            .get_image(texture_reference)
     }
 
     pub fn write_instance_object(

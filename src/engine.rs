@@ -23,8 +23,8 @@ use crate::engine::{
     components::{camera::Camera, time::Time},
     events::LoadModelEvent,
     resources::{
-        AllocatedBuffer, AllocatedImage, FrameContext, RendererContext, RendererResources,
-        VulkanContextResource,
+        AllocatedBuffer, FrameContext, RendererContext, RendererResources, VulkanContextResource,
+        textures_pool::AllocatedImage,
     },
     systems::{
         begin_rendering, collect_instance_objects, end_rendering,
@@ -127,21 +127,6 @@ impl Engine {
             allocator.destroy_buffer(buffer_raw, allocation);
         }
     }
-
-    unsafe fn destroy_image(
-        &self,
-        device: Device,
-        allocator: &vma::Allocator,
-        allocated_image: &mut AllocatedImage,
-    ) {
-        let allocation = &mut allocated_image.allocation;
-        unsafe {
-            device.destroy_image_view(Some(allocated_image.image_view));
-
-            let image_raw = vk::raw::Image::from_raw(allocated_image.image.as_raw());
-            allocator.destroy_image(image_raw, allocation);
-        }
-    }
 }
 
 impl Drop for Engine {
@@ -182,6 +167,10 @@ impl Drop for Engine {
             renderer_resources
                 .resources_pool
                 .memory_bucket
+                .free_allocations();
+            renderer_resources
+                .resources_pool
+                .textures_pool
                 .free_allocations();
 
             vulkan_context_resource.allocator.drop();

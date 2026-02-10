@@ -39,7 +39,6 @@ pub struct DescriptorSetHandle {
 }
 
 impl DescriptorSetHandle {
-    #[must_use]
     pub fn update_binding(
         &mut self,
         device: Device,
@@ -70,9 +69,17 @@ impl DescriptorSetHandle {
                 DescriptorType::SampledImage | DescriptorType::StorageImage => {
                     Some(match descriptor_kind {
                         DescriptorKind::StorageImage(descriptor_storage_image) => {
+                            println!(
+                                "Storage Image binding index: {}",
+                                descriptor_storage_image.index
+                            );
                             descriptor_storage_image.index
                         }
                         DescriptorKind::SampledImage(descriptor_sampled_image) => {
+                            println!(
+                                "Sampled Image binding index: {}",
+                                descriptor_sampled_image.index
+                            );
                             descriptor_sampled_image.index
                         }
                         _ => binding_info.next_empty_slot_index,
@@ -83,9 +90,11 @@ impl DescriptorSetHandle {
         } else {
             None
         };
+        let current_descriptor_slot_index = current_descriptor_slot_index.unwrap();
+
         let base_binding_offset = binding_info.binding_offset;
-        let binding_offset = base_binding_offset
-            + (current_descriptor_slot_index.unwrap_or_default() as u64 * descriptor_size as u64);
+        let binding_offset =
+            base_binding_offset + (current_descriptor_slot_index as u64 * descriptor_size as u64);
         binding_info.next_empty_slot_index += 1;
 
         let allocation = self.buffer.allocation;
@@ -219,6 +228,6 @@ impl DescriptorSetHandle {
             allocator.unmap_memory(allocation);
         }
 
-        current_descriptor_slot_index
+        Some(current_descriptor_slot_index)
     }
 }

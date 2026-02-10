@@ -29,22 +29,28 @@ pub fn begin_rendering(
 
     command_buffer.begin(&command_buffer_begin_info).unwrap();
 
-    let draw_texture_ref = frame_context.draw_texture_reference.get_image().unwrap();
-    let draw_image_view = draw_texture_ref.image_view;
+    let draw_image = renderer_resources
+        .get_image(frame_context.draw_texture_reference)
+        .unwrap();
 
-    let depth_image = frame_context.depth_texture_reference.get_image().unwrap();
+    let depth_image = renderer_resources
+        .get_image(frame_context.depth_texture_reference)
+        .unwrap();
 
     transition_image(
         command_buffer,
-        draw_texture_ref.image,
+        draw_image.image,
         ImageLayout::Undefined,
         ImageLayout::General,
         PipelineStageFlags2::Blit,
         PipelineStageFlags2::ComputeShader,
         AccessFlags2::TransferRead,
         AccessFlags2::ShaderStorageWrite,
-        ImageAspectFlags::Color,
-        None,
+        draw_image.image_aspect_flags,
+        frame_context
+            .draw_texture_reference
+            .texture_metadata
+            .mip_levels_count,
     );
     transition_image(
         command_buffer,
@@ -55,11 +61,14 @@ pub fn begin_rendering(
         PipelineStageFlags2::EarlyFragmentTests,
         AccessFlags2::DepthStencilAttachmentWrite,
         AccessFlags2::DepthStencilAttachmentWrite,
-        ImageAspectFlags::Depth,
-        None,
+        depth_image.image_aspect_flags,
+        frame_context
+            .depth_texture_reference
+            .texture_metadata
+            .mip_levels_count,
     );
 
-    let draw_image_extent3d = draw_texture_ref.extent;
+    let draw_image_extent3d = draw_image.extent;
     let draw_image_extent2d = Extent2D {
         width: draw_image_extent3d.width,
         height: draw_image_extent3d.height,
@@ -87,7 +96,7 @@ pub fn begin_rendering(
     let mesh_push_constant = GraphicsPushConstant {
         device_address_scene_data: device_address_scene_data_buffer,
         device_address_instance_object: device_address_instance_objects_buffer,
-        draw_image_index: draw_texture_ref.index as _,
+        draw_image_index: frame_context.draw_texture_reference.index as _,
         ..Default::default()
     };
 
@@ -108,24 +117,26 @@ pub fn begin_rendering(
         renderer_resources.as_ref(),
         command_buffer,
         draw_image_extent2d,
-        draw_texture_ref.index,
     );
 
     transition_image(
         command_buffer,
-        draw_texture_ref.image,
+        draw_image.image,
         ImageLayout::General,
         ImageLayout::General,
         PipelineStageFlags2::ComputeShader,
         PipelineStageFlags2::ColorAttachmentOutput,
         AccessFlags2::ShaderStorageWrite,
         AccessFlags2::ColorAttachmentRead,
-        ImageAspectFlags::Color,
-        None,
+        draw_image.image_aspect_flags,
+        frame_context
+            .draw_texture_reference
+            .texture_metadata
+            .mip_levels_count,
     );
 
     let color_attachment_infos = [RenderingAttachmentInfo {
-        image_view: Some(draw_image_view.borrow()),
+        image_view: Some(draw_image.image_view.borrow()),
         image_layout: ImageLayout::General,
         resolve_mode: ResolveModeFlags::None,
         load_op: AttachmentLoadOp::Load,
@@ -258,7 +269,6 @@ fn draw_gradient(
     renderer_resources: &RendererResources,
     command_buffer: CommandBuffer,
     draw_extent: Extent2D,
-    draw_image_index: usize,
 ) {
     let gradient_compute_shader_object = renderer_resources.gradient_compute_shader_object;
 

@@ -1,10 +1,7 @@
 use bevy_ecs::world::World;
 use glam::Vec4;
-use vma::{Alloc, AllocationCreateInfo, Allocator, MemoryUsage};
-use vulkanite::{
-    Handle,
-    vk::{rs::*, *},
-};
+use vma::Alloc;
+use vulkanite::vk::{rs::*, *};
 
 use crate::engine::{
     Engine,
@@ -138,20 +135,32 @@ impl Engine {
             height: 16,
             depth: 1,
         };
-        let checkerboard_texture_reference = renderer_resources.create_texture(
+        let (checkerboard_texture_reference, _) = renderer_resources.create_texture(
             None,
+            false,
             Format::R8G8B8A8Unorm,
             checkerboard_image_extent,
             ImageUsageFlags::Sampled | ImageUsageFlags::TransferDst,
             false,
         );
 
+        renderer_resources.default_texture_reference = checkerboard_texture_reference;
+        let descriptor_checkerboard_image = DescriptorKind::SampledImage(DescriptorSampledImage {
+            image_view: renderer_resources
+                .get_image(checkerboard_texture_reference)
+                .unwrap()
+                .image_view,
+            index: checkerboard_texture_reference.index,
+        });
+        renderer_resources
+            .resources_descriptor_set_handle
+            .update_binding(device, allocator, descriptor_checkerboard_image);
+
         vulkan_context.transfer_data_to_image(
+            &mut renderer_resources,
             checkerboard_texture_reference,
             pixels.as_ptr() as *const _,
-            &mut renderer_resources.resources_pool.memory_bucket,
             &render_context.upload_context,
-            None,
             None,
         );
 
@@ -160,23 +169,35 @@ impl Engine {
             height: 1,
             depth: 1,
         };
-        let white_texture_reference = renderer_resources.create_texture(
+        let (white_texture_reference, _) = renderer_resources.create_texture(
             None,
+            false,
             Format::R8G8B8A8Srgb,
             white_image_extent,
             ImageUsageFlags::Sampled | ImageUsageFlags::TransferDst,
             false,
         );
+        renderer_resources.fallback_texture_reference = white_texture_reference;
 
         let white_image_pixels = [Self::pack_unorm_4x8(Vec4::new(1.0, 1.0, 1.0, 1.0))];
         vulkan_context.transfer_data_to_image(
+            &mut renderer_resources,
             white_texture_reference,
             white_image_pixels.as_ptr() as *const _,
-            &mut renderer_resources.resources_pool.memory_bucket,
             &render_context.upload_context,
             None,
-            None,
         );
+
+        let descriptor_white_image = DescriptorKind::SampledImage(DescriptorSampledImage {
+            image_view: renderer_resources
+                .get_image(white_texture_reference)
+                .unwrap()
+                .image_view,
+            index: white_texture_reference.index,
+        });
+        renderer_resources
+            .resources_descriptor_set_handle
+            .update_binding(device, allocator, descriptor_white_image);
 
         for frame_data_index in 0..render_context.frame_overlap {
             let frame_data = frames_data.wrapping_add(frame_data_index);
@@ -187,8 +208,9 @@ impl Engine {
                 depth: 1,
             };
 
-            let draw_texture_reference = renderer_resources.create_texture(
+            let (draw_texture_reference, _) = renderer_resources.create_texture(
                 None,
+                false,
                 Format::R16G16B16A16Sfloat,
                 draw_image_extent,
                 ImageUsageFlags::TransferSrc
@@ -197,8 +219,9 @@ impl Engine {
                 false,
             );
 
-            let depth_texture_reference = renderer_resources.create_texture(
+            let (depth_texture_reference, _) = renderer_resources.create_texture(
                 None,
+                false,
                 Format::D32Sfloat,
                 draw_image_extent,
                 ImageUsageFlags::DepthStencilAttachment,
@@ -206,7 +229,10 @@ impl Engine {
             );
 
             let descriptor_draw_image = DescriptorKind::StorageImage(DescriptorStorageImage {
-                image_view: draw_texture_reference.get_image().unwrap().image_view,
+                image_view: renderer_resources
+                    .get_image(draw_texture_reference)
+                    .unwrap()
+                    .image_view,
                 index: draw_texture_reference.index,
             });
             renderer_resources
@@ -274,29 +300,11 @@ impl Engine {
         renderer_resources.nearest_sampler_id =
             renderer_resources.insert_sampler(nearest_sampler_object);
 
-        let descriptor_checkerboard_image = DescriptorKind::SampledImage(DescriptorSampledImage {
-            image_view: checkerboard_texture_reference
-                .get_image()
-                .unwrap()
-                .image_view,
-            index: checkerboard_texture_reference.index,
-        });
-        let checkerboard_image_index = renderer_resources
-            .resources_descriptor_set_handle
-            .update_binding(device, allocator, descriptor_checkerboard_image);
-
-        let descriptor_white_image = DescriptorKind::SampledImage(DescriptorSampledImage {
-            image_view: white_texture_reference.get_image().unwrap().image_view,
-            index: checkerboard_texture_reference.index,
-        });
-        let white_image_index = renderer_resources
-            .resources_descriptor_set_handle
-            .update_binding(device, allocator, descriptor_white_image);
-
         let sampler_object = renderer_resources.get_sampler(renderer_resources.nearest_sampler_id);
         let sampler_descriptor = DescriptorKind::Sampler(DescriptorSampler {
             sampler: sampler_object.sampler,
         });
+
         let sampler_object_index = renderer_resources
             .resources_descriptor_set_handle
             .update_binding(device, allocator, sampler_descriptor);

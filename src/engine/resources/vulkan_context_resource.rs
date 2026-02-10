@@ -1,3 +1,4 @@
+use asset_importer::texture;
 use bevy_ecs::resource::Resource;
 use vma::Allocator;
 use vulkanite::vk::{
@@ -11,7 +12,7 @@ use vulkanite::vk::{
 
 use crate::engine::{
     resources::{
-        AllocatedImage, MemoryBucket, UploadContext,
+        MemoryBucket, RendererResources, UploadContext,
         textures_pool::{TextureMetadata, TextureReference},
     },
     utils::transition_image,
@@ -35,12 +36,11 @@ pub struct VulkanContextResource {
 impl VulkanContextResource {
     pub fn transfer_data_to_image(
         &self,
+        rendere_resources: &mut RendererResources,
         texture_reference: TextureReference,
         data_to_copy: *const std::ffi::c_void,
-        memory_bucket: &mut MemoryBucket,
         upload_context: &UploadContext,
         size: Option<usize>,
-        texture_metadata: Option<TextureMetadata>,
     ) {
         let command_buffer = upload_context.command_group.command_buffer;
 
@@ -51,29 +51,27 @@ impl VulkanContextResource {
 
         command_buffer.begin(&command_buffer_begin_info).unwrap();
 
-        let allocated_image = texture_reference.get_image().unwrap();
-
-        let image_extent = allocated_image.extent;
+        let texture_metadata = texture_reference.texture_metadata;
         let size = match size {
             Some(size) => size,
-            None => (image_extent.depth * image_extent.width * image_extent.height * 8) as usize,
+            None => (1 * texture_metadata.width * texture_metadata.height * 8) as usize,
         };
 
-        let staging_buffer_reference =
-            unsafe { &*(memory_bucket.get_staging_buffer_reference() as *const _) };
+        let staging_buffer_reference = unsafe {
+            &*(rendere_resources
+                .resources_pool
+                .memory_bucket
+                .get_staging_buffer_reference() as *const _)
+        };
         unsafe {
-            memory_bucket.transfer_data_to_buffer_raw(
-                staging_buffer_reference,
-                data_to_copy,
-                size as _,
-            );
+            rendere_resources
+                .resources_pool
+                .memory_bucket
+                .transfer_data_to_buffer_raw(staging_buffer_reference, data_to_copy, size as _);
         }
 
-        let mip_map_level_count = if let Some(texture_metadata) = texture_metadata {
-            texture_metadata.mip_levels_count
-        } else {
-            1
-        };
+        // TODO: TEMP HACK FOR HAPPY BORROW CHECKER
+        let allocated_image = rendere_resources.get_image(texture_reference).unwrap();
 
         transition_image(
             command_buffer,
@@ -85,77 +83,61 @@ impl VulkanContextResource {
             AccessFlags2::None,
             AccessFlags2::TransferWrite,
             allocated_image.subresource_range.aspect_mask,
-            Some(mip_map_level_count),
+            texture_metadata.mip_levels_count,
         );
 
-        let buffer_image_copy = if let Some(texture_metadata) = texture_metadata {
-            let mut current_buffer_offset = 0;
+        let mut current_buffer_offset = 0;
 
-            let mut mip_width = image_extent.width;
-            let mut mip_height = image_extent.height;
-            let mut mip_depth = image_extent.depth;
+        let mut mip_width = texture_metadata.width;
+        let mut mip_height = texture_metadata.height;
+        let mut mip_depth = 1;
 
-            let mut buffer_image_copies = vec![];
-            for mip_map_level_index in 0..texture_metadata.mip_levels_count {
-                let buffer_image_copy = BufferImageCopy {
-                    buffer_offset: current_buffer_offset,
-                    image_subresource: ImageSubresourceLayers {
-                        aspect_mask: allocated_image.subresource_range.aspect_mask,
-                        mip_level: mip_map_level_index,
-                        base_array_layer: Default::default(),
-                        layer_count: 1,
-                    },
-                    image_extent: Extent3D {
-                        width: mip_width,
-                        height: mip_height,
-                        depth: mip_depth,
-                    },
-                    ..Default::default()
-                };
-                let blocks_wide = (mip_width + 3) / 4;
-                let blocks_high = (mip_height + 3) / 4;
-
-                let block_size_in_bytes = 8;
-
-                let current_mip_size =
-                    (blocks_wide * blocks_high) as u64 * block_size_in_bytes * mip_depth as u64;
-
-                current_buffer_offset += current_mip_size;
-
-                mip_width = (mip_width / 2).max(1);
-                mip_height = (mip_height / 2).max(1);
-                mip_depth = (mip_depth / 2).max(1);
-
-                buffer_image_copies.push(buffer_image_copy);
-            }
-
-            buffer_image_copies
-        } else {
-            vec![BufferImageCopy {
+        let mut buffer_image_copies = Vec::with_capacity(texture_metadata.mip_levels_count as _);
+        for mip_map_level_index in 0..texture_metadata.mip_levels_count {
+            let buffer_image_copy = BufferImageCopy {
+                buffer_offset: current_buffer_offset,
                 image_subresource: ImageSubresourceLayers {
                     aspect_mask: allocated_image.subresource_range.aspect_mask,
-                    mip_level: Default::default(),
+                    mip_level: mip_map_level_index,
                     base_array_layer: Default::default(),
                     layer_count: 1,
                 },
-                image_extent,
+                image_extent: Extent3D {
+                    width: mip_width,
+                    height: mip_height,
+                    depth: mip_depth,
+                },
                 ..Default::default()
-            }]
-        };
+            };
+            let blocks_wide = (mip_width + 3) / 4;
+            let blocks_high = (mip_height + 3) / 4;
+
+            let block_size_in_bytes = 8;
+
+            let current_mip_size =
+                (blocks_wide * blocks_high) as u64 * block_size_in_bytes * mip_depth as u64;
+
+            current_buffer_offset += current_mip_size;
+
+            mip_width = (mip_width / 2).max(1);
+            mip_height = (mip_height / 2).max(1);
+            mip_depth = (mip_depth / 2).max(1);
+
+            buffer_image_copies.push(buffer_image_copy);
+        }
 
         upload_context
             .command_group
             .command_buffer
             .copy_buffer_to_image(
-                memory_bucket
-                    .get_staging_buffer_reference()
+                staging_buffer_reference
                     .get_buffer()
                     .as_ref()
                     .unwrap()
                     .buffer,
                 allocated_image.image,
                 ImageLayout::General,
-                &buffer_image_copy,
+                &buffer_image_copies,
             );
 
         transition_image(
@@ -168,7 +150,7 @@ impl VulkanContextResource {
             AccessFlags2::TransferWrite,
             AccessFlags2::ShaderSampledRead,
             allocated_image.subresource_range.aspect_mask,
-            Some(mip_map_level_count),
+            texture_metadata.mip_levels_count,
         );
 
         command_buffer.end().unwrap();

@@ -1,3 +1,5 @@
+use std::sync::OnceLock;
+
 use bytemuck::{Pod, Zeroable};
 use fast_image_resize::{PixelType, images::Image};
 use ktx2_rw::{BasisCompressionParams, Ktx2Texture};
@@ -7,11 +9,7 @@ use vulkanite::{
     vk::{rs::*, *},
 };
 
-use crate::engine::{
-    id::Id,
-    resources::{MemoryBucket, UploadContext},
-    utils::transition_image,
-};
+use crate::engine::id::Id;
 
 #[repr(C)]
 #[derive(Default, Clone, Copy, Pod, Zeroable)]
@@ -22,12 +20,11 @@ pub struct TextureMetadata {
 }
 
 pub struct AllocatedImage {
-    pub id: Id,
-    pub index: usize,
     pub image: vulkanite::vk::rs::Image,
     pub image_view: vulkanite::vk::rs::ImageView,
     pub allocation: Allocation,
     pub extent: Extent3D,
+    pub image_aspect_flags: ImageAspectFlags,
     pub format: Format,
     pub subresource_range: ImageSubresourceRange,
     pub texture_metadata: TextureMetadata,
@@ -38,31 +35,15 @@ pub struct TextureReference {
     pub index: usize,
     pub generation: usize,
     pub texture_metadata: TextureMetadata,
-    /// SAFETY: We assume that TexturePool is NEVER moved, otherwise pointer will point to the garbage memory and this is UB.
-    /// In future, this should be revised and remade in more robust and acceptable way for multi-threading scenarios.
-    ptr_texture_pool_address: usize,
 }
 
 impl TextureReference {
-    pub fn new(
-        index: usize,
-        generation: usize,
-        texture_metadata: TextureMetadata,
-        ptr_texture_pool: *const TexturesPool,
-    ) -> Self {
+    pub fn new(index: usize, generation: usize, texture_metadata: TextureMetadata) -> Self {
         Self {
             index,
             generation,
             texture_metadata,
-            ptr_texture_pool_address: ptr_texture_pool as usize,
         }
-    }
-
-    #[inline(always)]
-    pub fn get_image<'a>(&'a self) -> Option<&'a AllocatedImage> {
-        let ptr_texture_pool = self.ptr_texture_pool_address as *const TexturesPool;
-
-        unsafe { (*ptr_texture_pool).get_image(*self) }
     }
 
     #[inline(always)]
@@ -102,6 +83,7 @@ impl TexturesPool {
     pub fn create_texture(
         &mut self,
         data: Option<&mut [u8]>,
+        is_cached: bool,
         format: Format,
         extent: Extent3D,
         usage_flags: ImageUsageFlags,
@@ -113,12 +95,12 @@ impl TexturesPool {
         }
 
         let mip_levels_count = if mip_map_enabled {
-            1
-        } else {
             f32::max(extent.width as _, extent.height as _)
                 .log2()
                 .floor() as u32
                 + 1
+        } else {
+            1
         };
 
         let texture_metadata = TextureMetadata {
@@ -128,9 +110,16 @@ impl TexturesPool {
         };
 
         let mut ktx_texture = None;
-        if Self::is_raw_image_format(format)
+        if Self::is_compressed_image_format(format)
+            // TODO: Make it more flexible and less error prone.
+            && !is_cached
             && let Some(data) = data
         {
+            let target_ktx_format = match format {
+                Format::Bc3SrgbBlock | Format::Bc1RgbSrgbBlock => ktx2_rw::VkFormat::R8G8B8A8Srgb,
+                _ => panic!("Unsupported KTX format: {:?}!", format),
+            };
+
             let mut texture = Ktx2Texture::create(
                 texture_metadata.width,
                 texture_metadata.height,
@@ -138,7 +127,7 @@ impl TexturesPool {
                 1,
                 1,
                 mip_levels_count,
-                ktx2_rw::VkFormat::from_raw(format as _).unwrap(),
+                target_ktx_format,
             )
             .unwrap();
 
@@ -154,10 +143,10 @@ impl TexturesPool {
                     texture_metadata.width,
                     texture_metadata.height,
                     data,
-                    PixelType::U8x3,
+                    PixelType::U8x4,
                 )
                 .unwrap(),
-                _ => panic!("Unsupported format!"),
+                _ => panic!("Unsupported Image format: {:?}!", format),
             };
 
             // TODO: We can effectively pre-allocate required total size of texture_data
@@ -179,7 +168,7 @@ impl TexturesPool {
 
                 resizer.resize(&src_image, &mut dst_image, None).unwrap();
 
-                let image_bytes = src_image.buffer();
+                let image_bytes = dst_image.buffer();
 
                 texture
                     .set_image_data(mip_level_index, 0, 0, image_bytes)
@@ -246,13 +235,12 @@ impl TexturesPool {
             .unwrap();
 
         let allocated_image = AllocatedImage {
-            id: Id::new(image.as_raw()),
-            index: usize::MIN,
             image,
             image_view,
             allocation,
             extent,
             format,
+            image_aspect_flags: aspect_flags,
             subresource_range: image_view_create_info.subresource_range,
             texture_metadata: TextureMetadata {
                 width: extent.width,
@@ -276,24 +264,26 @@ impl TexturesPool {
             index: free_index,
             generation: texture_slot.generation,
             texture_metadata: texture_metadata,
-            ptr_texture_pool_address: self as *const _,
         }
     }
 
-    fn is_raw_image_format(format: Format) -> bool {
+    fn is_compressed_image_format(format: Format) -> bool {
         match format {
             Format::Bc1RgbSrgbBlock
             | Format::Bc3SrgbBlock
             | Format::Bc4SnormBlock
             | Format::Bc5SnormBlock
             | Format::Bc6HSfloatBlock
-            | Format::Bc7SrgbBlock => false,
-            _ => true,
+            | Format::Bc7SrgbBlock => true,
+            _ => false,
         }
     }
 
     #[inline(always)]
-    fn get_image<'a>(&'a self, texture_reference: TextureReference) -> Option<&'a AllocatedImage> {
+    pub fn get_image<'a>(
+        &'a self,
+        texture_reference: TextureReference,
+    ) -> Option<&'a AllocatedImage> {
         let mut allocated_image = None;
 
         let slot = unsafe { self.slots.get(texture_reference.index).unwrap_unchecked() };
@@ -350,5 +340,18 @@ impl TexturesPool {
         image_view_create_info = image_view_create_info.image(image);
 
         image_view_create_info
+    }
+
+    pub fn free_allocations(&mut self) {
+        self.slots.iter_mut().for_each(|slot| {
+            if let Some(allocated_image) = &mut slot.image {
+                unsafe {
+                    self.device
+                        .destroy_image_view(Some(allocated_image.image_view));
+                    self.allocator
+                        .destroy_image(*allocated_image.image, &mut allocated_image.allocation);
+                }
+            }
+        });
     }
 }

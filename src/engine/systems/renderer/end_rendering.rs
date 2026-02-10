@@ -1,17 +1,23 @@
 use bevy_ecs::system::Res;
 
 use crate::engine::{
-    resources::{FrameContext, RendererContext},
+    resources::{FrameContext, RendererContext, RendererResources},
     utils::{copy_image_to_image, transition_image},
 };
 use vulkanite::vk::*;
 
-pub fn end_rendering(renderer_context: Res<RendererContext>, frame_context: Res<FrameContext>) {
+pub fn end_rendering(
+    renderer_context: Res<RendererContext>,
+    renderer_resources: Res<RendererResources>,
+    frame_context: Res<FrameContext>,
+) {
     let command_buffer = frame_context.command_buffer.unwrap();
 
     let swapchain_image = renderer_context.images[frame_context.swapchain_image_index as usize];
 
-    let draw_image = frame_context.draw_texture_reference.get_image().unwrap();
+    let draw_image = renderer_resources
+        .get_image(frame_context.draw_texture_reference)
+        .unwrap();
 
     let draw_image_extent3d = draw_image.extent;
     let draw_image_extent2d = Extent2D {
@@ -30,8 +36,11 @@ pub fn end_rendering(renderer_context: Res<RendererContext>, frame_context: Res<
         PipelineStageFlags2::Blit,
         AccessFlags2::ColorAttachmentWrite,
         AccessFlags2::TransferRead,
-        ImageAspectFlags::Color,
-        None,
+        draw_image.image_aspect_flags,
+        frame_context
+            .draw_texture_reference
+            .texture_metadata
+            .mip_levels_count,
     );
 
     transition_image(
@@ -44,7 +53,7 @@ pub fn end_rendering(renderer_context: Res<RendererContext>, frame_context: Res<
         AccessFlags2::None,
         AccessFlags2::TransferWrite,
         ImageAspectFlags::Color,
-        None,
+        1,
     );
 
     copy_image_to_image(
@@ -65,7 +74,7 @@ pub fn end_rendering(renderer_context: Res<RendererContext>, frame_context: Res<
         AccessFlags2::TransferWrite,
         AccessFlags2::None,
         ImageAspectFlags::Color,
-        None,
+        1,
     );
 
     command_buffer.end().unwrap();

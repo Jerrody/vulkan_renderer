@@ -1,7 +1,7 @@
 use asset_importer::{Matrix4x4, Texture, node::Node};
 use bytemuck::{Pod, Zeroable};
 use fast_image_resize::IntoImageView;
-use image::ImageReader;
+use image::{EncodableLayout, ImageReader};
 use ktx2_rw::{BasisCompressionParams, Ktx2Texture, VkFormat};
 use nameof::{name_of, name_of_type};
 use std::{
@@ -172,7 +172,7 @@ pub fn on_load_model(
     let mut mesh_buffers_to_upload = Vec::with_capacity(scene.num_meshes());
     let mut uploaded_mesh_buffers: HashMap<usize, (asset_importer::mesh::Mesh, Id)> =
         HashMap::with_capacity(scene.num_meshes());
-    let mut uploaded_textures: HashMap<usize, Id> =
+    let mut uploaded_textures: HashMap<usize, TextureReference> =
         HashMap::with_capacity(uploaded_mesh_buffers.capacity());
     let uploaded_materials: HashMap<usize, Id> = HashMap::with_capacity(scene.num_materials());
 
@@ -225,14 +225,11 @@ pub fn on_load_model(
 
                     let metallic_value = material.metallic_factor().unwrap_or(0.0);
                     let roughness_value = material.roughness_factor().unwrap_or(0.0);
-                    let albedo_texture_index =
-                        renderer_resources.get_texture_ref(texture_reference).index;
-                    let metallic_texture_index = renderer_resources
-                        .get_texture_ref(renderer_resources.default_texture_reference)
-                        .index;
-                    let roughness_texture_index = renderer_resources
-                        .get_texture_ref(renderer_resources.default_texture_reference)
-                        .index;
+                    let albedo_texture_index = texture_reference.index;
+                    let metallic_texture_index =
+                        renderer_resources.fallback_texture_reference.index;
+                    let roughness_texture_index =
+                        renderer_resources.fallback_texture_reference.index;
 
                     let material_data = MaterialData {
                         material_properties: MaterialProperties::new(
@@ -496,9 +493,9 @@ fn try_upload_texture(
     renderer_context: &RendererContext,
     renderer_resources: &mut RendererResources,
     scene: &asset_importer::Scene,
-    uploaded_textures: &mut HashMap<usize, Id>,
+    uploaded_textures: &mut HashMap<usize, TextureReference>,
     material: asset_importer::Material,
-    texture_id: &mut Id,
+    texture_reference_to_use: &mut TextureReference,
     model_name: &str,
 ) {
     if material.texture_count(asset_importer::TextureType::BaseColor) > Default::default() {
@@ -508,40 +505,35 @@ fn try_upload_texture(
         let texture_index = texture_info.path[1..].parse::<usize>().unwrap();
 
         if uploaded_textures.contains_key(&texture_index) {
-            *texture_id = *uploaded_textures.get(&texture_index).unwrap();
+            *texture_reference_to_use = *uploaded_textures.get(&texture_index).unwrap();
         } else {
             let texture = scene.texture(texture_index).unwrap();
             let texture_name = texture
                 .filename()
                 .unwrap_or(std::format!("{model_name}_texture_{texture_index}"));
 
-            let (texture_data, texture_metadata) =
-                try_to_load_cached_texture(model_name, texture.clone(), &texture_name);
-
-            let allocated_texture = renderer_resources.create_texture(
-                Format::Bc1RgbSrgbBlock,
-                Extent3D {
-                    width: texture_metadata.width,
-                    height: texture_metadata.height,
-                    depth: 1,
-                },
-                ImageUsageFlags::Sampled | ImageUsageFlags::TransferDst,
-                Some(texture_metadata.mip_levels_count),
+            let (texture_reference, texture_data) = try_to_load_cached_texture(
+                renderer_resources,
+                model_name,
+                texture.clone(),
+                &texture_name,
             );
+            *texture_reference_to_use = texture_reference;
+
             vulkan_context.transfer_data_to_image(
-                &allocated_texture,
+                renderer_resources,
+                texture_reference,
                 texture_data.as_ptr() as *const _,
-                &mut renderer_resources.resources_pool.memory_bucket,
                 &renderer_context.upload_context,
                 Some(texture_data.len()),
-                Some(texture_metadata),
             );
 
-            *texture_id = renderer_resources.insert_texture(allocated_texture);
-
-            let texture_ref = renderer_resources.get_texture_ref(*texture_id);
             let descriptor_texture = DescriptorKind::SampledImage(DescriptorSampledImage {
-                image_view: texture_ref.image_view,
+                image_view: renderer_resources
+                    .get_image(texture_reference)
+                    .unwrap()
+                    .image_view,
+                index: texture_reference.index,
             });
             let texture_resource_index = renderer_resources
                 .resources_descriptor_set_handle
@@ -550,8 +542,8 @@ fn try_upload_texture(
                     &vulkan_context.allocator,
                     descriptor_texture,
                 );
-            renderer_resources.get_texture_ref_mut(*texture_id).index =
-                texture_resource_index.unwrap();
+
+            let texture_metadata = texture_reference.texture_metadata;
             println!(
                 "Name: {} | Index: {} | Extent: {}x{}x{}",
                 texture_name,
@@ -561,16 +553,17 @@ fn try_upload_texture(
                 1,
             );
 
-            uploaded_textures.insert(texture_index, *texture_id);
+            uploaded_textures.insert(texture_index, *&texture_reference);
         }
     }
 }
 
 fn try_to_load_cached_texture(
+    renderer_resources: &mut RendererResources,
     model_name: &str,
     texture: asset_importer::Texture,
     texture_name: &str,
-) -> (Vec<u8>, TextureMetadata) {
+) -> (TextureReference, Vec<u8>) {
     let mut path = std::path::PathBuf::from("intermediate/textures/");
     path.push(model_name);
     std::fs::create_dir_all(&path).unwrap();
@@ -578,26 +571,74 @@ fn try_to_load_cached_texture(
     path.push(String::from_str(texture_name).unwrap());
     let does_exist = std::fs::exists(&path).unwrap();
 
-    let texture_metadata: TextureMetadata;
+    let texture_reference: TextureReference;
     let mut texture_data: Vec<u8> = Vec::new();
+
     if does_exist {
         let texture = Ktx2Texture::from_file(&path).unwrap();
         let texture_metadata_raw: Vec<u8> =
             texture.get_metadata(stringify!(TextureMetadata)).unwrap();
-        texture_metadata = *bytemuck::from_bytes::<TextureMetadata>(&texture_metadata_raw);
+        let texture_metadata = *bytemuck::from_bytes::<TextureMetadata>(&texture_metadata_raw);
 
         for mip_level_index in 0..texture_metadata.mip_levels_count {
             texture_data.extend_from_slice(texture.get_image_data(mip_level_index, 0, 0).unwrap());
         }
-    } else {
-        let data = texture.data_bytes_ref().unwrap();
 
-        //let (texture_reference, ktx_texture) = renderer_
+        let extent = Extent3D {
+            width: texture_metadata.width,
+            height: texture_metadata.height,
+            depth: 1,
+        };
+
+        let (created_texture_reference, _) = renderer_resources.create_texture(
+            Some(&mut texture_data),
+            true,
+            Format::Bc1RgbSrgbBlock,
+            extent,
+            ImageUsageFlags::Sampled | ImageUsageFlags::TransferDst,
+            true,
+        );
+
+        texture_reference = created_texture_reference;
+    } else {
+        let mut data = texture.data_bytes_ref().unwrap();
+
+        let cursor = Cursor::new(&mut data);
+
+        let image = ImageReader::new(cursor)
+            .with_guessed_format()
+            .unwrap()
+            .decode()
+            .unwrap();
+
+        let extent = Extent3D {
+            width: image.width(),
+            height: image.height(),
+            depth: 1,
+        };
+        let rgba_image = image.to_rgba8();
+        let mut image_bytes = rgba_image.as_bytes().to_vec();
+
+        let (created_texture_reference, ktx_texture) = renderer_resources.create_texture(
+            Some(&mut image_bytes),
+            false,
+            Format::Bc1RgbSrgbBlock,
+            extent,
+            ImageUsageFlags::Sampled | ImageUsageFlags::TransferDst,
+            true,
+        );
+        texture_reference = created_texture_reference;
+
+        let ktx_texture = ktx_texture.unwrap();
+        for mip_level_index in 0..created_texture_reference.texture_metadata.mip_levels_count {
+            texture_data
+                .extend_from_slice(ktx_texture.get_image_data(mip_level_index, 0, 0).unwrap());
+        }
 
         ktx_texture.write_to_file(path).unwrap();
     }
 
-    (texture_data, texture_metadata)
+    (texture_reference, texture_data)
 }
 
 fn get_mesh_indices(node: &Node, num_meshes: usize) -> Vec<usize> {
