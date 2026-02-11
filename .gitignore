@@ -4,6 +4,7 @@ debug
 target
 intermediate
 shaders/_outputs
+profile*
 
 .cargo
 rust-toolchain.toml
