@@ -1,11 +1,8 @@
 use std::{
-    collections::HashMap,
     ffi::{CString, c_void},
     str::FromStr as _,
-    sync::{Arc, Weak},
 };
 
-use image::buffer;
 use vma::{
     Alloc as _, Allocation, AllocationCreateFlags, AllocationCreateInfo, Allocator, MemoryUsage,
 };

@@ -5,7 +5,6 @@ use vulkanite::vk::{rs::*, *};
 
 use crate::engine::{
     descriptors::*,
-    id::Id,
     resources::buffers_pool::{AllocatedBuffer, BufferInfo, BufferVisibility},
     utils::get_device_address,
 };
