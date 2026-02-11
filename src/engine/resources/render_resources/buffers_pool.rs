@@ -25,7 +25,6 @@ pub enum BufferVisibility {
 }
 
 pub struct AllocatedBuffer {
-    pub id: Id,
     pub buffer: Buffer,
     pub allocation: Allocation,
     pub buffer_info: BufferInfo,
@@ -203,7 +202,6 @@ impl BuffersPool {
 
         let buffer_info = BufferInfo::new(device_address, allocation_size as _, buffer_visibility);
         let allocated_buffer = AllocatedBuffer {
-            id: Id::new(device_address),
             buffer,
             allocation,
             buffer_info,

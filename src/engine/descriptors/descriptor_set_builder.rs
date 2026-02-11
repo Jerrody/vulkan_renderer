@@ -185,7 +185,6 @@ impl<'a> DescriptorSetBuilder<'a> {
 
         let buffer_device_address = get_device_address(device, &descriptor_buffer);
         AllocatedBuffer {
-            id: Id::new(buffer_device_address),
             buffer: descriptor_buffer,
             allocation,
             buffer_info: BufferInfo::new(
