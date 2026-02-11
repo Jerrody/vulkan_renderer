@@ -242,27 +242,16 @@ impl MaterialsPool {
 }
 
 pub struct ResourcesPool {
-    pub buffers_pool: BuffersPool,
     pub mesh_buffers: Vec<MeshBuffer>,
-    pub textures_pool: TexturesPool,
-    pub samplers_pool: SamplersPool,
     pub instances_buffer: Option<SwappableBuffer>,
     pub scene_data_buffer: Option<SwappableBuffer>,
     materials_pool: MaterialsPool,
 }
 
 impl ResourcesPool {
-    pub fn new(
-        device: Device,
-        allocator: Allocator,
-        upload_command_group: CommandGroup,
-        transfer_queue: Queue,
-    ) -> Self {
+    pub fn new() -> Self {
         Self {
-            buffers_pool: BuffersPool::new(device, allocator, upload_command_group, transfer_queue),
             mesh_buffers: Default::default(),
-            textures_pool: TexturesPool::new(device, allocator),
-            samplers_pool: SamplersPool::new(device),
             instances_buffer: Default::default(),
             scene_data_buffer: Default::default(),
             materials_pool: Default::default(),
@@ -287,12 +276,6 @@ pub struct RendererResources {
 }
 
 impl<'a> RendererResources {
-    pub fn get_buffer(&'a self, buffer_reference: BufferReference) -> Option<&'a AllocatedBuffer> {
-        self.resources_pool
-            .buffers_pool
-            .get_buffer(buffer_reference)
-    }
-
     pub fn write_material(&mut self, data: &[u8], material_state: MaterialState) -> Id {
         self.resources_pool
             .materials_pool
@@ -339,33 +322,6 @@ impl<'a> RendererResources {
         self.resources_pool
             .materials_pool
             .get_material_info_device_address_by_id(material_label_id)
-    }
-
-    pub fn create_texture(
-        &mut self,
-        data: Option<&mut [u8]>,
-        is_cached: bool,
-        format: Format,
-        extent: Extent3D,
-        usage_flags: ImageUsageFlags,
-        mip_map_enabled: bool,
-    ) -> (TextureReference, Option<Ktx2Texture>) {
-        let (texture_reference, ktx_texture) = self.resources_pool.textures_pool.create_texture(
-            data,
-            is_cached,
-            format,
-            extent,
-            usage_flags,
-            mip_map_enabled,
-        );
-
-        (texture_reference, ktx_texture)
-    }
-
-    pub fn get_image(&'a self, texture_reference: TextureReference) -> Option<&'a AllocatedImage> {
-        self.resources_pool
-            .textures_pool
-            .get_image(texture_reference)
     }
 
     pub fn write_instance_object(

@@ -10,7 +10,11 @@ use vulkanite::vk::{
 };
 
 use crate::engine::{
-    resources::{RendererResources, UploadContext, textures_pool::TextureReference},
+    resources::{
+        RendererResources, UploadContext,
+        buffers_pool::Buffers,
+        textures_pool::{TextureReference, Textures},
+    },
     utils::transition_image,
 };
 
@@ -32,7 +36,8 @@ pub struct VulkanContextResource {
 impl VulkanContextResource {
     pub fn transfer_data_to_image(
         &self,
-        rendere_resources: &mut RendererResources,
+        textures: Textures,
+        buffers: Buffers,
         texture_reference: TextureReference,
         data_to_copy: *const std::ffi::c_void,
         upload_context: &UploadContext,
@@ -53,12 +58,8 @@ impl VulkanContextResource {
             None => (1 * texture_metadata.width * texture_metadata.height * 8) as usize,
         };
 
-        let staging_buffer_reference = unsafe {
-            &*(rendere_resources
-                .resources_pool
-                .buffers_pool
-                .get_staging_buffer_reference() as *const _)
-        };
+        let staging_buffer_reference =
+            unsafe { &*(buffers.get_staging_buffer_reference() as *const _) };
         unsafe {
             rendere_resources
                 .resources_pool
@@ -67,7 +68,7 @@ impl VulkanContextResource {
         }
 
         // TODO: TEMP HACK FOR HAPPY BORROW CHECKER
-        let allocated_image = rendere_resources.get_image(texture_reference).unwrap();
+        let allocated_image = textures.get(texture_reference).unwrap();
 
         transition_image(
             command_buffer,
@@ -126,10 +127,7 @@ impl VulkanContextResource {
             .command_group
             .command_buffer
             .copy_buffer_to_image(
-                rendere_resources
-                    .get_buffer(*staging_buffer_reference)
-                    .unwrap()
-                    .buffer,
+                buffers.get(*staging_buffer_reference).unwrap().buffer,
                 allocated_image.image,
                 ImageLayout::General,
                 &buffer_image_copies,

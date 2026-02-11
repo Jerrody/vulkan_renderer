@@ -3,12 +3,21 @@ use std::{
     str::FromStr as _,
 };
 
+use bevy_ecs::{
+    resource::Resource,
+    system::{Res, ResMut, SystemParam},
+};
 use vma::{
     Alloc as _, Allocation, AllocationCreateFlags, AllocationCreateInfo, Allocator, MemoryUsage,
 };
 use vulkanite::{
     Handle,
-    vk::{rs::*, *},
+    vk::{
+        BufferCopy, BufferCreateInfo, BufferDeviceAddressInfo, BufferUsageFlags,
+        CommandBufferBeginInfo, CommandBufferUsageFlags, CommandPoolResetFlags,
+        DebugUtilsObjectNameInfoEXT, DeviceAddress, DeviceSize, MemoryPropertyFlags, ObjectType,
+        SubmitInfo, rs::*,
+    },
 };
 
 use crate::engine::resources::CommandGroup;
@@ -55,6 +64,44 @@ impl BufferInfo {
     }
 }
 
+#[derive(SystemParam)]
+pub struct Buffers<'w> {
+    buffers_pool: Res<'w, BuffersPool>,
+}
+
+impl<'w> Buffers<'w> {
+    pub fn get(&'w self, buffer_reference: BufferReference) -> Option<&'w AllocatedBuffer> {
+        self.buffers_pool.get_buffer(buffer_reference)
+    }
+}
+
+#[derive(SystemParam)]
+pub struct BuffersMut<'w> {
+    buffers_pool: ResMut<'w, BuffersPool>,
+}
+
+impl<'w> BuffersMut<'w> {
+    pub fn get(&'w self, buffer_reference: BufferReference) -> Option<&'w AllocatedBuffer> {
+        self.buffers_pool.get_buffer(buffer_reference)
+    }
+
+    pub fn get_staging_buffer_reference(&self) -> BufferReference {
+        self.buffers_pool.get_staging_buffer_reference()
+    }
+
+    pub unsafe fn transfer_data_to_buffer_raw(
+        &mut self,
+        buffer_reference: BufferReference,
+        src: *const c_void,
+        size: usize,
+    ) {
+        unsafe {
+            self.buffers_pool
+                .transfer_data_to_buffer_raw(buffer_reference, src, size);
+        }
+    }
+}
+
 impl BufferReference {
     pub fn get_buffer<'a>(&'a self, buffers_pool: &'a BuffersPool) -> Option<&'a AllocatedBuffer> {
         buffers_pool.get_buffer(*self)
@@ -72,6 +119,7 @@ struct BufferSlot {
     pub generation: usize,
 }
 
+#[derive(Resource)]
 pub struct BuffersPool {
     device: Device,
     allocator: Allocator,
@@ -268,13 +316,13 @@ impl BuffersPool {
         }
     }
 
-    pub fn get_staging_buffer_reference<'a>(&self) -> &BufferReference {
-        &self.staging_buffer_reference
+    pub fn get_staging_buffer_reference<'a>(&self) -> BufferReference {
+        self.staging_buffer_reference
     }
 
     pub unsafe fn transfer_data_to_buffer_raw(
         &mut self,
-        buffer_reference: &BufferReference,
+        buffer_reference: BufferReference,
         src: *const c_void,
         size: usize,
     ) {

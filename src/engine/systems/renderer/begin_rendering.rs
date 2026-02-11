@@ -8,13 +8,17 @@ use vulkanite::{
 };
 
 use crate::engine::{
-    resources::{FrameContext, GraphicsPushConstant, RendererContext, RendererResources},
+    resources::{
+        FrameContext, GraphicsPushConstant, RendererContext, RendererResources,
+        textures_pool::Textures,
+    },
     utils::{self, transition_image},
 };
 
 pub fn begin_rendering(
     render_context: Res<RendererContext>,
     renderer_resources: Res<RendererResources>,
+    textures: Textures,
     mut frame_context: ResMut<FrameContext>,
 ) {
     let frame_data = render_context.get_current_frame_data();
@@ -29,13 +33,9 @@ pub fn begin_rendering(
 
     command_buffer.begin(&command_buffer_begin_info).unwrap();
 
-    let draw_image = renderer_resources
-        .get_image(frame_context.draw_texture_reference)
-        .unwrap();
+    let draw_image = textures.get(frame_context.draw_texture_reference).unwrap();
 
-    let depth_image = renderer_resources
-        .get_image(frame_context.depth_texture_reference)
-        .unwrap();
+    let depth_image = textures.get(frame_context.depth_texture_reference).unwrap();
 
     transition_image(
         command_buffer,

@@ -9,8 +9,10 @@ use crate::engine::{
         DescriptorSetHandle, DescriptorStorageImage,
     },
     resources::{
-        buffers_pool::{BufferReference, BufferVisibility},
+        buffers_pool::{BufferReference, BufferVisibility, BuffersPool},
         model_loader::ModelLoader,
+        samplers_pool::SamplersPool,
+        textures_pool::TexturesPool,
         *,
     },
     utils::*,
@@ -84,18 +86,19 @@ impl Engine {
         let model_loader = ModelLoader::new();
 
         let upload_command_group = render_context.upload_context.command_group;
-        let mut resources_pool = ResourcesPool::new(
+        let resources_pool = ResourcesPool::new();
+
+        let mut buffers_pool = BuffersPool::new(
             device,
             vulkan_context.allocator,
             upload_command_group,
             vulkan_context.transfer_queue,
         );
+        let mut textures_pool = TexturesPool::new(device, vulkan_context.allocator);
+        let mut samplers_pool = SamplersPool::new(device);
 
-        let default_sampler_reference = resources_pool.samplers_pool.create_sampler(
-            Filter::Linear,
-            SamplerAddressMode::Repeat,
-            true,
-        );
+        let default_sampler_reference =
+            samplers_pool.create_sampler(Filter::Linear, SamplerAddressMode::Repeat, true);
 
         let mut renderer_resources = RendererResources {
             fallback_texture_reference: Default::default(),
@@ -130,7 +133,7 @@ impl Engine {
             height: 16,
             depth: 1,
         };
-        let (checkerboard_texture_reference, _) = renderer_resources.create_texture(
+        let (checkerboard_texture_reference, _) = textures_pool.create_texture(
             None,
             false,
             Format::R8G8B8A8Unorm,
@@ -141,7 +144,7 @@ impl Engine {
 
         renderer_resources.default_texture_reference = checkerboard_texture_reference;
         let descriptor_checkerboard_image = DescriptorKind::SampledImage(DescriptorSampledImage {
-            image_view: renderer_resources
+            image_view: textures_pool
                 .get_image(checkerboard_texture_reference)
                 .unwrap()
                 .image_view,
@@ -164,7 +167,7 @@ impl Engine {
             height: 1,
             depth: 1,
         };
-        let (white_texture_reference, _) = renderer_resources.create_texture(
+        let (white_texture_reference, _) = textures_pool.create_texture(
             None,
             false,
             Format::R8G8B8A8Srgb,
@@ -184,7 +187,7 @@ impl Engine {
         );
 
         let descriptor_white_image = DescriptorKind::SampledImage(DescriptorSampledImage {
-            image_view: renderer_resources
+            image_view: textures_pool
                 .get_image(white_texture_reference)
                 .unwrap()
                 .image_view,
@@ -203,7 +206,7 @@ impl Engine {
                 depth: 1,
             };
 
-            let (draw_texture_reference, _) = renderer_resources.create_texture(
+            let (draw_texture_reference, _) = textures_pool.create_texture(
                 None,
                 false,
                 Format::R16G16B16A16Sfloat,
@@ -214,7 +217,7 @@ impl Engine {
                 false,
             );
 
-            let (depth_texture_reference, _) = renderer_resources.create_texture(
+            let (depth_texture_reference, _) = textures_pool.create_texture(
                 None,
                 false,
                 Format::D32Sfloat,
@@ -224,7 +227,7 @@ impl Engine {
             );
 
             let descriptor_draw_image = DescriptorKind::StorageImage(DescriptorStorageImage {
-                image_view: renderer_resources
+                image_view: textures_pool
                     .get_image(draw_texture_reference)
                     .unwrap()
                     .image_view,
@@ -240,8 +243,7 @@ impl Engine {
             }
         }
 
-        let memory_bucket = &mut renderer_resources.resources_pool.buffers_pool;
-        let materials_data_buffer_reference = memory_bucket.create_buffer(
+        let materials_data_buffer_reference = buffers_pool.create_buffer(
             1024 * 1024 * 64,
             BufferUsageFlags::ShaderDeviceAddress | BufferUsageFlags::TransferDst,
             BufferVisibility::HostVisible,
@@ -249,7 +251,7 @@ impl Engine {
         );
         let mut instance_objects_buffers = Vec::with_capacity(render_context.frame_overlap);
         for instances_objects_buffer_index in 0..instance_objects_buffers.capacity() {
-            let instance_objects_buffer_reference = memory_bucket.create_buffer(
+            let instance_objects_buffer_reference = buffers_pool.create_buffer(
                 std::mem::size_of::<InstanceObject>() * 4096,
                 BufferUsageFlags::ShaderDeviceAddress | BufferUsageFlags::TransferDst,
                 BufferVisibility::HostVisible,
@@ -267,7 +269,7 @@ impl Engine {
 
         let mut scene_data_buffers = Vec::with_capacity(render_context.frame_overlap);
         for scene_data_buffer_index in 0..scene_data_buffers.capacity() {
-            let scene_data_buffer_reference = memory_bucket.create_buffer(
+            let scene_data_buffer_reference = buffers_pool.create_buffer(
                 std::mem::size_of::<SceneData>(),
                 BufferUsageFlags::ShaderDeviceAddress | BufferUsageFlags::TransferDst,
                 BufferVisibility::HostVisible,
@@ -277,7 +279,7 @@ impl Engine {
             scene_data_buffers.push(scene_data_buffer_reference);
         }
 
-        let mesh_objects_buffer_reference = memory_bucket.create_buffer(
+        let mesh_objects_buffer_reference = buffers_pool.create_buffer(
             std::mem::size_of::<MeshObject>() * 8192,
             BufferUsageFlags::ShaderDeviceAddress | BufferUsageFlags::TransferDst,
             BufferVisibility::DeviceOnly,
@@ -294,7 +296,7 @@ impl Engine {
 
         let sampler = renderer_resources
             .default_sampler_reference
-            .get_sampler(&renderer_resources.resources_pool.samplers_pool)
+            .get_sampler(&samplers_pool)
             .unwrap();
         let sampler_descriptor = DescriptorKind::Sampler(DescriptorSampler {
             sampler: sampler,
@@ -304,6 +306,10 @@ impl Engine {
         renderer_resources
             .resources_descriptor_set_handle
             .update_binding(device, allocator, sampler_descriptor);
+
+        world.insert_resource(buffers_pool);
+        world.insert_resource(samplers_pool);
+        world.insert_resource(textures_pool);
 
         renderer_resources
     }

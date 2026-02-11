@@ -21,7 +21,9 @@ use crate::engine::{
     events::LoadModelEvent,
     resources::{
         FrameContext, RendererContext, RendererResources, VulkanContextResource,
-        buffers_pool::AllocatedBuffer,
+        buffers_pool::{AllocatedBuffer, BuffersPool},
+        samplers_pool::SamplersPool,
+        textures_pool::TexturesPool,
     },
     systems::{
         begin_rendering, collect_instance_objects, end_rendering,
@@ -133,6 +135,9 @@ impl Drop for Engine {
             .remove_resource::<VulkanContextResource>()
             .unwrap();
         let render_context_resource = self.world.remove_resource::<RendererContext>().unwrap();
+        let mut buffers_pool = self.world.remove_resource::<BuffersPool>().unwrap();
+        let mut textures_pool = self.world.remove_resource::<TexturesPool>().unwrap();
+        let mut samplers_pool = self.world.remove_resource::<SamplersPool>().unwrap();
         let mut renderer_resources = self.world.remove_resource::<RendererResources>().unwrap();
 
         let device = vulkan_context_resource.device;
@@ -156,18 +161,9 @@ impl Drop for Engine {
                     .descriptor_set_layout,
             ));
 
-            renderer_resources
-                .resources_pool
-                .buffers_pool
-                .free_allocations();
-            renderer_resources
-                .resources_pool
-                .textures_pool
-                .free_allocations();
-            renderer_resources
-                .resources_pool
-                .samplers_pool
-                .destroy_samplers();
+            buffers_pool.free_allocations();
+            textures_pool.free_allocations();
+            samplers_pool.destroy_samplers();
 
             vulkan_context_resource.allocator.drop();
 

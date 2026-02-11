@@ -1,4 +1,22 @@
-use vulkanite::vk::{rs::*, *};
+use bevy_ecs::{
+    resource::Resource,
+    system::{Res, SystemParam},
+};
+use vulkanite::vk::{
+    CompareOp, Filter, LOD_CLAMP_NONE, SamplerAddressMode, SamplerCreateInfo, SamplerMipmapMode,
+    rs::{Device, Sampler},
+};
+
+#[derive(SystemParam)]
+pub struct Samplers<'w> {
+    samplers_pool: Res<'w, SamplersPool>,
+}
+
+impl<'w> Samplers<'w> {
+    pub fn get(&self, sampler_reference: SamplerReference) -> Option<Sampler> {
+        self.samplers_pool.get_sampler(sampler_reference)
+    }
+}
 
 #[derive(Default, Clone, Copy)]
 pub struct SamplerReference {
@@ -18,6 +36,7 @@ struct SamplerSlot {
     pub generation: usize,
 }
 
+#[derive(Resource)]
 pub struct SamplersPool {
     device: Device,
     slots: Vec<SamplerSlot>,

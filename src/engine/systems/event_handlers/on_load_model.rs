@@ -31,7 +31,7 @@ use crate::engine::{
         MeshBuffer, MeshObject, Meshlet, RendererContext, RendererResources, Vertex,
         VulkanContextResource,
         buffers_pool::{BufferReference, BufferVisibility, BuffersPool},
-        textures_pool::{TextureMetadata, TextureReference},
+        textures_pool::{TextureMetadata, TextureReference, Textures, TexturesMut},
     },
 };
 
@@ -314,27 +314,26 @@ pub fn on_load_model(
                     let (meshlets, vertex_indices, triangles) =
                         generate_meshlets(&indices, &vertex_data_adapter);
 
-                    let memory_bucket = &mut renderer_resources.resources_pool.buffers_pool;
                     let vertex_buffer_reference = create_and_copy_to_buffer(
-                        memory_bucket,
+                        buffers_pool,
                         vertices.as_ptr() as *const _,
                         vertices.len() * std::mem::size_of::<Vertex>(),
                         std::format!("{}_{}", mesh_name, name_of!(vertices)).as_str(),
                     );
                     let vertex_indices_buffer_reference = create_and_copy_to_buffer(
-                        memory_bucket,
+                        buffers_pool,
                         vertex_indices.as_ptr() as _,
                         vertex_indices.len() * std::mem::size_of::<u32>(),
                         std::format!("{}_{}", mesh_name, name_of!(vertex_indices)).as_str(),
                     );
                     let meshlets_buffer_reference = create_and_copy_to_buffer(
-                        memory_bucket,
+                        buffers_pool,
                         meshlets.as_ptr() as _,
                         meshlets.len() * std::mem::size_of::<Meshlet>(),
                         std::format!("{}_{}", mesh_name, name_of!(meshlets)).as_str(),
                     );
                     let local_indices_buffer_reference = create_and_copy_to_buffer(
-                        memory_bucket,
+                        buffers_pool,
                         triangles.as_ptr() as _,
                         triangles.len() * std::mem::size_of::<u8>(),
                         std::format!("{}_{}", mesh_name, name_of!(triangles)).as_str(),
@@ -458,12 +457,12 @@ pub fn on_load_model(
 }
 
 pub fn create_and_copy_to_buffer(
-    memory_bucket: &mut BuffersPool,
+    buffers: &mut BuffersPool,
     src: *const c_void,
     size: usize,
     name: &str,
 ) -> BufferReference {
-    let buffer_reference = memory_bucket.create_buffer(
+    let buffer_reference = buffers.create_buffer(
         size,
         BufferUsageFlags::TransferDst,
         BufferVisibility::DeviceOnly,
@@ -471,7 +470,7 @@ pub fn create_and_copy_to_buffer(
     );
 
     unsafe {
-        memory_bucket.transfer_data_to_buffer_raw(&buffer_reference, src, size);
+        buffers.transfer_data_to_buffer_raw(&buffer_reference, src, size);
     }
 
     buffer_reference
@@ -548,7 +547,7 @@ fn try_upload_texture(
 }
 
 fn try_to_load_cached_texture(
-    renderer_resources: &mut RendererResources,
+    textures_mut: &mut TexturesMut,
     model_name: &str,
     texture: asset_importer::Texture,
     texture_name: &str,
@@ -579,7 +578,7 @@ fn try_to_load_cached_texture(
             depth: 1,
         };
 
-        let (created_texture_reference, _) = renderer_resources.create_texture(
+        let (created_texture_reference, _) = textures_mut.create_texture(
             Some(&mut texture_data),
             true,
             Format::Bc1RgbSrgbBlock,
