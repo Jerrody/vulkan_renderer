@@ -111,7 +111,7 @@ pub fn on_load_model(
 
     let mut nodes = Vec::new();
 
-    let scene = model_loader.load_model(&load_model_event.path.as_os_str().to_str().unwrap());
+    let scene = model_loader.load_model(load_model_event.path.as_os_str().to_str().unwrap());
 
     let root_node_index = Default::default();
     let root_node = scene.root_node().unwrap();
@@ -194,7 +194,7 @@ pub fn on_load_model(
                     let material = scene.material(material_index).unwrap();
 
                     let alpha_mode = std::str::from_utf8(
-                        &material
+                        material
                             .get_property_raw_ref(c"$mat.gltf.alphaMode", None, 0)
                             .unwrap(),
                     )
@@ -312,7 +312,7 @@ pub fn on_load_model(
                     let vertex_data = typed_to_bytes(&vertices);
 
                     let vertex_data_adapter =
-                        VertexDataAdapter::new(&vertex_data, vertex_stride, position_offset)
+                        VertexDataAdapter::new(vertex_data, vertex_stride, position_offset)
                             .unwrap();
 
                     optimize_vertex_cache_in_place(&mut indices, vertices.len());
@@ -396,14 +396,12 @@ pub fn on_load_model(
                 .get_buffer_info()
                 .device_address;
 
-            let mesh_object = MeshObject {
+            MeshObject {
                 device_address_vertex_buffer,
                 device_address_vertex_indices_buffer,
                 device_address_meshlets_buffer,
                 device_address_local_indices_buffer,
-            };
-
-            mesh_object
+            }
         })
         .collect::<Vec<_>>();
 
@@ -422,13 +420,11 @@ pub fn on_load_model(
             mesh_buffer.mesh_object_device_address =
                 mesh_objects_device_address + dst_offset as u64;
 
-            let region = BufferCopy {
+            BufferCopy {
                 src_offset: src_offset as _,
                 dst_offset: dst_offset as _,
                 size: mesh_object_size as _,
-            };
-
-            region
+            }
         })
         .collect::<Vec<BufferCopy>>();
 
@@ -478,7 +474,7 @@ pub fn create_and_copy_to_buffer(
         size,
         BufferUsageFlags::TransferDst,
         crate::engine::resources::BufferVisibility::DeviceOnly,
-        Some(&name),
+        Some(name),
     );
 
     unsafe {
@@ -553,7 +549,7 @@ fn try_upload_texture(
                 1,
             );
 
-            uploaded_textures.insert(texture_index, *&texture_reference);
+            uploaded_textures.insert(texture_index, texture_reference);
         }
     }
 }

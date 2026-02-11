@@ -66,7 +66,7 @@ impl Engine {
                 push_constant_ranges: Some(&push_constant_ranges),
             },
             ShaderInfo {
-                path: &mesh_shader_path,
+                path: mesh_shader_path,
                 flags: ShaderCreateFlagsEXT::LinkStage,
                 stage: ShaderStageFlags::TaskEXT,
                 next_stage: ShaderStageFlags::MeshEXT,
@@ -74,7 +74,7 @@ impl Engine {
                 push_constant_ranges: Some(&push_constant_ranges),
             },
             ShaderInfo {
-                path: &mesh_shader_path,
+                path: mesh_shader_path,
                 flags: ShaderCreateFlagsEXT::LinkStage,
                 stage: ShaderStageFlags::MeshEXT,
                 next_stage: ShaderStageFlags::Fragment,
@@ -348,7 +348,7 @@ impl Engine {
                 | DescriptorBindingFlags::VariableDescriptorCount,
         );
 
-        let resources_descriptor_set_handle = descriptor_set_builder.build(
+        descriptor_set_builder.build(
             device,
             &vulkan_context_resource.allocator,
             &device_properties_resource.descriptor_buffer_properties,
@@ -357,9 +357,7 @@ impl Engine {
                 | ShaderStageFlags::Fragment
                 | ShaderStageFlags::MeshEXT
                 | ShaderStageFlags::TaskEXT,
-        );
-
-        resources_descriptor_set_handle
+        )
     }
 
     fn create_shaders(device: &Device, shader_infos: &[ShaderInfo]) -> Vec<ShaderObject> {
@@ -372,7 +370,7 @@ impl Engine {
             .iter()
             .zip(shader_codes.as_slice())
             .map(|(shader_info, shader_code)| {
-                let shader_info = ShaderCreateInfoEXT::default()
+                ShaderCreateInfoEXT::default()
                     .flags(shader_info.flags)
                     .code(shader_code)
                     .name(Some(c"main"))
@@ -380,9 +378,7 @@ impl Engine {
                     .next_stage(shader_info.next_stage)
                     .code_type(ShaderCodeTypeEXT::Spirv)
                     .set_layouts(shader_info.descriptor_layouts)
-                    .push_constant_ranges(shader_info.push_constant_ranges.unwrap_or_default());
-
-                shader_info
+                    .push_constant_ranges(shader_info.push_constant_ranges.unwrap_or_default())
             })
             .collect();
 

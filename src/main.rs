@@ -42,13 +42,10 @@ impl ApplicationHandler for Application {
         _: Option<winit::event::DeviceId>,
         event: winit::event::DeviceEvent,
     ) {
-        match event {
-            winit::event::DeviceEvent::PointerMotion { delta } => {
-                if let Some(engine) = &mut self.engine {
-                    engine.process_mouse((delta.0 as _, delta.1 as _));
-                }
-            }
-            _ => {}
+        if let winit::event::DeviceEvent::PointerMotion { delta } = event
+            && let Some(engine) = &mut self.engine
+        {
+            engine.process_mouse((delta.0 as _, delta.1 as _));
         }
     }
 

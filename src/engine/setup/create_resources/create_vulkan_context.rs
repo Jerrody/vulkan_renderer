@@ -61,14 +61,14 @@ extern "system" fn debug_callback(
         && trimmed.contains("Using \"")
         && trimmed.contains("with driver:")
     {
-        if let Some(start) = trimmed.find('"') {
-            if let Some(end) = trimmed[start + 1..].find('"') {
-                let device_name = &trimmed[start + 1..start + 1 + end];
-                if ty == Type::General || ty == Type::Validation {
-                    eprintln!("\x1b[92m[Vulkan]\x1b[0m Using device: {}", device_name);
-                    unsafe {
-                        DEVICE_REPORTED = true;
-                    }
+        if let Some(start) = trimmed.find('"')
+            && let Some(end) = trimmed[start + 1..].find('"')
+        {
+            let device_name = &trimmed[start + 1..start + 1 + end];
+            if ty == Type::General || ty == Type::Validation {
+                eprintln!("\x1b[92m[Vulkan]\x1b[0m Using device: {}", device_name);
+                unsafe {
+                    DEVICE_REPORTED = true;
                 }
             }
         }

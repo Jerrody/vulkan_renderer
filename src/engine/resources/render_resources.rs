@@ -896,11 +896,6 @@ impl<'a> RendererResources {
     }
 
     #[must_use]
-    pub fn get_samplers_iter_mut(&'a mut self) -> IterMut<'a, SamplerObject> {
-        self.resources_pool.samplers.iter_mut()
-    }
-
-    #[must_use]
     pub fn get_mesh_buffer_ref(&'a self, id: Id) -> &'a MeshBuffer {
         self.resources_pool
             .mesh_buffers
@@ -916,15 +911,6 @@ impl<'a> RendererResources {
             .samplers
             .iter()
             .find(|&sampler_object| sampler_object.id == id)
-            .unwrap()
-    }
-
-    #[must_use]
-    pub fn get_mesh_buffer_ref_mut(&'a mut self, id: Id) -> &'a mut MeshBuffer {
-        self.resources_pool
-            .mesh_buffers
-            .iter_mut()
-            .find(|mesh_buffer| mesh_buffer.id == id)
             .unwrap()
     }
 
