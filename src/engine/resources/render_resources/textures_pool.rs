@@ -1,15 +1,8 @@
-use std::sync::OnceLock;
-
 use bytemuck::{Pod, Zeroable};
 use fast_image_resize::{PixelType, images::Image};
 use ktx2_rw::{BasisCompressionParams, Ktx2Texture};
 use vma::{Alloc, Allocation, AllocationCreateInfo, Allocator, MemoryUsage};
-use vulkanite::{
-    Handle,
-    vk::{rs::*, *},
-};
-
-use crate::engine::id::Id;
+use vulkanite::vk::{rs::*, *};
 
 #[repr(C)]
 #[derive(Default, Clone, Copy, Pod, Zeroable)]
@@ -35,17 +28,10 @@ pub struct TextureReference {
     pub index: usize,
     pub generation: usize,
     pub texture_metadata: TextureMetadata,
+    read_only: bool,
 }
 
 impl TextureReference {
-    pub fn new(index: usize, generation: usize, texture_metadata: TextureMetadata) -> Self {
-        Self {
-            index,
-            generation,
-            texture_metadata,
-        }
-    }
-
     #[inline(always)]
     pub fn get_texture_metadata(&self) -> TextureMetadata {
         self.texture_metadata
@@ -58,25 +44,39 @@ struct TextureSlot {
     pub generation: usize,
 }
 
-pub struct TexturesPool {
-    device: Device,
-    allocator: Allocator,
-    slots: Vec<TextureSlot>,
-    free_indices: Vec<usize>,
+struct TextureSlotsPool {
+    pub slots: Vec<TextureSlot>,
+    pub free_indices: Vec<usize>,
 }
 
-impl TexturesPool {
-    pub fn new(device: Device, allocator: Allocator) -> Self {
+impl TextureSlotsPool {
+    pub fn new(pre_allocated_count: usize) -> Self {
         let slots = (0..10_000)
             .into_iter()
             .map(|_| Default::default())
             .collect();
 
         Self {
-            device,
-            allocator,
             slots,
             free_indices: (0..10_000).rev().collect(),
+        }
+    }
+}
+
+pub struct TexturesPool {
+    device: Device,
+    allocator: Allocator,
+    storage_slots: TextureSlotsPool,
+    sampled_slots: TextureSlotsPool,
+}
+
+impl TexturesPool {
+    pub fn new(device: Device, allocator: Allocator) -> Self {
+        Self {
+            device,
+            allocator,
+            storage_slots: TextureSlotsPool::new(128),
+            sampled_slots: TextureSlotsPool::new(10_000),
         }
     }
 
@@ -89,6 +89,8 @@ impl TexturesPool {
         usage_flags: ImageUsageFlags,
         mip_map_enabled: bool,
     ) -> (TextureReference, Option<Ktx2Texture>) {
+        let read_only = usage_flags.contains(ImageUsageFlags::Sampled);
+
         let mut aspect_flags = ImageAspectFlags::Color;
         if format == Format::D32Sfloat {
             aspect_flags = ImageAspectFlags::Depth;
@@ -249,21 +251,56 @@ impl TexturesPool {
             },
         };
 
-        (self.insert_image(allocated_image), ktx_texture)
+        (self.insert_image(allocated_image, read_only), ktx_texture)
     }
 
-    fn insert_image(&mut self, allocated_image: AllocatedImage) -> TextureReference {
-        let free_index = self.free_indices.pop().unwrap();
+    fn insert_image(
+        &mut self,
+        allocated_image: AllocatedImage,
+        read_only: bool,
+    ) -> TextureReference {
+        let free_index: usize;
+        let generation: usize;
+        let texture_metadata: TextureMetadata;
 
-        let texture_metadata = allocated_image.texture_metadata;
-        let texture_slot = unsafe { self.slots.get_mut(free_index).unwrap_unchecked() };
-        texture_slot.image = Some(allocated_image);
-        texture_slot.generation += 1;
+        match read_only {
+            true => {
+                free_index = self.sampled_slots.free_indices.pop().unwrap();
+
+                texture_metadata = allocated_image.texture_metadata;
+                let texture_slot = unsafe {
+                    self.sampled_slots
+                        .slots
+                        .get_mut(free_index)
+                        .unwrap_unchecked()
+                };
+                texture_slot.image = Some(allocated_image);
+                texture_slot.generation += 1;
+
+                generation = texture_slot.generation;
+            }
+            false => {
+                free_index = self.storage_slots.free_indices.pop().unwrap();
+
+                texture_metadata = allocated_image.texture_metadata;
+                let texture_slot = unsafe {
+                    self.storage_slots
+                        .slots
+                        .get_mut(free_index)
+                        .unwrap_unchecked()
+                };
+                texture_slot.image = Some(allocated_image);
+                texture_slot.generation += 1;
+
+                generation = texture_slot.generation;
+            }
+        }
 
         TextureReference {
             index: free_index,
-            generation: texture_slot.generation,
+            generation: generation,
             texture_metadata: texture_metadata,
+            read_only,
         }
     }
 
@@ -286,9 +323,26 @@ impl TexturesPool {
     ) -> Option<&'a AllocatedImage> {
         let mut allocated_image = None;
 
-        let slot = unsafe { self.slots.get(texture_reference.index).unwrap_unchecked() };
-        if slot.generation == texture_reference.generation {
-            allocated_image = slot.image.as_ref();
+        if texture_reference.read_only {
+            let slot = unsafe {
+                self.sampled_slots
+                    .slots
+                    .get(texture_reference.index)
+                    .unwrap_unchecked()
+            };
+            if slot.generation == texture_reference.generation {
+                allocated_image = slot.image.as_ref();
+            }
+        } else {
+            let slot = unsafe {
+                self.storage_slots
+                    .slots
+                    .get(texture_reference.index)
+                    .unwrap_unchecked()
+            };
+            if slot.generation == texture_reference.generation {
+                allocated_image = slot.image.as_ref();
+            }
         }
 
         allocated_image
@@ -343,7 +397,18 @@ impl TexturesPool {
     }
 
     pub fn free_allocations(&mut self) {
-        self.slots.iter_mut().for_each(|slot| {
+        self.sampled_slots.slots.iter_mut().for_each(|slot| {
+            if let Some(allocated_image) = &mut slot.image {
+                unsafe {
+                    self.device
+                        .destroy_image_view(Some(allocated_image.image_view));
+                    self.allocator
+                        .destroy_image(*allocated_image.image, &mut allocated_image.allocation);
+                }
+            }
+        });
+
+        self.storage_slots.slots.iter_mut().for_each(|slot| {
             if let Some(allocated_image) = &mut slot.image {
                 unsafe {
                     self.device
