@@ -9,7 +9,11 @@ use crate::engine::{
         DescriptorSetHandle, DescriptorStorageImage,
     },
     id::Id,
-    resources::{model_loader::ModelLoader, *},
+    resources::{
+        buffers_pool::{BufferReference, BufferVisibility},
+        model_loader::ModelLoader,
+        *,
+    },
     utils::*,
 };
 

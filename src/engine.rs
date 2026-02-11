@@ -20,7 +20,8 @@ use crate::engine::{
     components::{camera::Camera, time::Time},
     events::LoadModelEvent,
     resources::{
-        AllocatedBuffer, FrameContext, RendererContext, RendererResources, VulkanContextResource,
+        FrameContext, RendererContext, RendererResources, VulkanContextResource,
+        buffers_pool::AllocatedBuffer,
     },
     systems::{
         begin_rendering, collect_instance_objects, end_rendering,

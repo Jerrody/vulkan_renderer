@@ -6,7 +6,7 @@ use vulkanite::vk::{rs::*, *};
 use crate::engine::{
     descriptors::*,
     id::Id,
-    resources::{AllocatedBuffer, BufferInfo},
+    resources::buffers_pool::{AllocatedBuffer, BufferInfo, BufferVisibility},
     utils::get_device_address,
 };
 
@@ -191,7 +191,7 @@ impl<'a> DescriptorSetBuilder<'a> {
             buffer_info: BufferInfo::new(
                 buffer_device_address,
                 descriptor_buffer_size,
-                crate::engine::resources::BufferVisibility::HostVisible,
+                BufferVisibility::HostVisible,
             ),
         }
     }

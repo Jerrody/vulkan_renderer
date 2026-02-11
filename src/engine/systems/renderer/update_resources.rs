@@ -4,8 +4,8 @@ use glam::{Mat4, Vec3, Vec4};
 use crate::engine::{
     components::camera::Camera,
     resources::{
-        DirectionalLight, LightProperties, MemoryBucket, RendererContext, RendererResources,
-        SceneData, SwappableBuffer, frame_context,
+        DirectionalLight, LightProperties, RendererContext, RendererResources, SceneData,
+        SwappableBuffer, buffers_pool::MemoryBucket, frame_context,
     },
 };
 

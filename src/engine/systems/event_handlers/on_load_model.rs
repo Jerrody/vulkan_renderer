@@ -28,8 +28,9 @@ use crate::engine::{
     events::{LoadModelEvent, SpawnEvent, SpawnEventRecord},
     id::Id,
     resources::{
-        BufferReference, MemoryBucket, MeshBuffer, MeshObject, Meshlet, RendererContext,
-        RendererResources, Vertex, VulkanContextResource,
+        MeshBuffer, MeshObject, Meshlet, RendererContext, RendererResources, Vertex,
+        VulkanContextResource,
+        buffers_pool::{BufferReference, BufferVisibility, MemoryBucket},
         textures_pool::{TextureMetadata, TextureReference},
     },
 };
@@ -465,7 +466,7 @@ pub fn create_and_copy_to_buffer(
     let buffer_reference = memory_bucket.create_buffer(
         size,
         BufferUsageFlags::TransferDst,
-        crate::engine::resources::BufferVisibility::DeviceOnly,
+        BufferVisibility::DeviceOnly,
         Some(name),
     );
 
