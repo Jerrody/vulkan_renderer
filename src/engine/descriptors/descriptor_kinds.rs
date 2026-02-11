@@ -42,12 +42,6 @@ pub struct DescriptorCombinedImageSampler {
     pub sampler: Sampler,
 }
 
-impl DescriptorCombinedImageSampler {
-    pub fn get_descriptor_type(&self) -> DescriptorType {
-        DescriptorType::CombinedImageSampler
-    }
-}
-
 #[derive(Clone, Copy)]
 pub struct DescriptorSampledImage {
     pub image_view: ImageView,

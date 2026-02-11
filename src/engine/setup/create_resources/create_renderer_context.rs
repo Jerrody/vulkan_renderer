@@ -4,7 +4,6 @@ use winit::window::Window;
 
 use crate::engine::{
     Engine,
-    id::Id,
     resources::{CommandGroup, FrameData, RendererContext, UploadContext, VulkanContextResource},
 };
 

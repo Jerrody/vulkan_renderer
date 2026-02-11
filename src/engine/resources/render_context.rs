@@ -4,7 +4,7 @@ use vulkanite::vk::{
     rs::{CommandBuffer, CommandPool, Fence, Image, ImageView, Semaphore},
 };
 
-use crate::engine::{id::Id, resources::textures_pool::TextureReference};
+use crate::engine::resources::textures_pool::TextureReference;
 
 pub struct FrameData {
     pub command_group: CommandGroup,

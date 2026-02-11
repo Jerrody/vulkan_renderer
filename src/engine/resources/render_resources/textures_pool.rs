@@ -31,13 +31,6 @@ pub struct TextureReference {
     read_only: bool,
 }
 
-impl TextureReference {
-    #[inline(always)]
-    pub fn get_texture_metadata(&self) -> TextureMetadata {
-        self.texture_metadata
-    }
-}
-
 #[derive(Default)]
 struct TextureSlot {
     pub image: Option<AllocatedImage>,
@@ -51,14 +44,14 @@ struct TextureSlotsPool {
 
 impl TextureSlotsPool {
     pub fn new(pre_allocated_count: usize) -> Self {
-        let slots = (0..10_000)
+        let slots = (0..pre_allocated_count)
             .into_iter()
             .map(|_| Default::default())
             .collect();
 
         Self {
             slots,
-            free_indices: (0..10_000).rev().collect(),
+            free_indices: (0..pre_allocated_count).rev().collect(),
         }
     }
 }

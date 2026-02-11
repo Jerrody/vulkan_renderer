@@ -1,15 +1,8 @@
-use asset_importer::{Matrix4x4, Texture, node::Node};
-use bytemuck::{Pod, Zeroable};
-use fast_image_resize::IntoImageView;
+use asset_importer::{Matrix4x4, node::Node};
 use image::{EncodableLayout, ImageReader};
-use ktx2_rw::{BasisCompressionParams, Ktx2Texture, VkFormat};
-use nameof::{name_of, name_of_type};
-use std::{
-    collections::HashMap,
-    ffi::{CStr, CString, c_void},
-    io::Cursor,
-    str::FromStr,
-};
+use ktx2_rw::Ktx2Texture;
+use nameof::name_of;
+use std::{collections::HashMap, ffi::c_void, io::Cursor, str::FromStr};
 use vulkanite::vk::{
     BufferCopy, BufferUsageFlags, DeviceAddress, Extent3D, Format, ImageUsageFlags,
 };
@@ -25,7 +18,6 @@ use meshopt::{
 };
 
 use crate::engine::{
-    Engine,
     components::{
         material::{
             MaterialData, MaterialProperties, MaterialState, MaterialTextures, MaterialType,

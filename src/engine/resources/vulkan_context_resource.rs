@@ -1,20 +1,16 @@
-use asset_importer::texture;
 use bevy_ecs::resource::Resource;
 use vma::Allocator;
 use vulkanite::vk::{
     AccessFlags2, BufferImageCopy, CommandBufferBeginInfo, CommandBufferUsageFlags,
-    CommandPoolResetFlags, Extent3D, ImageLayout, ImageSubresourceLayers, Offset3D,
-    PipelineStageFlags2, SubmitInfo, SurfaceFormatKHR,
+    CommandPoolResetFlags, Extent3D, ImageLayout, ImageSubresourceLayers, PipelineStageFlags2,
+    SubmitInfo, SurfaceFormatKHR,
     rs::{
         DebugUtilsMessengerEXT, Device, Instance, PhysicalDevice, Queue, SurfaceKHR, SwapchainKHR,
     },
 };
 
 use crate::engine::{
-    resources::{
-        MemoryBucket, RendererResources, UploadContext,
-        textures_pool::{TextureMetadata, TextureReference},
-    },
+    resources::{RendererResources, UploadContext, textures_pool::TextureReference},
     utils::transition_image,
 };
 

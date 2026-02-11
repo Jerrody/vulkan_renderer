@@ -2,7 +2,7 @@ use bevy_ecs::resource::Resource;
 use glam::Mat4;
 use vulkanite::vk::rs::CommandBuffer;
 
-use crate::engine::{id::Id, resources::textures_pool::TextureReference};
+use crate::engine::resources::textures_pool::TextureReference;
 
 #[derive(Resource)]
 pub struct FrameContext {

@@ -152,15 +152,6 @@ impl BufferReference {
     }
 
     #[inline(always)]
-    pub fn get_buffer_id(&self) -> Id {
-        let allocated_buffer = self.get_buffer();
-        match allocated_buffer {
-            Some(allocated_buffer) => allocated_buffer.id,
-            None => Id::NULL,
-        }
-    }
-
-    #[inline(always)]
     pub fn get_buffer_info(&self) -> BufferInfo {
         self.buffer_info
     }
@@ -592,10 +583,6 @@ impl<'a> SwappableBuffer {
         self.data_to_write.as_slice()
     }
 
-    pub fn get_objects_to_write_as_slice_mut(&'a mut self) -> &'a mut [u8] {
-        self.data_to_write.as_mut_slice()
-    }
-
     pub fn write_data_to_current_buffer<T: NoUninit>(&mut self, object_to_write: &T) -> usize {
         let object_to_write = bytemuck::bytes_of(object_to_write);
         self.data_to_write.extend_from_slice(object_to_write);
@@ -669,10 +656,6 @@ impl MaterialsPool {
 
     pub fn get_materials_data_to_write<'a>(&'a self) -> &'a [u8] {
         &self.materials_to_write.as_slice()
-    }
-
-    pub fn get_materials_data_to_write_len(&self) -> usize {
-        self.materials_to_write.len()
     }
 
     pub fn get_material_info_device_address_by_id(&self, material_label_id: Id) -> MaterialInfo {
@@ -780,12 +763,6 @@ impl<'a> RendererResources {
         self.resources_pool
             .materials_pool
             .get_materials_data_to_write()
-    }
-
-    pub fn get_materials_data_to_write_len(&self) -> usize {
-        self.resources_pool
-            .materials_pool
-            .get_materials_data_to_write_len()
     }
 
     pub fn get_material_data_device_address_by_id(&self, material_label_id: Id) -> MaterialInfo {

@@ -1,9 +1,5 @@
 use asset_importer::{Importer, Scene, postprocess::PostProcessSteps};
 
-pub struct MeshAsset {}
-
-pub struct ModelAsset {}
-
 pub struct ModelLoader {
     importer: Importer,
 }

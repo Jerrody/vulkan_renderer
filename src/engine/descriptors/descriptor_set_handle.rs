@@ -52,7 +52,7 @@ impl DescriptorSetHandle {
             DescriptorType::UniformBuffer => descriptors_sizes.uniform_buffer_descriptor_size,
             DescriptorType::SampledImage => descriptors_sizes.sampled_image_descriptor_size,
             DescriptorType::StorageImage => descriptors_sizes.storage_image_descriptor_size,
-            DescriptorType::Sampler => descriptors_sizes.sampled_image_descriptor_size,
+            DescriptorType::Sampler => descriptors_sizes.sampler_descriptor_size,
             DescriptorType::StorageBuffer => descriptors_sizes.storage_buffer_descriptor_size,
             unsupported_descriptor_type => panic!(
                 "Unsupported Descriptor Type found: {:?}",

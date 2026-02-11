@@ -13,10 +13,7 @@ use bevy_ecs::{
     schedule::{IntoScheduleConfigs, Schedule, ScheduleLabel},
     world::World,
 };
-use vulkanite::{
-    Handle,
-    vk::{self, rs::Device},
-};
+use vulkanite::{Handle, vk};
 use winit::{event::ElementState, keyboard::KeyCode, window::Window};
 
 use crate::engine::{
@@ -24,7 +21,6 @@ use crate::engine::{
     events::LoadModelEvent,
     resources::{
         AllocatedBuffer, FrameContext, RendererContext, RendererResources, VulkanContextResource,
-        textures_pool::AllocatedImage,
     },
     systems::{
         begin_rendering, collect_instance_objects, end_rendering,

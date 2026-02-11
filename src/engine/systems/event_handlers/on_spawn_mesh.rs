@@ -1,6 +1,5 @@
 use bevy_ecs::{name::Name, observer::On, system::Commands};
 use glam::{Quat, Vec3};
-use uuid::Uuid;
 
 use crate::engine::{
     components::{
@@ -40,7 +39,6 @@ pub fn on_spawn_mesh(spawn_event: On<SpawnEvent>, mut commands: Commands) {
         let mesh_buffer_id = spawn_event_record.mesh_buffer_id;
         if mesh_buffer_id != Id::NULL {
             let mesh = Mesh {
-                id: Id::new(Uuid::new_v4()),
                 instance_object_index: None,
                 mesh_buffer_id,
                 material_id: spawn_event_record.material_id,

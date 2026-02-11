@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use bevy_ecs::resource::Resource;
 use vma::*;
 use vulkanite::vk::{rs::*, *};
 
