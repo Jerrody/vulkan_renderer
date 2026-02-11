@@ -34,7 +34,6 @@ bytemuck = "1.24.0"
 meshopt = "0.6.2"
 ahash = "0.8.12"
 uuid = { version = "1.19", default-features = false, features = ["v4"] }
-rayon = { version = "1.11.0", default-features = false }
 image = { version = "0.25.9", default-features = false, features = [
     "png",
     "jpeg",
@@ -49,6 +48,8 @@ num_cpus = "1.17.0"
 
 [profile.dev]
 opt-level = 2
+codegen-units = 256
+incremental = true
 
 [profile.release]
 opt-level = 3
