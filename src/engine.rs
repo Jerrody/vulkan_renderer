@@ -89,7 +89,7 @@ impl Engine {
 
         // TODO: TEMP
         world.trigger(LoadModelEvent {
-            path: PathBuf::from(r"assets/structure.glb"),
+            path: PathBuf::from(r"assets/sponza_variation_02.glb"),
         });
 
         world.insert_resource(Time::new());
@@ -157,11 +157,6 @@ impl Drop for Engine {
             ));
 
             renderer_resources
-                .get_samplers_iter()
-                .for_each(|sampler_object| {
-                    device.destroy_sampler(Some(sampler_object.sampler));
-                });
-            renderer_resources
                 .resources_pool
                 .buffers_pool
                 .free_allocations();
@@ -169,6 +164,10 @@ impl Drop for Engine {
                 .resources_pool
                 .textures_pool
                 .free_allocations();
+            renderer_resources
+                .resources_pool
+                .samplers_pool
+                .destroy_samplers();
 
             vulkan_context_resource.allocator.drop();
 

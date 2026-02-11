@@ -56,20 +56,6 @@ impl BufferInfo {
 }
 
 impl BufferReference {
-    pub fn new(
-        index: usize,
-        generation: usize,
-        device_address: DeviceAddress,
-        size: DeviceSize,
-        buffer_visibility: BufferVisibility,
-    ) -> Self {
-        Self {
-            index,
-            generation,
-            buffer_info: BufferInfo::new(device_address, size, buffer_visibility),
-        }
-    }
-
     pub fn get_buffer<'a>(&'a self, buffers_pool: &'a BuffersPool) -> Option<&'a AllocatedBuffer> {
         buffers_pool.get_buffer(*self)
     }

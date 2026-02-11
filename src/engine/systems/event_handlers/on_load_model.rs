@@ -524,7 +524,7 @@ fn try_upload_texture(
                     .image_view,
                 index: texture_reference.index,
             });
-            let texture_resource_index = renderer_resources
+            renderer_resources
                 .resources_descriptor_set_handle
                 .update_binding(
                     vulkan_context.device,
@@ -536,7 +536,7 @@ fn try_upload_texture(
             println!(
                 "Name: {} | Index: {} | Extent: {}x{}x{}",
                 texture_name,
-                texture_resource_index.unwrap(),
+                texture_reference.index,
                 texture_metadata.width,
                 texture_metadata.height,
                 1,

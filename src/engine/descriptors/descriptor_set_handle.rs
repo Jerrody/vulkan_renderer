@@ -25,7 +25,6 @@ pub struct DescriptorsSizes {
 #[derive(Clone, Copy)]
 pub struct BindingInfo {
     pub binding_offset: DeviceSize,
-    pub next_empty_slot_index: usize,
 }
 
 pub struct DescriptorSetHandle {
@@ -42,7 +41,7 @@ impl DescriptorSetHandle {
         device: Device,
         allocator: &Allocator,
         descriptor_kind: DescriptorKind,
-    ) -> Option<usize> {
+    ) {
         let descriptor_type = descriptor_kind.get_descriptor_type();
 
         let descriptors_sizes = self.descriptors_sizes;
@@ -60,34 +59,19 @@ impl DescriptorSetHandle {
         let binding_info = self.bindings_infos.get_mut(&descriptor_type_raw).unwrap();
 
         // TODO: Temp before migration to fully slot architecture.
-        let current_descriptor_slot_index = match descriptor_type {
-            DescriptorType::SampledImage | DescriptorType::StorageImage => {
-                Some(match descriptor_kind {
-                    DescriptorKind::StorageImage(descriptor_storage_image) => {
-                        println!(
-                            "Storage Image binding index: {}",
-                            descriptor_storage_image.index
-                        );
-                        descriptor_storage_image.index
-                    }
-                    DescriptorKind::SampledImage(descriptor_sampled_image) => {
-                        println!(
-                            "Sampled Image binding index: {}",
-                            descriptor_sampled_image.index
-                        );
-                        descriptor_sampled_image.index
-                    }
-                    _ => binding_info.next_empty_slot_index,
-                })
+        let descriptor_slot_index = match descriptor_kind {
+            DescriptorKind::StorageImage(descriptor_storage_image) => {
+                descriptor_storage_image.index
             }
-            _ => Some(binding_info.next_empty_slot_index),
+            DescriptorKind::SampledImage(descriptor_sampled_image) => {
+                descriptor_sampled_image.index
+            }
+            DescriptorKind::Sampler(descriptor_sampler) => descriptor_sampler.index,
         };
-        let current_descriptor_slot_index = current_descriptor_slot_index.unwrap();
 
         let base_binding_offset = binding_info.binding_offset;
         let binding_offset =
-            base_binding_offset + (current_descriptor_slot_index as u64 * descriptor_size as u64);
-        binding_info.next_empty_slot_index += 1;
+            base_binding_offset + (descriptor_slot_index as u64 * descriptor_size as u64);
 
         let allocation = self.buffer.allocation;
         let descriptor_buffer_address = unsafe { allocator.map_memory(allocation).unwrap() };
@@ -169,7 +153,5 @@ impl DescriptorSetHandle {
         unsafe {
             allocator.unmap_memory(allocation);
         }
-
-        Some(current_descriptor_slot_index)
     }
 }

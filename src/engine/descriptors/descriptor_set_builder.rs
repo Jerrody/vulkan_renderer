@@ -18,13 +18,9 @@ pub enum DescriptorKind {
 impl DescriptorKind {
     pub fn get_descriptor_type(&self) -> DescriptorType {
         let descriptor_type = match self {
-            DescriptorKind::StorageImage(descriptor_storage_image) => {
-                descriptor_storage_image.get_descriptor_type()
-            }
-            DescriptorKind::SampledImage(descriptor_sampled_image) => {
-                descriptor_sampled_image.get_descriptor_type()
-            }
-            DescriptorKind::Sampler(descriptor_sampler) => descriptor_sampler.get_descriptor_type(),
+            DescriptorKind::StorageImage(_) => DescriptorType::StorageImage,
+            DescriptorKind::SampledImage(_) => DescriptorType::SampledImage,
+            DescriptorKind::Sampler(_) => DescriptorType::Sampler,
         };
 
         descriptor_type
@@ -94,10 +90,7 @@ impl<'a> DescriptorSetBuilder<'a> {
                     binding_index as _,
                 );
 
-                let binding_info = BindingInfo {
-                    binding_offset,
-                    next_empty_slot_index: Default::default(),
-                };
+                let binding_info = BindingInfo { binding_offset };
                 bindings_infos.insert(
                     descriptor_set_layout_binding_info.binding.descriptor_type as _,
                     binding_info,

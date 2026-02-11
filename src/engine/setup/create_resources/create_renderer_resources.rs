@@ -8,7 +8,6 @@ use crate::engine::{
         DescriptorKind, DescriptorSampledImage, DescriptorSampler, DescriptorSetBuilder,
         DescriptorSetHandle, DescriptorStorageImage,
     },
-    id::Id,
     resources::{
         buffers_pool::{BufferReference, BufferVisibility},
         model_loader::ModelLoader,
@@ -25,20 +24,6 @@ impl Engine {
 
         let device = vulkan_context.device;
         let allocator = &vulkan_context.allocator;
-
-        let nearest_sampler_create_info = SamplerCreateInfo {
-            mag_filter: Filter::Linear,
-            min_filter: Filter::Linear,
-            mipmap_mode: SamplerMipmapMode::Linear,
-            address_mode_u: SamplerAddressMode::Repeat,
-            address_mode_v: SamplerAddressMode::Repeat,
-            address_mode_w: SamplerAddressMode::Repeat,
-            compare_op: CompareOp::Always,
-            max_lod: LOD_CLAMP_NONE,
-            ..Default::default()
-        };
-        let nearest_sampler_object =
-            SamplerObject::new(device.create_sampler(&nearest_sampler_create_info).unwrap());
 
         let push_constant_range = PushConstantRange {
             stage_flags: ShaderStageFlags::MeshEXT
@@ -99,16 +84,23 @@ impl Engine {
         let model_loader = ModelLoader::new();
 
         let upload_command_group = render_context.upload_context.command_group;
-        let resources_pool = ResourcesPool::new(
+        let mut resources_pool = ResourcesPool::new(
             device,
             vulkan_context.allocator,
             upload_command_group,
             vulkan_context.transfer_queue,
         );
+
+        let default_sampler_reference = resources_pool.samplers_pool.create_sampler(
+            Filter::Linear,
+            SamplerAddressMode::Repeat,
+            true,
+        );
+
         let mut renderer_resources = RendererResources {
             fallback_texture_reference: Default::default(),
             default_texture_reference: Default::default(),
-            nearest_sampler_id: Id::NULL,
+            default_sampler_reference: default_sampler_reference,
             mesh_objects_buffer_reference: BufferReference::default(),
             resources_descriptor_set_handle,
             gradient_compute_shader_object: created_shaders[0],
@@ -300,20 +292,18 @@ impl Engine {
         renderer_resources.set_materials_data_buffer_reference(materials_data_buffer_reference);
         renderer_resources.mesh_objects_buffer_reference = mesh_objects_buffer_reference;
 
-        renderer_resources.nearest_sampler_id =
-            renderer_resources.insert_sampler(nearest_sampler_object);
-
-        let sampler_object = renderer_resources.get_sampler(renderer_resources.nearest_sampler_id);
+        let sampler = renderer_resources
+            .default_sampler_reference
+            .get_sampler(&renderer_resources.resources_pool.samplers_pool)
+            .unwrap();
         let sampler_descriptor = DescriptorKind::Sampler(DescriptorSampler {
-            sampler: sampler_object.sampler,
+            sampler: sampler,
+            index: renderer_resources.default_sampler_reference.index,
         });
 
-        let sampler_object_index = renderer_resources
+        renderer_resources
             .resources_descriptor_set_handle
             .update_binding(device, allocator, sampler_descriptor);
-        renderer_resources
-            .get_sampler_ref_mut(renderer_resources.nearest_sampler_id)
-            .index = sampler_object_index.unwrap();
 
         renderer_resources
     }

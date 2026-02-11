@@ -10,10 +10,7 @@ use bytemuck::{NoUninit, Pod, Zeroable};
 use glam::{Mat4, Vec2, Vec3, Vec4};
 use ktx2_rw::Ktx2Texture;
 use vma::Allocator;
-use vulkanite::{
-    Handle,
-    vk::{rs::*, *},
-};
+use vulkanite::vk::{rs::*, *};
 
 use crate::engine::{
     components::material::{MaterialState, MaterialType},
@@ -23,6 +20,7 @@ use crate::engine::{
         CommandGroup,
         buffers_pool::{AllocatedBuffer, BufferReference, BuffersPool},
         render_resources::model_loader::ModelLoader,
+        samplers_pool::{SamplerReference, SamplersPool},
         textures_pool::{AllocatedImage, TextureReference, TexturesPool},
     },
 };
@@ -93,23 +91,6 @@ pub struct ShaderObject {
 impl ShaderObject {
     pub fn new(shader: ShaderEXT, stage: ShaderStageFlags) -> Self {
         Self { shader, stage }
-    }
-}
-
-#[derive(Clone, Copy)]
-pub struct SamplerObject {
-    pub id: Id,
-    pub index: usize,
-    pub sampler: Sampler,
-}
-
-impl SamplerObject {
-    pub fn new(sampler: Sampler) -> Self {
-        Self {
-            id: Id::new(sampler.as_raw()),
-            index: usize::MIN,
-            sampler: sampler,
-        }
     }
 }
 
@@ -264,7 +245,7 @@ pub struct ResourcesPool {
     pub buffers_pool: BuffersPool,
     pub mesh_buffers: Vec<MeshBuffer>,
     pub textures_pool: TexturesPool,
-    pub samplers: Vec<SamplerObject>,
+    pub samplers_pool: SamplersPool,
     pub instances_buffer: Option<SwappableBuffer>,
     pub scene_data_buffer: Option<SwappableBuffer>,
     materials_pool: MaterialsPool,
@@ -281,7 +262,7 @@ impl ResourcesPool {
             buffers_pool: BuffersPool::new(device, allocator, upload_command_group, transfer_queue),
             mesh_buffers: Default::default(),
             textures_pool: TexturesPool::new(device, allocator),
-            samplers: Default::default(),
+            samplers_pool: SamplersPool::new(device),
             instances_buffer: Default::default(),
             scene_data_buffer: Default::default(),
             materials_pool: Default::default(),
@@ -293,7 +274,7 @@ impl ResourcesPool {
 pub struct RendererResources {
     pub default_texture_reference: TextureReference,
     pub fallback_texture_reference: TextureReference,
-    pub nearest_sampler_id: Id,
+    pub default_sampler_reference: SamplerReference,
     pub mesh_objects_buffer_reference: BufferReference,
     pub resources_descriptor_set_handle: DescriptorSetHandle,
     pub gradient_compute_shader_object: ShaderObject,
@@ -427,33 +408,12 @@ impl<'a> RendererResources {
             self.resources_pool.mesh_buffers.push(mesh_buffer);
         }
 
-        return mesh_buffer_id;
-    }
-
-    #[must_use]
-    pub fn insert_sampler(&'a mut self, sampler_object: SamplerObject) -> Id {
-        let sampler_object_id = sampler_object.id;
-
-        if !self
-            .resources_pool
-            .samplers
-            .iter()
-            .any(|sampler_object| sampler_object.id == sampler_object_id)
-        {
-            self.resources_pool.samplers.push(sampler_object);
-        }
-
-        return sampler_object_id;
+        mesh_buffer_id
     }
 
     #[must_use]
     pub fn get_mesh_buffers_iter(&'a self) -> Iter<'a, MeshBuffer> {
         self.resources_pool.mesh_buffers.iter()
-    }
-
-    #[must_use]
-    pub fn get_samplers_iter(&'a self) -> Iter<'a, SamplerObject> {
-        self.resources_pool.samplers.iter()
     }
 
     #[must_use]
@@ -467,25 +427,6 @@ impl<'a> RendererResources {
             .mesh_buffers
             .iter()
             .find(|&mesh_buffer| mesh_buffer.id == id)
-            .unwrap()
-    }
-
-    #[must_use]
-    pub fn get_sampler(&'a self, id: Id) -> SamplerObject {
-        *self
-            .resources_pool
-            .samplers
-            .iter()
-            .find(|&sampler_object| sampler_object.id == id)
-            .unwrap()
-    }
-
-    #[must_use]
-    pub fn get_sampler_ref_mut(&'a mut self, id: Id) -> &'a mut SamplerObject {
-        self.resources_pool
-            .samplers
-            .iter_mut()
-            .find(|sampler_object| sampler_object.id == id)
             .unwrap()
     }
 }
