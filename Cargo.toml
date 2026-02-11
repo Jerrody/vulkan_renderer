@@ -29,7 +29,7 @@ asset-importer = { version = "0.7.0", default-features = false, features = [
     "glam",
     "build-assimp",
 ] }
-glam = { version = "0.31.0", features = ["fast-math", "bytemuck"] }
+glam = { version = "0.32", features = ["fast-math", "bytemuck"] }
 bytemuck = "1.24.0"
 meshopt = "0.6.2"
 ahash = "0.8.12"
