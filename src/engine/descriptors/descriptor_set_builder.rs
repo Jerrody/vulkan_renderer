@@ -10,19 +10,14 @@ use crate::engine::{
 };
 
 pub enum DescriptorKind {
-    UniformBuffer(DescriptorUniformBuffer),
     StorageImage(DescriptorStorageImage),
     SampledImage(DescriptorSampledImage),
     Sampler(DescriptorSampler),
-    StorageBuffer(DescriptorStorageBuffer),
 }
 
 impl DescriptorKind {
     pub fn get_descriptor_type(&self) -> DescriptorType {
         let descriptor_type = match self {
-            DescriptorKind::UniformBuffer(descriptor_uniform_buffer) => {
-                descriptor_uniform_buffer.get_descriptor_type()
-            }
             DescriptorKind::StorageImage(descriptor_storage_image) => {
                 descriptor_storage_image.get_descriptor_type()
             }
@@ -30,9 +25,6 @@ impl DescriptorKind {
                 descriptor_sampled_image.get_descriptor_type()
             }
             DescriptorKind::Sampler(descriptor_sampler) => descriptor_sampler.get_descriptor_type(),
-            DescriptorKind::StorageBuffer(descriptor_storage_buffer) => {
-                descriptor_storage_buffer.get_descriptor_type()
-            }
         };
 
         descriptor_type
@@ -131,14 +123,10 @@ impl<'a> DescriptorSetBuilder<'a> {
 
         self.clear();
 
-        let uniform_buffer_descriptor_size =
-            descriptor_buffer_properties.uniform_buffer_descriptor_size;
         let sampled_image_descriptor_size =
             descriptor_buffer_properties.sampled_image_descriptor_size;
         let storage_image_descriptor_size =
             descriptor_buffer_properties.storage_image_descriptor_size;
-        let storage_buffer_descriptor_size =
-            descriptor_buffer_properties.storage_buffer_descriptor_size;
         let sampler_descriptor_size = descriptor_buffer_properties.sampler_descriptor_size;
 
         DescriptorSetHandle {
@@ -147,11 +135,9 @@ impl<'a> DescriptorSetBuilder<'a> {
             pipeline_layout,
             bindings_infos,
             descriptors_sizes: DescriptorsSizes {
-                uniform_buffer_descriptor_size,
                 sampled_image_descriptor_size,
                 sampler_descriptor_size,
                 storage_image_descriptor_size,
-                storage_buffer_descriptor_size,
             },
         }
     }
