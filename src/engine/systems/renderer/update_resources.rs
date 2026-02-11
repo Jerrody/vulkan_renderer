@@ -5,7 +5,7 @@ use crate::engine::{
     components::camera::Camera,
     resources::{
         DirectionalLight, LightProperties, RendererContext, RendererResources, SceneData,
-        SwappableBuffer, buffers_pool::MemoryBucket, frame_context,
+        SwappableBuffer, buffers_pool::BuffersPool, frame_context,
     },
 };
 
@@ -21,7 +21,7 @@ pub fn update_resources(
         .as_ref()
         .unwrap();
 
-    let memory_bucket = &renderer_resources.resources_pool.memory_bucket;
+    let memory_bucket = &renderer_resources.resources_pool.buffers_pool;
     update_buffer_data(instances_objects_buffer, memory_bucket);
 
     let camera_position = camera.get_position();
@@ -71,11 +71,11 @@ pub fn update_resources(
         .as_ref()
         .unwrap();
 
-    let memory_bucket = &renderer_resources.resources_pool.memory_bucket;
+    let memory_bucket = &renderer_resources.resources_pool.buffers_pool;
     update_buffer_data(scene_data_buffer, memory_bucket);
 }
 
-fn update_buffer_data(buffer_to_update: &SwappableBuffer, memory_bucket: &MemoryBucket) {
+fn update_buffer_data(buffer_to_update: &SwappableBuffer, memory_bucket: &BuffersPool) {
     let data_to_write = buffer_to_update.get_objects_to_write_as_slice();
 
     let buffer_to_update_reference = buffer_to_update.get_current_buffer();

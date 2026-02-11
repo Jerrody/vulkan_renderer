@@ -163,7 +163,7 @@ impl Drop for Engine {
                 });
             renderer_resources
                 .resources_pool
-                .memory_bucket
+                .buffers_pool
                 .free_allocations();
             renderer_resources
                 .resources_pool

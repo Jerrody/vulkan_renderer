@@ -56,13 +56,13 @@ impl VulkanContextResource {
         let staging_buffer_reference = unsafe {
             &*(rendere_resources
                 .resources_pool
-                .memory_bucket
+                .buffers_pool
                 .get_staging_buffer_reference() as *const _)
         };
         unsafe {
             rendere_resources
                 .resources_pool
-                .memory_bucket
+                .buffers_pool
                 .transfer_data_to_buffer_raw(staging_buffer_reference, data_to_copy, size as _);
         }
 
@@ -126,9 +126,8 @@ impl VulkanContextResource {
             .command_group
             .command_buffer
             .copy_buffer_to_image(
-                staging_buffer_reference
-                    .get_buffer()
-                    .as_ref()
+                rendere_resources
+                    .get_buffer(*staging_buffer_reference)
                     .unwrap()
                     .buffer,
                 allocated_image.image,

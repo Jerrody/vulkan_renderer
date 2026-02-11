@@ -21,7 +21,7 @@ use crate::engine::{
     id::Id,
     resources::{
         CommandGroup,
-        buffers_pool::{BufferReference, MemoryBucket},
+        buffers_pool::{AllocatedBuffer, BufferReference, BuffersPool},
         render_resources::model_loader::ModelLoader,
         textures_pool::{AllocatedImage, TextureReference, TexturesPool},
     },
@@ -261,7 +261,7 @@ impl MaterialsPool {
 }
 
 pub struct ResourcesPool {
-    pub memory_bucket: MemoryBucket,
+    pub buffers_pool: BuffersPool,
     pub mesh_buffers: Vec<MeshBuffer>,
     pub textures_pool: TexturesPool,
     pub samplers: Vec<SamplerObject>,
@@ -278,12 +278,7 @@ impl ResourcesPool {
         transfer_queue: Queue,
     ) -> Self {
         Self {
-            memory_bucket: MemoryBucket::new(
-                device,
-                allocator,
-                upload_command_group,
-                transfer_queue,
-            ),
+            buffers_pool: BuffersPool::new(device, allocator, upload_command_group, transfer_queue),
             mesh_buffers: Default::default(),
             textures_pool: TexturesPool::new(device, allocator),
             samplers: Default::default(),
@@ -311,6 +306,12 @@ pub struct RendererResources {
 }
 
 impl<'a> RendererResources {
+    pub fn get_buffer(&'a self, buffer_reference: BufferReference) -> Option<&'a AllocatedBuffer> {
+        self.resources_pool
+            .buffers_pool
+            .get_buffer(buffer_reference)
+    }
+
     pub fn write_material(&mut self, data: &[u8], material_state: MaterialState) -> Id {
         self.resources_pool
             .materials_pool

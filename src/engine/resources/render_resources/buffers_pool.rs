@@ -5,6 +5,7 @@ use std::{
     sync::{Arc, Weak},
 };
 
+use image::buffer;
 use vma::{
     Alloc as _, Allocation, AllocationCreateFlags, AllocationCreateInfo, Allocator, MemoryUsage,
 };
@@ -30,10 +31,10 @@ pub struct AllocatedBuffer {
     pub buffer_info: BufferInfo,
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Copy)]
 pub struct BufferReference {
-    buffer_id: Id,
-    weak_ptr: Weak<AllocatedBuffer>,
+    pub index: usize,
+    pub generation: usize,
     buffer_info: BufferInfo,
 }
 
@@ -60,31 +61,21 @@ impl BufferInfo {
 
 impl BufferReference {
     pub fn new(
-        buffer_id: Id,
-        allocated_buffer: Weak<AllocatedBuffer>,
+        index: usize,
+        generation: usize,
         device_address: DeviceAddress,
         size: DeviceSize,
         buffer_visibility: BufferVisibility,
     ) -> Self {
         Self {
-            buffer_id,
-            weak_ptr: allocated_buffer,
+            index,
+            generation,
             buffer_info: BufferInfo::new(device_address, size, buffer_visibility),
         }
     }
 
-    pub fn get_buffer<'a>(&'a self) -> Option<&'a AllocatedBuffer> {
-        let mut allocated_buffer = None;
-
-        if !self.weak_ptr.strong_count() != Default::default() {
-            let allocated_buffer_ref = unsafe { &*(self.weak_ptr.as_ptr()) };
-
-            if allocated_buffer_ref.id == self.buffer_id {
-                allocated_buffer = Some(allocated_buffer_ref);
-            }
-        }
-
-        allocated_buffer
+    pub fn get_buffer<'a>(&'a self, buffers_pool: &'a BuffersPool) -> Option<&'a AllocatedBuffer> {
+        buffers_pool.get_buffer(*self)
     }
 
     #[inline(always)]
@@ -93,28 +84,36 @@ impl BufferReference {
     }
 }
 
-pub struct MemoryBucket {
+#[derive(Default)]
+struct BufferSlot {
+    pub buffer: Option<AllocatedBuffer>,
+    pub generation: usize,
+}
+
+pub struct BuffersPool {
     device: Device,
     allocator: Allocator,
-    buffers: Vec<Arc<AllocatedBuffer>>,
-    buffers_map: HashMap<Id, usize>,
+    slots: Vec<BufferSlot>,
+    free_indices: Vec<usize>,
     staging_buffer_reference: BufferReference,
     upload_command_group: CommandGroup,
     transfer_queue: Queue,
 }
 
-impl MemoryBucket {
+impl BuffersPool {
     pub fn new(
         device: Device,
         allocator: Allocator,
         upload_command_group: CommandGroup,
         transfer_queue: Queue,
     ) -> Self {
+        let slots = (0..2048).into_iter().map(|_| Default::default()).collect();
+
         let mut memory_bucket = Self {
             device,
             allocator,
-            buffers: Vec::with_capacity(1024),
-            buffers_map: HashMap::with_capacity(1024),
+            slots,
+            free_indices: (0..2048).rev().collect(),
             staging_buffer_reference: Default::default(),
             upload_command_group,
             transfer_queue,
@@ -209,35 +208,39 @@ impl MemoryBucket {
             allocation,
             buffer_info,
         };
-        let allocated_buffer_size = allocated_buffer.buffer_info.size;
-        let allocated_buffer_id = allocated_buffer.id;
-        let weak_ptr_allocated_buffer = self.insert_buffer(allocated_buffer);
 
-        let allocated_buffer_reference = BufferReference::new(
-            allocated_buffer_id,
-            weak_ptr_allocated_buffer,
-            device_address,
-            allocated_buffer_size,
-            buffer_visibility,
-        );
-
-        allocated_buffer_reference
+        self.insert_buffer(allocated_buffer)
     }
 
-    fn insert_buffer(&mut self, allocated_buffer: AllocatedBuffer) -> Weak<AllocatedBuffer> {
-        let allocated_buffer_id = allocated_buffer.id;
-        let allocated_buffer = Arc::new(allocated_buffer);
-        let weak_ptr_allocated_buffer = Arc::downgrade(&allocated_buffer);
-        self.buffers.push(allocated_buffer);
-        let buffer_index = self.buffers.len() - 1;
+    fn insert_buffer(&mut self, allocated_buffer: AllocatedBuffer) -> BufferReference {
+        let index = self.free_indices.pop().unwrap();
 
-        if let Some(already_presented_buffer_index) =
-            self.buffers_map.insert(allocated_buffer_id, buffer_index)
-        {
-            panic!("Memory Bucket already has buffer by index: {already_presented_buffer_index}");
+        let buffer_info = allocated_buffer.buffer_info;
+        let buffer_slot = unsafe { self.slots.get_mut(index).unwrap_unchecked() };
+        buffer_slot.buffer = Some(allocated_buffer);
+        buffer_slot.generation += 1;
+
+        let generation = buffer_slot.generation;
+
+        BufferReference {
+            index,
+            generation,
+            buffer_info,
+        }
+    }
+
+    pub fn get_buffer<'a>(
+        &'a self,
+        buffer_reference: BufferReference,
+    ) -> Option<&'a AllocatedBuffer> {
+        let mut allocated_buffer = None;
+
+        let slot = unsafe { self.slots.get(buffer_reference.index).unwrap_unchecked() };
+        if slot.generation == buffer_reference.generation {
+            allocated_buffer = slot.buffer.as_ref();
         }
 
-        weak_ptr_allocated_buffer
+        allocated_buffer
     }
 
     unsafe fn get_device_address(&self, buffer: Buffer) -> DeviceAddress {
@@ -252,12 +255,12 @@ impl MemoryBucket {
         src: &[u8],
         size: usize,
     ) {
-        let allocated_buffer = buffer_reference.get_buffer().unwrap();
+        let allocated_buffer = buffer_reference.get_buffer(self).unwrap();
 
         let buffer_visibility = allocated_buffer.buffer_info.buffer_visibility;
         let target_buffer = match buffer_visibility {
             BufferVisibility::HostVisible => allocated_buffer,
-            BufferVisibility::DeviceOnly => self.staging_buffer_reference.get_buffer().unwrap(),
+            BufferVisibility::DeviceOnly => self.get_buffer(self.staging_buffer_reference).unwrap(),
             BufferVisibility::Unspecified => unreachable!(),
         };
 
@@ -294,12 +297,12 @@ impl MemoryBucket {
         src: *const c_void,
         size: usize,
     ) {
-        let allocated_buffer = buffer_reference.get_buffer().unwrap();
+        let allocated_buffer = buffer_reference.get_buffer(self).unwrap();
 
         let buffer_visibility = allocated_buffer.buffer_info.buffer_visibility;
         let target_buffer = match buffer_visibility {
             BufferVisibility::HostVisible => allocated_buffer,
-            BufferVisibility::DeviceOnly => self.staging_buffer_reference.get_buffer().unwrap(),
+            BufferVisibility::DeviceOnly => self.get_buffer(self.staging_buffer_reference).unwrap(),
             BufferVisibility::Unspecified => unreachable!(),
         };
 
@@ -332,12 +335,12 @@ impl MemoryBucket {
         src: *const c_void,
         regions_to_copy: &[BufferCopy],
     ) {
-        let allocated_buffer = buffer_reference.get_buffer().unwrap();
+        let allocated_buffer = buffer_reference.get_buffer(self).unwrap();
 
         let buffer_visibility = allocated_buffer.buffer_info.buffer_visibility;
         let target_buffer = match buffer_visibility {
             BufferVisibility::HostVisible => allocated_buffer,
-            BufferVisibility::DeviceOnly => self.staging_buffer_reference.get_buffer().unwrap(),
+            BufferVisibility::DeviceOnly => self.get_buffer(self.staging_buffer_reference).unwrap(),
             BufferVisibility::Unspecified => unreachable!(),
         };
 
@@ -416,10 +419,13 @@ impl MemoryBucket {
     }
 
     pub unsafe fn free_allocations(&mut self) {
-        self.buffers.drain(..).for_each(|allocated_buffer| unsafe {
-            let mut allocation = allocated_buffer.allocation;
-            self.allocator
-                .destroy_buffer(*allocated_buffer.buffer, &mut allocation);
+        self.slots.drain(..).for_each(|buffer_slot| unsafe {
+            if let Some(allocated_buffer) = buffer_slot.buffer {
+                let mut allocation = allocated_buffer.allocation;
+
+                self.allocator
+                    .destroy_buffer(*allocated_buffer.buffer, &mut allocation);
+            }
         });
     }
 }

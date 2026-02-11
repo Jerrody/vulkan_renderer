@@ -30,7 +30,7 @@ use crate::engine::{
     resources::{
         MeshBuffer, MeshObject, Meshlet, RendererContext, RendererResources, Vertex,
         VulkanContextResource,
-        buffers_pool::{BufferReference, BufferVisibility, MemoryBucket},
+        buffers_pool::{BufferReference, BufferVisibility, BuffersPool},
         textures_pool::{TextureMetadata, TextureReference},
     },
 };
@@ -314,7 +314,7 @@ pub fn on_load_model(
                     let (meshlets, vertex_indices, triangles) =
                         generate_meshlets(&indices, &vertex_data_adapter);
 
-                    let memory_bucket = &mut renderer_resources.resources_pool.memory_bucket;
+                    let memory_bucket = &mut renderer_resources.resources_pool.buffers_pool;
                     let vertex_buffer_reference = create_and_copy_to_buffer(
                         memory_bucket,
                         vertices.as_ptr() as *const _,
@@ -424,7 +424,7 @@ pub fn on_load_model(
     unsafe {
         renderer_resources
             .resources_pool
-            .memory_bucket
+            .buffers_pool
             .transfer_data_to_buffer_with_offset(
                 &renderer_resources.mesh_objects_buffer_reference,
                 mesh_objects_to_write.as_ptr() as *const _,
@@ -440,7 +440,7 @@ pub fn on_load_model(
     unsafe {
         renderer_resources
             .resources_pool
-            .memory_bucket
+            .buffers_pool
             .transfer_data_to_buffer_raw(
                 &materials_data_buffer_reference,
                 ptr_materials_data_to_write as *const _,
@@ -458,7 +458,7 @@ pub fn on_load_model(
 }
 
 pub fn create_and_copy_to_buffer(
-    memory_bucket: &mut MemoryBucket,
+    memory_bucket: &mut BuffersPool,
     src: *const c_void,
     size: usize,
     name: &str,

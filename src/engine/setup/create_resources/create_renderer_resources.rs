@@ -248,7 +248,7 @@ impl Engine {
             }
         }
 
-        let memory_bucket = &mut renderer_resources.resources_pool.memory_bucket;
+        let memory_bucket = &mut renderer_resources.resources_pool.buffers_pool;
         let materials_data_buffer_reference = memory_bucket.create_buffer(
             1024 * 1024 * 64,
             BufferUsageFlags::ShaderDeviceAddress | BufferUsageFlags::TransferDst,
