@@ -3360,7 +3360,6 @@ dependencies = [
  "nameof",
  "num_cpus",
  "raw-window-handle",
- "uuid",
  "vk-mem",
  "vulkanite",
  "winit",

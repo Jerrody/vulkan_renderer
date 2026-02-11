@@ -29,11 +29,10 @@ asset-importer = { version = "0.7.0", default-features = false, features = [
     "glam",
     "build-assimp",
 ] }
-glam = { version = "0.32", features = ["fast-math", "bytemuck"] }
-bytemuck = "1.24.0"
+glam = { version = "0.32.0", features = ["fast-math", "bytemuck"] }
+bytemuck = "1.25.0"
 meshopt = "0.6.2"
 ahash = "0.8.12"
-uuid = { version = "1.19", default-features = false, features = ["v4"] }
 image = { version = "0.25.9", default-features = false, features = [
     "png",
     "jpeg",
