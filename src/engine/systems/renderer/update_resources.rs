@@ -5,14 +5,16 @@ use crate::engine::{
     components::camera::Camera,
     resources::{
         DirectionalLight, LightProperties, RendererContext, RendererResources, SceneData,
-        SwappableBuffer, buffers_pool::Buffers, frame_context,
+        SwappableBuffer,
+        buffers_pool::{Buffers, BuffersPool},
+        frame_context,
     },
 };
 
 pub fn update_resources(
     render_context: Res<RendererContext>,
     mut renderer_resources: ResMut<RendererResources>,
-    buffers: Buffers,
+    buffers: ResMut<BuffersPool>,
     mut frame_context: ResMut<frame_context::FrameContext>,
     camera: Res<Camera>,
 ) {
@@ -74,7 +76,7 @@ pub fn update_resources(
     update_buffer_data(scene_data_buffer, &buffers);
 }
 
-fn update_buffer_data(buffer_to_update: &SwappableBuffer, buffers: &Buffers) {
+fn update_buffer_data(buffer_to_update: &SwappableBuffer, buffers: &BuffersPool) {
     let data_to_write = buffer_to_update.get_objects_to_write_as_slice();
 
     let buffer_to_update_reference = buffer_to_update.get_current_buffer();

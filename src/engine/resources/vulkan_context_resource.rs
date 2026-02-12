@@ -12,8 +12,8 @@ use vulkanite::vk::{
 use crate::engine::{
     resources::{
         RendererResources, UploadContext,
-        buffers_pool::Buffers,
-        textures_pool::{TextureReference, Textures},
+        buffers_pool::{Buffers, BuffersPool},
+        textures_pool::{TextureReference, Textures, TexturesPool},
     },
     utils::transition_image,
 };
@@ -36,8 +36,8 @@ pub struct VulkanContextResource {
 impl VulkanContextResource {
     pub fn transfer_data_to_image(
         &self,
-        textures: Textures,
-        buffers: Buffers,
+        textures: &TexturesPool,
+        buffers: &mut BuffersPool,
         texture_reference: TextureReference,
         data_to_copy: *const std::ffi::c_void,
         upload_context: &UploadContext,
@@ -59,16 +59,13 @@ impl VulkanContextResource {
         };
 
         let staging_buffer_reference =
-            unsafe { &*(buffers.get_staging_buffer_reference() as *const _) };
+            unsafe { &*(&buffers.get_staging_buffer_reference() as *const _) };
         unsafe {
-            rendere_resources
-                .resources_pool
-                .buffers_pool
-                .transfer_data_to_buffer_raw(staging_buffer_reference, data_to_copy, size as _);
+            buffers.transfer_data_to_buffer_raw(*staging_buffer_reference, data_to_copy, size as _);
         }
 
         // TODO: TEMP HACK FOR HAPPY BORROW CHECKER
-        let allocated_image = textures.get(texture_reference).unwrap();
+        let allocated_image = textures.get_image(texture_reference).unwrap();
 
         transition_image(
             command_buffer,
@@ -127,7 +124,10 @@ impl VulkanContextResource {
             .command_group
             .command_buffer
             .copy_buffer_to_image(
-                buffers.get(*staging_buffer_reference).unwrap().buffer,
+                buffers
+                    .get_buffer(*staging_buffer_reference)
+                    .unwrap()
+                    .buffer,
                 allocated_image.image,
                 ImageLayout::General,
                 &buffer_image_copies,

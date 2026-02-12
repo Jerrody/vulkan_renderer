@@ -1,5 +1,6 @@
 use bevy_ecs::world::World;
 use glam::Vec4;
+use image::buffer;
 use vulkanite::vk::{rs::*, *};
 
 use crate::engine::{
@@ -155,7 +156,8 @@ impl Engine {
             .update_binding(device, allocator, descriptor_checkerboard_image);
 
         vulkan_context.transfer_data_to_image(
-            &mut renderer_resources,
+            &textures_pool,
+            &mut buffers_pool,
             checkerboard_texture_reference,
             pixels.as_ptr() as *const _,
             &render_context.upload_context,
@@ -179,7 +181,8 @@ impl Engine {
 
         let white_image_pixels = [Self::pack_unorm_4x8(Vec4::new(1.0, 1.0, 1.0, 1.0))];
         vulkan_context.transfer_data_to_image(
-            &mut renderer_resources,
+            &textures_pool,
+            &mut buffers_pool,
             white_texture_reference,
             white_image_pixels.as_ptr() as *const _,
             &render_context.upload_context,
