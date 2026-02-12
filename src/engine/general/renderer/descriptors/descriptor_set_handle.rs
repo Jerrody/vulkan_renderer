@@ -8,7 +8,7 @@ use vulkanite::{
     vk::{rs::*, *},
 };
 
-use crate::engine::{descriptors::DescriptorKind, resources::buffers_pool::AllocatedBuffer};
+use crate::engine::{general::renderer::DescriptorKind, resources::buffers_pool::AllocatedBuffer};
 
 pub struct DescriptorSetLayoutHandle {
     pub descriptor_set_layout: DescriptorSetLayout,

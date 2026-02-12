@@ -1,6 +1,6 @@
-mod descriptors;
 mod ecs;
 mod events;
+mod general;
 mod id;
 mod setup;
 mod utils;
@@ -23,7 +23,6 @@ use crate::engine::{
         general::{update_camera, update_time},
         samplers_pool::SamplersPool,
         textures_pool::TexturesPool,
-        *,
     },
     events::LoadModelEvent,
 };

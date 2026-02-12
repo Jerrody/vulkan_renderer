@@ -1,11 +1,10 @@
 use bevy_ecs::world::World;
 use glam::Vec4;
-use image::buffer;
 use vulkanite::vk::{rs::*, *};
 
 use crate::engine::{
     Engine,
-    descriptors::{
+    general::renderer::{
         DescriptorKind, DescriptorSampledImage, DescriptorSampler, DescriptorSetBuilder,
         DescriptorSetHandle, DescriptorStorageImage,
     },

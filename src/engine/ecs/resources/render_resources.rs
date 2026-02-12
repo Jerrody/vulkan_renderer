@@ -12,7 +12,7 @@ use vulkanite::vk::{rs::*, *};
 
 use crate::engine::{
     components::material::{MaterialState, MaterialType},
-    descriptors::DescriptorSetHandle,
+    general::renderer::DescriptorSetHandle,
     id::Id,
     resources::{
         buffers_pool::BufferReference,

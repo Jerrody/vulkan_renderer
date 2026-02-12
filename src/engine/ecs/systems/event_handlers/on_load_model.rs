@@ -24,8 +24,8 @@ use crate::engine::{
         },
         transform::Transform,
     },
-    descriptors::{DescriptorKind, DescriptorSampledImage},
     events::{LoadModelEvent, SpawnEvent, SpawnEventRecord},
+    general::renderer::{DescriptorKind, DescriptorSampledImage},
     id::Id,
     resources::{
         MeshBuffer, MeshObject, Meshlet, RendererContext, RendererResources, Vertex,
