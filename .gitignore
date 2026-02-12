@@ -5,6 +5,8 @@ target
 intermediate
 shaders/_outputs
 profile*
+imgui.ini
+.vscode
 
 .cargo
 rust-toolchain.toml
