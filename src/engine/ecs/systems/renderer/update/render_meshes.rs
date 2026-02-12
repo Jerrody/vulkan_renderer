@@ -60,6 +60,8 @@ pub fn render_meshes_system(
         command_buffer.push_constants(
             renderer_resources
                 .resources_descriptor_set_handle
+                .as_ref()
+                .unwrap()
                 .pipeline_layout,
             ShaderStageFlags::Fragment
                 | ShaderStageFlags::TaskEXT

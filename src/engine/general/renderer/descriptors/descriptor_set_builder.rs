@@ -72,7 +72,7 @@ impl<'a> DescriptorSetBuilder<'a> {
     pub fn build(
         &mut self,
         device: Device,
-        allocator: &Allocator,
+        allocator: Allocator,
         descriptor_buffer_properties: &PhysicalDeviceDescriptorBufferPropertiesEXT,
         push_constant_ranges: &[PushConstantRange],
         shader_stages: ShaderStageFlags,
@@ -141,7 +141,7 @@ impl<'a> DescriptorSetBuilder<'a> {
     fn create_descriptor_buffer(
         &mut self,
         device: Device,
-        allocator: &Allocator,
+        allocator: Allocator,
         descriptor_buffer_size: u64,
     ) -> AllocatedBuffer {
         let buffer_info = BufferCreateInfo::default()

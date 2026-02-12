@@ -15,10 +15,8 @@ use crate::engine::{
     general::renderer::DescriptorSetHandle,
     id::Id,
     resources::{
-        buffers_pool::BufferReference,
-        render_resources::model_loader::ModelLoader,
-        samplers_pool::SamplerReference,
-        textures_pool::TextureReference,
+        buffers_pool::BufferReference, render_resources::model_loader::ModelLoader,
+        samplers_pool::SamplerReference, textures_pool::TextureReference,
     },
 };
 
@@ -79,14 +77,14 @@ pub struct MeshBuffer {
     pub meshlets_count: usize,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Default, Clone, Copy)]
 pub struct ShaderObject {
-    pub shader: ShaderEXT,
+    pub shader: Option<ShaderEXT>,
     pub stage: ShaderStageFlags,
 }
 
 impl ShaderObject {
-    pub fn new(shader: ShaderEXT, stage: ShaderStageFlags) -> Self {
+    pub fn new(shader: Option<ShaderEXT>, stage: ShaderStageFlags) -> Self {
         Self { shader, stage }
     }
 }
@@ -262,7 +260,7 @@ pub struct RendererResources {
     pub fallback_texture_reference: TextureReference,
     pub default_sampler_reference: SamplerReference,
     pub mesh_objects_buffer_reference: BufferReference,
-    pub resources_descriptor_set_handle: DescriptorSetHandle,
+    pub resources_descriptor_set_handle: Option<DescriptorSetHandle>,
     pub gradient_compute_shader_object: ShaderObject,
     pub task_shader_object: ShaderObject,
     pub mesh_shader_object: ShaderObject,

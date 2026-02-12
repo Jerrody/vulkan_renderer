@@ -34,7 +34,6 @@ pub fn begin_rendering_system(
     command_buffer.begin(&command_buffer_begin_info).unwrap();
 
     let draw_image = textures.get(frame_context.draw_texture_reference).unwrap();
-
     let depth_image = textures.get(frame_context.depth_texture_reference).unwrap();
 
     transition_image(
@@ -103,6 +102,8 @@ pub fn begin_rendering_system(
     command_buffer.push_constants(
         renderer_resources
             .resources_descriptor_set_handle
+            .as_ref()
+            .unwrap()
             .pipeline_layout,
         ShaderStageFlags::MeshEXT
             | ShaderStageFlags::Fragment
@@ -233,9 +234,9 @@ pub fn begin_rendering_system(
         renderer_resources.fragment_shader_object.stage,
     ];
     let shaders = [
-        *renderer_resources.task_shader_object.shader,
-        *renderer_resources.mesh_shader_object.shader,
-        *renderer_resources.fragment_shader_object.shader,
+        *renderer_resources.task_shader_object.shader.unwrap(),
+        *renderer_resources.mesh_shader_object.shader.unwrap(),
+        *renderer_resources.fragment_shader_object.shader.unwrap(),
     ];
 
     let descriptor_binding_info = DescriptorBufferBindingInfoEXT::default()
@@ -243,6 +244,8 @@ pub fn begin_rendering_system(
         .address(
             renderer_resources
                 .resources_descriptor_set_handle
+                .as_ref()
+                .unwrap()
                 .buffer
                 .buffer_info
                 .device_address,
@@ -256,6 +259,8 @@ pub fn begin_rendering_system(
         PipelineBindPoint::Graphics,
         renderer_resources
             .resources_descriptor_set_handle
+            .as_ref()
+            .unwrap()
             .pipeline_layout,
         Default::default(),
         &buffer_indices,
@@ -273,7 +278,7 @@ fn draw_gradient(
     let gradient_compute_shader_object = renderer_resources.gradient_compute_shader_object;
 
     let stages = [gradient_compute_shader_object.stage];
-    let shaders = [gradient_compute_shader_object.shader];
+    let shaders = [gradient_compute_shader_object.shader.unwrap()];
 
     command_buffer.bind_shaders_ext(stages.as_slice(), shaders.as_slice());
 
@@ -282,6 +287,8 @@ fn draw_gradient(
         .address(
             renderer_resources
                 .resources_descriptor_set_handle
+                .as_ref()
+                .unwrap()
                 .buffer
                 .buffer_info
                 .device_address,
@@ -296,6 +303,8 @@ fn draw_gradient(
         PipelineBindPoint::Compute,
         renderer_resources
             .resources_descriptor_set_handle
+            .as_ref()
+            .unwrap()
             .pipeline_layout,
         Default::default(),
         &buffer_indices,

@@ -1,6 +1,6 @@
 use bevy_ecs::{
     resource::Resource,
-    system::{Res, SystemParam},
+    system::{Res, ResMut, SystemParam},
 };
 use vulkanite::vk::{
     CompareOp, Filter, LOD_CLAMP_NONE, SamplerAddressMode, SamplerCreateInfo, SamplerMipmapMode,
@@ -15,6 +15,27 @@ pub struct Samplers<'w> {
 impl<'w> Samplers<'w> {
     pub fn get(&self, sampler_reference: SamplerReference) -> Option<Sampler> {
         self.samplers_pool.get_sampler(sampler_reference)
+    }
+}
+
+#[derive(SystemParam)]
+pub struct SamplersMut<'w> {
+    samplers_pool: ResMut<'w, SamplersPool>,
+}
+
+impl<'w> SamplersMut<'w> {
+    pub fn get(&self, sampler_reference: SamplerReference) -> Option<Sampler> {
+        self.samplers_pool.get_sampler(sampler_reference)
+    }
+
+    pub fn create_sampler(
+        &mut self,
+        filter: Filter,
+        wrap: SamplerAddressMode,
+        mip_map_enabled: bool,
+    ) -> SamplerReference {
+        self.samplers_pool
+            .create_sampler(filter, wrap, mip_map_enabled)
     }
 }
 

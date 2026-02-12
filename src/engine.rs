@@ -22,6 +22,7 @@ use crate::engine::{
         buffers_pool::{AllocatedBuffer, BuffersPool},
         general::{update_camera, update_time},
         samplers_pool::SamplersPool,
+        setup::prepare_shders::prepare_shaders_system,
         textures_pool::TexturesPool,
     },
     events::LoadModelEvent,
@@ -52,20 +53,22 @@ impl Engine {
         let render_context = Self::create_renderer_context(window, &world);
         world.insert_resource(render_context);
 
-        let renderer_resources = Self::create_renderer_resources(&mut world);
-        world.insert_resource(renderer_resources);
+        Self::prepare_renderer_resources(&mut world);
 
         let frame_context = FrameContext::default();
         world.insert_resource(frame_context);
 
         world.insert_resource(Camera::new(0.05, 0.5));
 
-        let mut world_schedule = Schedule::new(SchedulerWorldUpdate);
-        world_schedule.add_systems((
+        let mut scheduler_world_update = Schedule::new(SchedulerWorldUpdate);
+        scheduler_world_update.add_systems((
             propogate_transforms_system,
             update_time::update_time_system,
             update_camera::update_camera_system.after(update_time::update_time_system),
         ));
+
+        let mut scheduler_renderer_setup = Schedule::new(SchedulerRendererSetup);
+        scheduler_renderer_setup.add_systems(prepare_shaders_system);
 
         let mut scheduler_renderer_update = Schedule::new(SchedulerRendererUpdate);
         scheduler_renderer_update.add_systems((
@@ -81,23 +84,21 @@ impl Engine {
             present::present_system.after(render_meshes::render_meshes_system),
         ));
 
-        let scheduler_renderer_setup = Schedule::new(SchedulerRendererSetup);
-
-        world.add_schedule(world_schedule);
+        world.add_schedule(scheduler_world_update);
         world.add_schedule(scheduler_renderer_update);
         world.add_schedule(scheduler_renderer_setup);
 
         world.add_observer(on_load_model::on_load_model_system);
         world.add_observer(on_spawn_mesh::on_spawn_mesh_system);
 
+        world.insert_resource(Time::new());
+
+        world.run_schedule(SchedulerRendererSetup);
+
         // TODO: TEMP
         world.trigger(LoadModelEvent {
             path: PathBuf::from(r"assets/sponza_variation_02.glb"),
         });
-
-        world.insert_resource(Time::new());
-
-        world.run_schedule(SchedulerRendererSetup);
 
         Self { world }
     }
@@ -148,18 +149,26 @@ impl Drop for Engine {
         device.wait_idle().unwrap();
 
         unsafe {
-            let allocated_buffer = &mut renderer_resources.resources_descriptor_set_handle.buffer;
+            let allocated_buffer = &mut renderer_resources
+                .resources_descriptor_set_handle
+                .as_mut()
+                .unwrap()
+                .buffer;
             self.destroy_buffer(&vulkan_context_resource.allocator, allocated_buffer);
 
             device.destroy_pipeline_layout(Some(
                 renderer_resources
                     .resources_descriptor_set_handle
+                    .as_ref()
+                    .unwrap()
                     .pipeline_layout,
             ));
 
             device.destroy_descriptor_set_layout(Some(
                 renderer_resources
                     .resources_descriptor_set_handle
+                    .as_ref()
+                    .unwrap()
                     .descriptor_set_layout_handle
                     .descriptor_set_layout,
             ));
@@ -170,12 +179,10 @@ impl Drop for Engine {
 
             vulkan_context_resource.allocator.drop();
 
-            device.destroy_shader_ext(Some(
-                renderer_resources.gradient_compute_shader_object.shader,
-            ));
-            device.destroy_shader_ext(Some(renderer_resources.mesh_shader_object.shader));
-            device.destroy_shader_ext(Some(renderer_resources.task_shader_object.shader));
-            device.destroy_shader_ext(Some(renderer_resources.fragment_shader_object.shader));
+            device.destroy_shader_ext(renderer_resources.gradient_compute_shader_object.shader);
+            device.destroy_shader_ext(renderer_resources.mesh_shader_object.shader);
+            device.destroy_shader_ext(renderer_resources.task_shader_object.shader);
+            device.destroy_shader_ext(renderer_resources.fragment_shader_object.shader);
 
             device.destroy_command_pool(Some(
                 render_context_resource

@@ -39,7 +39,7 @@ impl DescriptorSetHandle {
     pub fn update_binding(
         &mut self,
         device: Device,
-        allocator: &Allocator,
+        allocator: Allocator,
         descriptor_kind: DescriptorKind,
     ) {
         let descriptor_type = descriptor_kind.get_descriptor_type();

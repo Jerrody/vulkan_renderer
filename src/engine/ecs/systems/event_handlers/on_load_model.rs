@@ -24,14 +24,15 @@ use crate::engine::{
         },
         transform::Transform,
     },
+    ecs::{buffers_pool::BuffersMut, textures_pool::TexturesMut},
     events::{LoadModelEvent, SpawnEvent, SpawnEventRecord},
     general::renderer::{DescriptorKind, DescriptorSampledImage},
     id::Id,
     resources::{
         MeshBuffer, MeshObject, Meshlet, RendererContext, RendererResources, Vertex,
         VulkanContextResource,
-        buffers_pool::{BufferReference, BufferVisibility, BuffersPool},
-        textures_pool::{TextureMetadata, TextureReference, TexturesPool},
+        buffers_pool::{BufferReference, BufferVisibility},
+        textures_pool::{TextureMetadata, TextureReference},
     },
 };
 
@@ -99,8 +100,8 @@ pub fn on_load_model_system(
     vulkan_context: Res<VulkanContextResource>,
     renderer_context_resource: Res<RendererContext>,
     mut renderer_resources: ResMut<RendererResources>,
-    mut buffers_pool: ResMut<BuffersPool>,
-    mut textures_pool: ResMut<TexturesPool>,
+    mut buffers_mut: BuffersMut,
+    mut textures_mut: TexturesMut,
 ) {
     let model_loader = &renderer_resources.model_loader;
 
@@ -202,8 +203,8 @@ pub fn on_load_model_system(
                     try_upload_texture(
                         &vulkan_context,
                         &renderer_context_resource,
-                        &mut textures_pool,
-                        &mut buffers_pool,
+                        &mut textures_mut,
+                        &mut buffers_mut,
                         &mut renderer_resources,
                         &scene,
                         &mut uploaded_textures,
@@ -319,28 +320,29 @@ pub fn on_load_model_system(
                         generate_meshlets(&indices, &vertex_data_adapter);
 
                     let vertex_buffer_reference = create_and_copy_to_buffer(
-                        &mut buffers_pool,
+                        &mut buffers_mut,
                         vertices.as_ptr() as *const _,
                         vertices.len() * std::mem::size_of::<Vertex>(),
-                        std::format!("{}_{}", mesh_name, name_of!(vertices)).as_str(),
+                        std::format!("{}_{}", mesh_name, name_of!(vertices)),
                     );
                     let vertex_indices_buffer_reference = create_and_copy_to_buffer(
-                        &mut buffers_pool,
+                        &mut buffers_mut,
                         vertex_indices.as_ptr() as _,
                         vertex_indices.len() * std::mem::size_of::<u32>(),
-                        std::format!("{}_{}", mesh_name, name_of!(vertex_indices)).as_str(),
+                        std::format!("{}_{}", mesh_name, name_of!(vertex_indices)),
                     );
                     let meshlets_buffer_reference = create_and_copy_to_buffer(
-                        &mut buffers_pool,
+                        &mut buffers_mut,
                         meshlets.as_ptr() as _,
                         meshlets.len() * std::mem::size_of::<Meshlet>(),
-                        std::format!("{}_{}", mesh_name, name_of!(meshlets)).as_str(),
+                        std::format!("{}_{}", mesh_name, name_of!(meshlets)),
                     );
+
                     let local_indices_buffer_reference = create_and_copy_to_buffer(
-                        &mut buffers_pool,
+                        &mut buffers_mut,
                         triangles.as_ptr() as _,
                         triangles.len() * std::mem::size_of::<u8>(),
-                        std::format!("{}_{}", mesh_name, name_of!(triangles)).as_str(),
+                        std::format!("{}_{}", mesh_name, name_of!(triangles)),
                     );
 
                     let mesh_buffer = MeshBuffer {
@@ -425,7 +427,7 @@ pub fn on_load_model_system(
         .collect::<Vec<BufferCopy>>();
 
     unsafe {
-        buffers_pool.transfer_data_to_buffer_with_offset(
+        buffers_mut.transfer_data_to_buffer_with_offset(
             &renderer_resources.mesh_objects_buffer_reference,
             mesh_objects_to_write.as_ptr() as *const _,
             &mesh_objects_to_copy_regions,
@@ -438,7 +440,7 @@ pub fn on_load_model_system(
     let materials_data_to_write_len = materials_data_to_write_slice.len();
 
     unsafe {
-        buffers_pool.transfer_data_to_buffer_raw(
+        buffers_mut.transfer_data_to_buffer_raw(
             materials_data_buffer_reference,
             ptr_materials_data_to_write as *const _,
             materials_data_to_write_len,
@@ -455,12 +457,12 @@ pub fn on_load_model_system(
 }
 
 pub fn create_and_copy_to_buffer(
-    buffers: &mut BuffersPool,
+    buffers: &mut BuffersMut,
     src: *const c_void,
     size: usize,
-    name: &str,
+    name: String,
 ) -> BufferReference {
-    let buffer_reference = buffers.create_buffer(
+    let buffer_reference = buffers.create(
         size,
         BufferUsageFlags::TransferDst,
         BufferVisibility::DeviceOnly,
@@ -477,8 +479,8 @@ pub fn create_and_copy_to_buffer(
 fn try_upload_texture(
     vulkan_context: &VulkanContextResource,
     renderer_context: &RendererContext,
-    textures_pool: &mut TexturesPool,
-    buffers_pool: &mut BuffersPool,
+    textures_mut: &mut TexturesMut,
+    buffers_pool: &mut BuffersMut,
     renderer_resources: &mut RendererResources,
     scene: &asset_importer::Scene,
     uploaded_textures: &mut HashMap<usize, TextureReference>,
@@ -501,7 +503,7 @@ fn try_upload_texture(
                 .unwrap_or(std::format!("{model_name}_texture_{texture_index}"));
 
             let (texture_reference, texture_data) = try_to_load_cached_texture(
-                textures_pool,
+                textures_mut,
                 model_name,
                 texture.clone(),
                 &texture_name,
@@ -509,26 +511,24 @@ fn try_upload_texture(
             *texture_reference_to_use = texture_reference;
 
             vulkan_context.transfer_data_to_image(
-                textures_pool,
+                textures_mut.get(texture_reference).unwrap(),
                 buffers_pool,
-                texture_reference,
                 texture_data.as_ptr() as *const _,
                 &renderer_context.upload_context,
                 Some(texture_data.len()),
             );
 
             let descriptor_texture = DescriptorKind::SampledImage(DescriptorSampledImage {
-                image_view: textures_pool
-                    .get_image(texture_reference)
-                    .unwrap()
-                    .image_view,
+                image_view: textures_mut.get(texture_reference).unwrap().image_view,
                 index: texture_reference.index,
             });
             renderer_resources
                 .resources_descriptor_set_handle
+                .as_mut()
+                .unwrap()
                 .update_binding(
                     vulkan_context.device,
-                    &vulkan_context.allocator,
+                    vulkan_context.allocator,
                     descriptor_texture,
                 );
 
@@ -548,7 +548,7 @@ fn try_upload_texture(
 }
 
 fn try_to_load_cached_texture(
-    textures_mut: &mut TexturesPool,
+    textures_mut: &mut TexturesMut,
     model_name: &str,
     texture: asset_importer::Texture,
     texture_name: &str,

@@ -85,6 +85,17 @@ impl<'w> BuffersMut<'w> {
         self.buffers_pool.get_buffer(buffer_reference)
     }
 
+    pub fn create(
+        &mut self,
+        allocation_size: usize,
+        usage: BufferUsageFlags,
+        buffer_visibility: BufferVisibility,
+        name: Option<String>,
+    ) -> BufferReference {
+        self.buffers_pool
+            .create_buffer(allocation_size, usage, buffer_visibility, name)
+    }
+
     pub fn get_staging_buffer_reference(&self) -> BufferReference {
         self.buffers_pool.get_staging_buffer_reference()
     }
@@ -98,6 +109,21 @@ impl<'w> BuffersMut<'w> {
         unsafe {
             self.buffers_pool
                 .transfer_data_to_buffer_raw(buffer_reference, src, size);
+        }
+    }
+
+    pub unsafe fn transfer_data_to_buffer_with_offset(
+        &self,
+        buffer_reference: &BufferReference,
+        src: *const c_void,
+        regions_to_copy: &[BufferCopy],
+    ) {
+        unsafe {
+            self.buffers_pool.transfer_data_to_buffer_with_offset(
+                buffer_reference,
+                src,
+                regions_to_copy,
+            );
         }
     }
 }
@@ -154,7 +180,7 @@ impl BuffersPool {
             1024 * 1024 * 64,
             BufferUsageFlags::TransferSrc,
             BufferVisibility::HostVisible,
-            Some("Staging Buffer"),
+            Some("Staging Buffer".to_string()),
         );
         memory_bucket.staging_buffer_reference = staging_buffer_reference;
 
@@ -166,7 +192,7 @@ impl BuffersPool {
         allocation_size: usize,
         usage: BufferUsageFlags,
         buffer_visibility: BufferVisibility,
-        name: Option<&str>,
+        name: Option<String>,
     ) -> BufferReference {
         let buffer_kind_usage = if allocation_size < 1024 * 64 {
             BufferUsageFlags::UniformBuffer
@@ -218,7 +244,7 @@ impl BuffersPool {
         let device_address = unsafe { self.get_device_address(buffer) };
 
         if let Some(name) = name {
-            let name = CString::from_str(name).unwrap();
+            let name = CString::from_str(name.as_str()).unwrap();
             let debug_utils_object_name = DebugUtilsObjectNameInfoEXT {
                 object_type: ObjectType::Buffer,
                 object_handle: buffer.as_raw().get(),
