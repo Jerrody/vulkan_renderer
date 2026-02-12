@@ -6,7 +6,7 @@ use crate::engine::{
     utils::{command_buffer_submit_info, semaphore_submit_info, submit_info},
 };
 
-pub fn present(
+pub fn present_system(
     vulkan_ctx: Res<VulkanContextResource>,
     mut render_ctx: ResMut<RendererContext>,
     frame_ctx: Res<FrameContext>,

@@ -6,7 +6,7 @@ use crate::engine::{
 };
 use vulkanite::vk::*;
 
-pub fn end_rendering(
+pub fn end_rendering_system(
     renderer_context: Res<RendererContext>,
     textures: Textures,
     frame_context: Res<FrameContext>,

@@ -8,8 +8,6 @@ use std::slice::{Iter, IterMut};
 use bevy_ecs::resource::Resource;
 use bytemuck::{NoUninit, Pod, Zeroable};
 use glam::{Mat4, Vec2, Vec3, Vec4};
-use ktx2_rw::Ktx2Texture;
-use vma::Allocator;
 use vulkanite::vk::{rs::*, *};
 
 use crate::engine::{
@@ -17,11 +15,10 @@ use crate::engine::{
     descriptors::DescriptorSetHandle,
     id::Id,
     resources::{
-        CommandGroup,
-        buffers_pool::{AllocatedBuffer, BufferReference, BuffersPool},
+        buffers_pool::BufferReference,
         render_resources::model_loader::ModelLoader,
-        samplers_pool::{SamplerReference, SamplersPool},
-        textures_pool::{AllocatedImage, TextureReference, TexturesPool},
+        samplers_pool::SamplerReference,
+        textures_pool::{TextureReference, TexturesPool},
     },
 };
 

@@ -10,7 +10,7 @@ use crate::engine::{
     resources::{FrameContext, GraphicsPushConstant, RendererResources},
 };
 
-pub fn render_meshes(
+pub fn render_meshes_system(
     graphics_entities: Query<&Mesh>,
     entities: Query<(Entity, &Name)>,
     entities_with_parent: Query<&Parent>,

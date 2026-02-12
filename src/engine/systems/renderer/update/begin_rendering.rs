@@ -15,7 +15,7 @@ use crate::engine::{
     utils::{self, transition_image},
 };
 
-pub fn begin_rendering(
+pub fn begin_rendering_system(
     render_context: Res<RendererContext>,
     renderer_resources: Res<RendererResources>,
     textures: Textures,

@@ -5,7 +5,7 @@ use crate::engine::resources::{
     FrameContext, RendererContext, RendererResources, VulkanContextResource,
 };
 
-pub fn prepare_frame(
+pub fn prepare_frame_system(
     vulkan_ctx: Res<VulkanContextResource>,
     render_ctx: Res<RendererContext>,
     mut renderer_resources: ResMut<RendererResources>,

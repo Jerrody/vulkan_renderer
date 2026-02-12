@@ -31,7 +31,7 @@ use crate::engine::{
         MeshBuffer, MeshObject, Meshlet, RendererContext, RendererResources, Vertex,
         VulkanContextResource,
         buffers_pool::{BufferReference, BufferVisibility, BuffersPool},
-        textures_pool::{TextureMetadata, TextureReference, Textures, TexturesMut, TexturesPool},
+        textures_pool::{TextureMetadata, TextureReference, TexturesPool},
     },
 };
 
@@ -93,7 +93,7 @@ impl NodeData {
     }
 }
 
-pub fn on_load_model(
+pub fn on_load_model_system(
     load_model_event: On<LoadModelEvent>,
     mut commands: Commands,
     vulkan_context: Res<VulkanContextResource>,

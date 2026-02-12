@@ -26,18 +26,18 @@ use crate::engine::{
         textures_pool::TexturesPool,
     },
     systems::{
-        begin_rendering, collect_instance_objects, end_rendering,
         general::{update_camera, update_time},
-        on_load_model, on_spawn_mesh, prepare_frame, present, propogate_transforms, render_meshes,
-        update_resources,
+        *,
     },
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
-struct ScheduleWorldUpdate;
+struct SchedulerWorldUpdate;
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
+struct SchedulerRendererSetup;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
-struct ScheduleRendererUpdate;
+struct SchedulerRendererUpdate;
 
 pub struct Engine {
     world: World,
@@ -64,30 +64,35 @@ impl Engine {
 
         world.insert_resource(Camera::new(0.05, 0.5));
 
-        let mut world_schedule = Schedule::new(ScheduleWorldUpdate);
+        let mut world_schedule = Schedule::new(SchedulerWorldUpdate);
         world_schedule.add_systems((
-            propogate_transforms,
-            update_time::update_time,
-            update_camera::update_camera.after(update_time::update_time),
+            propogate_transforms_system,
+            update_time::update_time_system,
+            update_camera::update_camera_system.after(update_time::update_time_system),
         ));
 
-        let mut renderer_schedule = Schedule::new(ScheduleRendererUpdate);
-        renderer_schedule.add_systems((
-            prepare_frame::prepare_frame,
-            collect_instance_objects::collect_instance_objects.after(prepare_frame::prepare_frame),
-            update_resources::update_resources
-                .after(collect_instance_objects::collect_instance_objects),
-            begin_rendering::begin_rendering.after(update_resources::update_resources),
-            render_meshes::render_meshes.after(begin_rendering::begin_rendering),
-            end_rendering::end_rendering.after(render_meshes::render_meshes),
-            present::present.after(render_meshes::render_meshes),
+        let mut scheduler_renderer_update = Schedule::new(SchedulerRendererUpdate);
+        scheduler_renderer_update.add_systems((
+            prepare_frame::prepare_frame_system,
+            collect_instance_objects::collect_instance_objects_system
+                .after(prepare_frame::prepare_frame_system),
+            update_resources::update_resources_system
+                .after(collect_instance_objects::collect_instance_objects_system),
+            begin_rendering::begin_rendering_system
+                .after(update_resources::update_resources_system),
+            render_meshes::render_meshes_system.after(begin_rendering::begin_rendering_system),
+            end_rendering::end_rendering_system.after(render_meshes::render_meshes_system),
+            present::present_system.after(render_meshes::render_meshes_system),
         ));
+
+        let mut scheduler_renderer_setup = Schedule::new(SchedulerRendererSetup);
 
         world.add_schedule(world_schedule);
-        world.add_schedule(renderer_schedule);
+        world.add_schedule(scheduler_renderer_update);
+        world.add_schedule(scheduler_renderer_setup);
 
-        world.add_observer(on_load_model::on_load_model);
-        world.add_observer(on_spawn_mesh::on_spawn_mesh);
+        world.add_observer(on_load_model::on_load_model_system);
+        world.add_observer(on_spawn_mesh::on_spawn_mesh_system);
 
         // TODO: TEMP
         world.trigger(LoadModelEvent {
@@ -96,13 +101,15 @@ impl Engine {
 
         world.insert_resource(Time::new());
 
+        world.run_schedule(SchedulerRendererSetup);
+
         Self { world }
     }
 
     pub fn update(&mut self) {
         self.world.flush();
-        self.world.run_schedule(ScheduleWorldUpdate);
-        self.world.run_schedule(ScheduleRendererUpdate);
+        self.world.run_schedule(SchedulerWorldUpdate);
+        self.world.run_schedule(SchedulerRendererUpdate);
     }
 
     pub fn process_input(&mut self, key_code: KeyCode, state: ElementState) {

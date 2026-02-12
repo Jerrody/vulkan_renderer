@@ -19,7 +19,7 @@ struct InstanceDataToWrite {
     pub material_type: MaterialType,
 }
 
-pub fn collect_instance_objects(
+pub fn collect_instance_objects_system(
     mut renderer_resources: ResMut<RendererResources>,
     mut mesh_query: Query<(&GlobalTransform, &mut Mesh)>,
 ) {

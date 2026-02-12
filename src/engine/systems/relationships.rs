@@ -9,7 +9,7 @@ use glam::Mat4;
 
 use crate::engine::components::transform::{Children, GlobalTransform, Parent, Transform};
 
-pub fn propogate_transforms(
+pub fn propogate_transforms_system(
     root_query: Query<(Entity, &Transform), Without<Parent>>,
     children_query: Query<&Children>,
     mut transforms: ParamSet<(Query<&mut GlobalTransform>, Query<&Transform>)>,

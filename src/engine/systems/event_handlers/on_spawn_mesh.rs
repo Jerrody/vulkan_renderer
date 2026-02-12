@@ -10,7 +10,7 @@ use crate::engine::{
     id::Id,
 };
 
-pub fn on_spawn_mesh(spawn_event: On<SpawnEvent>, mut commands: Commands) {
+pub fn on_spawn_mesh_system(spawn_event: On<SpawnEvent>, mut commands: Commands) {
     let scene_transform = Transform {
         position: Vec3::ZERO,
         rotation: Quat::IDENTITY,

@@ -11,7 +11,7 @@ use crate::engine::{
     },
 };
 
-pub fn update_resources(
+pub fn update_resources_system(
     render_context: Res<RendererContext>,
     mut renderer_resources: ResMut<RendererResources>,
     buffers: ResMut<BuffersPool>,
