@@ -1,1 +1,4 @@
-pub mod prepare_shders;
+pub mod prepare_default_samplers;
+pub mod prepare_default_textures;
+pub mod prepare_descriptors;
+pub mod prepare_shaders;

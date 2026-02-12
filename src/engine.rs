@@ -22,7 +22,7 @@ use crate::engine::{
         buffers_pool::{AllocatedBuffer, BuffersPool},
         general::{update_camera, update_time},
         samplers_pool::SamplersPool,
-        setup::prepare_shders::prepare_shaders_system,
+        setup::prepare_shaders::prepare_shaders_system,
         textures_pool::TexturesPool,
     },
     events::LoadModelEvent,

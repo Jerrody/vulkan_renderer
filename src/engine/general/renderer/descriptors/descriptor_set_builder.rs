@@ -128,6 +128,7 @@ impl<'a> DescriptorSetBuilder<'a> {
         DescriptorSetHandle {
             buffer: descriptor_buffer,
             descriptor_set_layout_handle,
+            push_contant_ranges: push_constant_ranges.to_vec(),
             pipeline_layout,
             bindings_infos,
             descriptors_sizes: DescriptorsSizes {

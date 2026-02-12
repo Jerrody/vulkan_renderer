@@ -30,6 +30,7 @@ pub struct BindingInfo {
 pub struct DescriptorSetHandle {
     pub buffer: AllocatedBuffer,
     pub descriptor_set_layout_handle: DescriptorSetLayoutHandle,
+    pub push_contant_ranges: Vec<PushConstantRange>,
     pub bindings_infos: HashMap<u32, BindingInfo>,
     pub pipeline_layout: PipelineLayout,
     pub descriptors_sizes: DescriptorsSizes,

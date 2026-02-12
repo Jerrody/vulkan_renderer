@@ -4,17 +4,13 @@ use vulkanite::vk::{rs::*, *};
 
 use crate::engine::{
     ecs::{
-        DevicePropertiesResource, FrameData, GraphicsPushConstant, InstanceObject, MeshObject,
-        RendererContext, RendererResources, SceneData, ShaderObject, SwappableBuffer,
-        VulkanContextResource,
+        InstanceObject, MeshObject, RendererContext, RendererResources, SceneData, ShaderObject,
+        SwappableBuffer, VulkanContextResource,
         buffers_pool::{BufferVisibility, BuffersMut},
         samplers_pool::SamplersMut,
         textures_pool::TexturesMut,
     },
-    general::renderer::{
-        DescriptorKind, DescriptorSampledImage, DescriptorSampler, DescriptorSetBuilder,
-        DescriptorSetHandle, DescriptorStorageImage,
-    },
+    general::renderer::{DescriptorKind, DescriptorSampledImage, DescriptorStorageImage},
     utils::{ShaderInfo, load_shader},
 };
 
@@ -22,7 +18,6 @@ pub fn prepare_shaders_system(
     vulkan_ctx_resource: Res<VulkanContextResource>,
     mut render_context: ResMut<RendererContext>,
     mut renderer_resources: ResMut<RendererResources>,
-    device_properties_resource: Res<DevicePropertiesResource>,
     mut samplers_mut: SamplersMut,
     mut textures_mut: TexturesMut,
     mut buffers_mut: BuffersMut,
@@ -30,29 +25,15 @@ pub fn prepare_shaders_system(
     let device = vulkan_ctx_resource.device;
     let allocator = vulkan_ctx_resource.allocator;
 
-    let push_constant_range = PushConstantRange {
-        stage_flags: ShaderStageFlags::MeshEXT
-            | ShaderStageFlags::Fragment
-            | ShaderStageFlags::Compute
-            | ShaderStageFlags::TaskEXT,
-        offset: Default::default(),
-        size: std::mem::size_of::<GraphicsPushConstant>() as _,
-    };
+    let descriptor_set_handle = renderer_resources
+        .resources_descriptor_set_handle
+        .as_ref()
+        .unwrap();
 
-    let push_constant_ranges = [push_constant_range];
-
-    let resources_descriptor_set_handle = create_descriptors(
-        device,
-        allocator,
-        &device_properties_resource,
-        &push_constant_ranges,
-    );
-
-    let descriptor_set_layouts = [resources_descriptor_set_handle
+    let descriptor_set_layouts = [descriptor_set_handle
         .descriptor_set_layout_handle
         .descriptor_set_layout];
-
-    renderer_resources.resources_descriptor_set_handle = Some(resources_descriptor_set_handle);
+    let push_constant_ranges = descriptor_set_handle.push_contant_ranges.as_slice();
 
     let mesh_shader_path = r"intermediate\shaders\mesh.slang.spv";
     let shaders_info = [
@@ -96,9 +77,6 @@ pub fn prepare_shaders_system(
     renderer_resources.task_shader_object = created_shaders[1];
     renderer_resources.mesh_shader_object = created_shaders[2];
     renderer_resources.fragment_shader_object = created_shaders[3];
-
-    let default_sampler_reference =
-        samplers_mut.create_sampler(Filter::Linear, SamplerAddressMode::Repeat, true);
 
     let magenta = &pack_unorm_4x8(Vec4::new(1.0, 0.0, 1.0, 1.0));
     let black = &pack_unorm_4x8(Vec4::new(0.0, 0.0, 0.0, 0.0));
@@ -281,58 +259,6 @@ pub fn prepare_shaders_system(
 
     renderer_resources.set_materials_data_buffer_reference(materials_data_buffer_reference);
     renderer_resources.mesh_objects_buffer_reference = mesh_objects_buffer_reference;
-
-    let sampler = samplers_mut.get(default_sampler_reference).unwrap();
-    let sampler_descriptor = DescriptorKind::Sampler(DescriptorSampler {
-        sampler: sampler,
-        index: renderer_resources.default_sampler_reference.index,
-    });
-
-    renderer_resources
-        .resources_descriptor_set_handle
-        .as_mut()
-        .unwrap()
-        .update_binding(device, allocator, sampler_descriptor);
-}
-
-fn create_descriptors(
-    device: Device,
-    allocator: vma::Allocator,
-    device_properties_resource: &DevicePropertiesResource,
-    push_constants_ranges: &[PushConstantRange],
-) -> DescriptorSetHandle {
-    let mut descriptor_set_builder = DescriptorSetBuilder::new();
-
-    // Samplers
-    descriptor_set_builder.add_binding(
-        DescriptorType::Sampler,
-        16,
-        DescriptorBindingFlags::PartiallyBound,
-    );
-    // Storage Images (aka Draw Image)
-    descriptor_set_builder.add_binding(
-        DescriptorType::StorageImage,
-        128,
-        DescriptorBindingFlags::PartiallyBound,
-    );
-    // Sampled Images (aka Textures), we can resize count of descriptors, we pre-alllocate N descriptors,
-    // but we specify that count as unbound (aka variable)
-    descriptor_set_builder.add_binding(
-        DescriptorType::SampledImage,
-        10_240,
-        DescriptorBindingFlags::PartiallyBound | DescriptorBindingFlags::VariableDescriptorCount,
-    );
-
-    descriptor_set_builder.build(
-        device,
-        allocator,
-        &device_properties_resource.descriptor_buffer_properties,
-        push_constants_ranges,
-        ShaderStageFlags::Compute
-            | ShaderStageFlags::Fragment
-            | ShaderStageFlags::MeshEXT
-            | ShaderStageFlags::TaskEXT,
-    )
 }
 
 fn create_shaders(device: Device, shader_infos: &[ShaderInfo]) -> Vec<ShaderObject> {
