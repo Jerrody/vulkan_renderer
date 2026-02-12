@@ -1,7 +1,7 @@
 use bevy_ecs::{component::Component, entity::Entity};
 use glam::{Mat4, Quat, Vec3};
 
-use crate::engine::systems::{on_add_parent, on_remove_parent};
+use crate::engine::ecs::{on_add_parent, on_remove_parent};
 
 #[derive(Default, Clone, Copy, Component)]
 #[require(GlobalTransform)]

@@ -1,11 +1,11 @@
-mod components;
 mod descriptors;
+mod ecs;
 mod events;
 mod id;
-mod resources;
 mod setup;
-mod systems;
 mod utils;
+
+use ecs::*;
 
 use std::path::PathBuf;
 
@@ -18,17 +18,14 @@ use winit::{event::ElementState, keyboard::KeyCode, window::Window};
 
 use crate::engine::{
     components::{camera::Camera, time::Time},
-    events::LoadModelEvent,
-    resources::{
-        FrameContext, RendererContext, RendererResources, VulkanContextResource,
+    ecs::{
         buffers_pool::{AllocatedBuffer, BuffersPool},
+        general::{update_camera, update_time},
         samplers_pool::SamplersPool,
         textures_pool::TexturesPool,
-    },
-    systems::{
-        general::{update_camera, update_time},
         *,
     },
+    events::LoadModelEvent,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
