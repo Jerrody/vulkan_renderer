@@ -6,7 +6,7 @@ use crate::engine::{
     resources::{
         DirectionalLight, LightProperties, RendererContext, RendererResources, SceneData,
         SwappableBuffer,
-        buffers_pool::{Buffers, BuffersPool},
+        buffers_pool::BuffersPool,
         frame_context,
     },
 };

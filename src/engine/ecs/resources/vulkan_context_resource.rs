@@ -11,9 +11,9 @@ use vulkanite::vk::{
 
 use crate::engine::{
     resources::{
-        RendererResources, UploadContext,
-        buffers_pool::{Buffers, BuffersPool},
-        textures_pool::{TextureReference, Textures, TexturesPool},
+        UploadContext,
+        buffers_pool::BuffersPool,
+        textures_pool::{TextureReference, TexturesPool},
     },
     utils::transition_image,
 };

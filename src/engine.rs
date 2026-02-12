@@ -81,7 +81,7 @@ impl Engine {
             present::present_system.after(render_meshes::render_meshes_system),
         ));
 
-        let mut scheduler_renderer_setup = Schedule::new(SchedulerRendererSetup);
+        let scheduler_renderer_setup = Schedule::new(SchedulerRendererSetup);
 
         world.add_schedule(world_schedule);
         world.add_schedule(scheduler_renderer_update);

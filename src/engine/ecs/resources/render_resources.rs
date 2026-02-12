@@ -18,7 +18,7 @@ use crate::engine::{
         buffers_pool::BufferReference,
         render_resources::model_loader::ModelLoader,
         samplers_pool::SamplerReference,
-        textures_pool::{TextureReference, TexturesPool},
+        textures_pool::TextureReference,
     },
 };
 
