@@ -8,6 +8,7 @@ use std::slice::{Iter, IterMut};
 use bevy_ecs::resource::Resource;
 use bytemuck::{NoUninit, Pod, Zeroable};
 use glam::{Mat4, Vec2, Vec3, Vec4};
+use padding_struct::padding_struct;
 use vulkanite::vk::{rs::*, *};
 
 use crate::engine::{
@@ -48,6 +49,7 @@ pub struct MeshObject {
 }
 
 #[repr(C)]
+#[padding_struct]
 #[derive(Default, Clone, Copy, Pod, Zeroable)]
 pub struct InstanceObject {
     pub model_matrix: [f32; 16],
@@ -55,7 +57,6 @@ pub struct InstanceObject {
     pub device_address_material_data: DeviceAddress,
     pub meshlet_count: u32,
     pub material_type: u8,
-    pub _pad: [u8; 3],
 }
 
 #[repr(C)]
@@ -90,28 +91,28 @@ impl ShaderObject {
 }
 
 #[repr(C)]
+#[padding_struct]
 #[derive(Default, Clone, Copy, Pod, Zeroable)]
 pub struct LightProperties {
     pub ambient_color: Vec4,
     pub ambient_strength: f32,
     pub specular_strength: f32,
-    pub _padding: Vec2,
 }
 
 #[repr(C)]
+#[padding_struct]
 #[derive(Default, Clone, Copy, Pod, Zeroable)]
 pub struct DirectionalLight {
     pub light_color: Vec3,
     pub light_position: Vec3,
-    pub _padding: Vec2,
 }
 
 #[repr(C)]
+#[padding_struct]
 #[derive(Default, Clone, Copy, Pod, Zeroable)]
 pub struct SceneData {
     pub camera_view_matrix: [f32; 16],
     pub camera_position: Vec3,
-    pub _padding: f32,
     pub light_properties: LightProperties,
     pub directional_light: DirectionalLight,
 }

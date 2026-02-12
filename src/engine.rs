@@ -97,7 +97,7 @@ impl Engine {
 
         // TODO: TEMP
         world.trigger(LoadModelEvent {
-            path: PathBuf::from(r"assets/sponza_variation_02.glb"),
+            path: PathBuf::from(r"assets/structure.glb"),
         });
 
         Self { world }

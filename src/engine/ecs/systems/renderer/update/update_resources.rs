@@ -5,9 +5,7 @@ use crate::engine::{
     components::camera::Camera,
     resources::{
         DirectionalLight, LightProperties, RendererContext, RendererResources, SceneData,
-        SwappableBuffer,
-        buffers_pool::BuffersPool,
-        frame_context,
+        SwappableBuffer, buffers_pool::BuffersPool, frame_context,
     },
 };
 
@@ -52,18 +50,18 @@ pub fn update_resources_system(
     let scene_data = SceneData {
         camera_view_matrix: frame_context.world_matrix.to_cols_array(),
         camera_position,
-        _padding: Default::default(),
         light_properties: LightProperties {
             ambient_color: Vec4::new(0.1, 0.1, 0.1, 1.0),
             ambient_strength: 0.1,
             specular_strength: 0.7,
-            _padding: Default::default(),
+            ..Default::default()
         },
         directional_light: DirectionalLight {
             light_color: Vec3::new(0.72, 0.72, 0.93),
             light_position: Vec3::new(0.1, 0.5, 1.0),
-            _padding: Default::default(),
+            ..Default::default()
         },
+        ..Default::default()
     };
     scene_data_buffer.write_data_to_current_buffer(&scene_data);
 
