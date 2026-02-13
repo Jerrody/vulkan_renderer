@@ -82,25 +82,13 @@ impl MeshBuffersPool {
     }
 
     fn get_mesh_buffer<'a>(&'a self, mesh_buffer_reference: MeshBufferReference) -> &'a MeshBuffer {
-        let mesh_buffer = unsafe {
-            self.slots
-                .get(mesh_buffer_reference.index as usize)
-                .unwrap_unchecked()
-        };
-
-        mesh_buffer
+        &self.slots[mesh_buffer_reference.index as usize]
     }
 
     fn get_mut_mesh_buffer<'a>(
         &'a mut self,
         mesh_buffer_reference: MeshBufferReference,
     ) -> &'a mut MeshBuffer {
-        let mesh_buffer = unsafe {
-            self.slots
-                .get_mut(mesh_buffer_reference.index as usize)
-                .unwrap_unchecked()
-        };
-
-        mesh_buffer
+        &mut self.slots[mesh_buffer_reference.index as usize]
     }
 }
