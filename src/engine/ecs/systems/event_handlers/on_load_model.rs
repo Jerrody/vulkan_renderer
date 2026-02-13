@@ -67,33 +67,32 @@ impl NodeData {
     }
 
     pub fn get_matrix(transformation: Matrix4x4) -> Mat4 {
-        let mut matrix = Mat4::default();
-        matrix.x_axis = Vec4::new(
-            transformation.x_axis.x,
-            transformation.x_axis.y,
-            transformation.x_axis.z,
-            transformation.x_axis.w,
-        );
-        matrix.y_axis = Vec4::new(
-            transformation.y_axis.x,
-            transformation.y_axis.y,
-            transformation.y_axis.z,
-            transformation.y_axis.w,
-        );
-        matrix.z_axis = Vec4::new(
-            transformation.z_axis.x,
-            transformation.z_axis.y,
-            transformation.z_axis.z,
-            transformation.z_axis.w,
-        );
-        matrix.w_axis = Vec4::new(
-            transformation.w_axis.x,
-            transformation.w_axis.y,
-            transformation.w_axis.z,
-            transformation.w_axis.w,
-        );
-
-        matrix
+        glam::Mat4 {
+            x_axis: Vec4::new(
+                transformation.x_axis.x,
+                transformation.x_axis.y,
+                transformation.x_axis.z,
+                transformation.x_axis.w,
+            ),
+            y_axis: Vec4::new(
+                transformation.y_axis.x,
+                transformation.y_axis.y,
+                transformation.y_axis.z,
+                transformation.y_axis.w,
+            ),
+            z_axis: Vec4::new(
+                transformation.z_axis.x,
+                transformation.z_axis.y,
+                transformation.z_axis.z,
+                transformation.z_axis.w,
+            ),
+            w_axis: Vec4::new(
+                transformation.w_axis.x,
+                transformation.w_axis.y,
+                transformation.w_axis.z,
+                transformation.w_axis.w,
+            ),
+        }
     }
 }
 
@@ -159,7 +158,7 @@ pub fn on_load_model_system(
 
         let (local_scale, rotation, position) = local_matrix.to_scale_rotation_translation();
         let transform = Transform {
-            position: position,
+            position,
             rotation,
             local_scale,
         };
@@ -530,7 +529,7 @@ fn try_upload_texture(
                 image_view: textures_mut.get(texture_reference).unwrap().image_view,
                 index: texture_reference.index,
             });
-            descriptor_set_handle.update_binding(&buffers_mut, descriptor_texture);
+            descriptor_set_handle.update_binding(buffers_mut, descriptor_texture);
 
             let texture_metadata = texture_reference.texture_metadata;
             println!(

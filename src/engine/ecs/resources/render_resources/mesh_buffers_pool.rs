@@ -67,7 +67,6 @@ pub struct MeshBuffersPool {
 impl MeshBuffersPool {
     pub fn new(pre_allocated_count: u32) -> Self {
         let slots = (0..pre_allocated_count)
-            .into_iter()
             .map(|_| Default::default())
             .collect();
 
@@ -85,14 +84,14 @@ impl MeshBuffersPool {
         MeshBufferReference { index: free_index }
     }
 
-    fn get_mesh_buffer<'a>(&'a self, mesh_buffer_reference: MeshBufferReference) -> &'a MeshBuffer {
+    fn get_mesh_buffer(&self, mesh_buffer_reference: MeshBufferReference) -> &MeshBuffer {
         &self.slots[mesh_buffer_reference.index as usize]
     }
 
-    fn get_mut_mesh_buffer<'a>(
-        &'a mut self,
+    fn get_mut_mesh_buffer(
+        &mut self,
         mesh_buffer_reference: MeshBufferReference,
-    ) -> &'a mut MeshBuffer {
+    ) -> &mut MeshBuffer {
         &mut self.slots[mesh_buffer_reference.index as usize]
     }
 }

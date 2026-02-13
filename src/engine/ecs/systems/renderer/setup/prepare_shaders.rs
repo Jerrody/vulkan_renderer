@@ -31,7 +31,7 @@ pub fn prepare_shaders_system(
             stage: ShaderStageFlags::Compute,
             next_stage: ShaderStageFlags::empty(),
             descriptor_layouts: &descriptor_set_layouts,
-            push_constant_ranges: Some(&push_constant_ranges),
+            push_constant_ranges: Some(push_constant_ranges),
         },
         ShaderInfo {
             path: mesh_shader_path,
@@ -39,7 +39,7 @@ pub fn prepare_shaders_system(
             stage: ShaderStageFlags::TaskEXT,
             next_stage: ShaderStageFlags::MeshEXT,
             descriptor_layouts: &descriptor_set_layouts,
-            push_constant_ranges: Some(&push_constant_ranges),
+            push_constant_ranges: Some(push_constant_ranges),
         },
         ShaderInfo {
             path: mesh_shader_path,
@@ -47,7 +47,7 @@ pub fn prepare_shaders_system(
             stage: ShaderStageFlags::MeshEXT,
             next_stage: ShaderStageFlags::Fragment,
             descriptor_layouts: &descriptor_set_layouts,
-            push_constant_ranges: Some(&push_constant_ranges),
+            push_constant_ranges: Some(push_constant_ranges),
         },
         ShaderInfo {
             path: mesh_shader_path,
@@ -55,7 +55,7 @@ pub fn prepare_shaders_system(
             stage: ShaderStageFlags::Fragment,
             next_stage: ShaderStageFlags::empty(),
             descriptor_layouts: &descriptor_set_layouts,
-            push_constant_ranges: Some(&push_constant_ranges),
+            push_constant_ranges: Some(push_constant_ranges),
         },
     ];
 

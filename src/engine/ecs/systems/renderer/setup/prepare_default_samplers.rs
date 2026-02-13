@@ -16,7 +16,7 @@ pub fn prepare_default_samplers_system(
 
     let sampler = samplers_mut.get(default_sampler_reference).unwrap();
     let sampler_descriptor = DescriptorKind::Sampler(DescriptorSampler {
-        sampler: sampler,
+        sampler,
         index: renderer_resources.default_sampler_reference.index,
     });
 

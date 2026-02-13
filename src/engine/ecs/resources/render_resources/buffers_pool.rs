@@ -208,7 +208,7 @@ impl BuffersPool {
         upload_command_group: CommandGroup,
         transfer_queue: Queue,
     ) -> Self {
-        let slots = (0..2048).into_iter().map(|_| Default::default()).collect();
+        let slots = (0..2048).map(|_| Default::default()).collect();
 
         let mut memory_bucket = Self {
             device,
@@ -280,7 +280,7 @@ impl BuffersPool {
             flags: allocation_flags,
             usage: MemoryUsage::Auto,
             required_flags: MemoryPropertyFlags::DeviceLocal,
-            preferred_flags: preferred_flags,
+            preferred_flags,
             ..Default::default()
         };
 
@@ -333,10 +333,7 @@ impl BuffersPool {
         }
     }
 
-    pub fn get_buffer<'a>(
-        &'a self,
-        buffer_reference: BufferReference,
-    ) -> Option<&'a AllocatedBuffer> {
+    pub fn get_buffer(&self, buffer_reference: BufferReference) -> Option<&AllocatedBuffer> {
         let mut allocated_buffer = None;
 
         let slot = unsafe {
@@ -395,7 +392,7 @@ impl BuffersPool {
         }
     }
 
-    pub fn get_staging_buffer_reference<'a>(&self) -> BufferReference {
+    pub fn get_staging_buffer_reference(&self) -> BufferReference {
         self.staging_buffer_reference
     }
 
@@ -476,7 +473,7 @@ impl BuffersPool {
                 self.copy_buffer_to_buffer(
                     target_buffer.buffer,
                     allocated_buffer.buffer,
-                    &regions_to_copy,
+                    regions_to_copy,
                 )
             }
         }

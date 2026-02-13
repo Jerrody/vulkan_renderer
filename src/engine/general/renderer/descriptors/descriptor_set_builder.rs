@@ -20,13 +20,11 @@ pub enum DescriptorKind {
 
 impl DescriptorKind {
     pub fn get_descriptor_type(&self) -> DescriptorType {
-        let descriptor_type = match self {
+        match self {
             DescriptorKind::StorageImage(_) => DescriptorType::StorageImage,
             DescriptorKind::SampledImage(_) => DescriptorType::SampledImage,
             DescriptorKind::Sampler(_) => DescriptorType::Sampler,
-        };
-
-        descriptor_type
+        }
     }
 }
 
@@ -160,15 +158,13 @@ impl<'a> DescriptorSetBuilder<'a> {
                 let binding = &binding_info.binding;
 
                 bindings_flags.push(binding_info.flags);
-                let binding = DescriptorSetLayoutBinding {
+                DescriptorSetLayoutBinding {
                     binding: binding.binding,
                     descriptor_type: binding.descriptor_type,
                     descriptor_count: binding_info.binding.descriptor_count,
                     stage_flags: binding.stage_flags | shader_stages,
                     ..Default::default()
-                };
-
-                binding
+                }
             })
             .collect();
 
@@ -191,7 +187,7 @@ impl<'a> DescriptorSetBuilder<'a> {
 
         DescriptorSetLayoutHandle {
             descriptor_set_layout: Some(descriptor_set_layout),
-            descriptor_set_layout_size: descriptor_set_layout_size,
+            descriptor_set_layout_size,
         }
     }
 

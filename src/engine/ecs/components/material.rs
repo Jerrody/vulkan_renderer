@@ -29,7 +29,7 @@ impl MaterialProperties {
     pub fn new(base_color: Vec4, metallic_value: f32, roughness_value: f32) -> Self {
         Self {
             base_color: base_color.to_array(),
-            metallic_value: metallic_value,
+            metallic_value,
             roughness_value,
         }
     }
@@ -50,9 +50,9 @@ impl MaterialTextures {
         roughness_texture_index: u32,
     ) -> Self {
         Self {
-            albedo_texture_index: albedo_texture_index,
-            metallic_texture_index: metallic_texture_index,
-            roughness_texture_index: roughness_texture_index,
+            albedo_texture_index,
+            metallic_texture_index,
+            roughness_texture_index,
         }
     }
 }

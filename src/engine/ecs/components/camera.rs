@@ -48,14 +48,12 @@ impl Camera {
     pub fn get_rotation(&self) -> Quat {
         let yaw_pitch = self.camera_rig.driver::<YawPitch>();
 
-        let rotation = Quat::from_euler(
+        Quat::from_euler(
             EulerRot::YXZ,
             yaw_pitch.yaw_degrees.to_radians(),
             yaw_pitch.pitch_degrees.to_radians(),
             Default::default(),
-        );
-
-        rotation
+        )
     }
 
     pub fn process_keycode(&mut self, key_code: KeyCode, new_state: ElementState) {

@@ -11,14 +11,11 @@ impl ModelLoader {
         }
     }
 
-    pub fn load_model<'a>(&self, path: &'a str) -> Scene {
-        let scene = self
-            .importer
+    pub fn load_model(&self, path: &str) -> Scene {
+        self.importer
             .read_file(path)
             .with_post_process(PostProcessSteps::MAX_QUALITY | PostProcessSteps::FLIP_UVS)
             .import()
-            .unwrap();
-
-        scene
+            .unwrap()
     }
 }

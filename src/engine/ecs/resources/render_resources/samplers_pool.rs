@@ -63,7 +63,7 @@ pub struct SamplersPool {
 
 impl SamplersPool {
     pub fn new(device: Device) -> Self {
-        let slots = (0..16).into_iter().map(|_| Default::default()).collect();
+        let slots = (0..16).map(|_| Default::default()).collect();
 
         Self {
             device,
@@ -107,8 +107,8 @@ impl SamplersPool {
             address_mode_u: wrap,
             address_mode_v: wrap,
             address_mode_w: wrap,
-            compare_op: compare_op,
-            max_lod: max_lod,
+            compare_op,
+            max_lod,
             ..Default::default()
         };
         let sampler = self.device.create_sampler(&sampler_create_info).unwrap();

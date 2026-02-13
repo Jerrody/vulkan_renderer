@@ -54,7 +54,6 @@ struct TextureSlotsPool {
 impl TextureSlotsPool {
     pub fn new(pre_allocated_count: u32) -> Self {
         let slots = (0..pre_allocated_count)
-            .into_iter()
             .map(|_| Default::default())
             .collect();
 
@@ -306,19 +305,19 @@ impl TexturesPool {
         allocated_image: AllocatedImage,
         read_only: bool,
     ) -> TextureReference {
-        let free_index: u32;
+        let index: u32;
         let generation: u32;
         let texture_metadata: TextureMetadata;
 
         match read_only {
             true => {
-                free_index = self.sampled_slots.free_indices.pop().unwrap();
+                index = self.sampled_slots.free_indices.pop().unwrap();
 
                 texture_metadata = allocated_image.texture_metadata;
                 let texture_slot = unsafe {
                     self.sampled_slots
                         .slots
-                        .get_mut(free_index as usize)
+                        .get_mut(index as usize)
                         .unwrap_unchecked()
                 };
                 texture_slot.image = Some(allocated_image);
@@ -327,13 +326,13 @@ impl TexturesPool {
                 generation = texture_slot.generation;
             }
             false => {
-                free_index = self.storage_slots.free_indices.pop().unwrap();
+                index = self.storage_slots.free_indices.pop().unwrap();
 
                 texture_metadata = allocated_image.texture_metadata;
                 let texture_slot = unsafe {
                     self.storage_slots
                         .slots
-                        .get_mut(free_index as usize)
+                        .get_mut(index as usize)
                         .unwrap_unchecked()
                 };
                 texture_slot.image = Some(allocated_image);
@@ -344,30 +343,27 @@ impl TexturesPool {
         }
 
         TextureReference {
-            index: free_index,
-            generation: generation,
-            texture_metadata: texture_metadata,
+            index,
+            generation,
+            texture_metadata,
             read_only,
         }
     }
 
     fn is_compressed_image_format(format: Format) -> bool {
-        match format {
+        matches!(
+            format,
             Format::Bc1RgbSrgbBlock
-            | Format::Bc3SrgbBlock
-            | Format::Bc4SnormBlock
-            | Format::Bc5SnormBlock
-            | Format::Bc6HSfloatBlock
-            | Format::Bc7SrgbBlock => true,
-            _ => false,
-        }
+                | Format::Bc3SrgbBlock
+                | Format::Bc4SnormBlock
+                | Format::Bc5SnormBlock
+                | Format::Bc6HSfloatBlock
+                | Format::Bc7SrgbBlock
+        )
     }
 
     #[inline(always)]
-    pub fn get_image<'a>(
-        &'a self,
-        texture_reference: TextureReference,
-    ) -> Option<&'a AllocatedImage> {
+    pub fn get_image(&self, texture_reference: TextureReference) -> Option<&AllocatedImage> {
         let mut allocated_image = None;
 
         if texture_reference.read_only {

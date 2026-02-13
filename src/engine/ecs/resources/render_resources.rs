@@ -129,7 +129,7 @@ impl<'a> SwappableBuffer {
     }
 
     pub fn get_current_buffer(&self) -> BufferReference {
-        self.buffers[self.current_buffer_index].clone()
+        self.buffers[self.current_buffer_index]
     }
 
     pub fn get_objects_to_write_as_slice(&'a self) -> &'a [u8] {
@@ -185,7 +185,7 @@ impl MaterialsPool {
     }
 
     pub fn get_materials_data_buffer_reference(&self) -> BufferReference {
-        self.materials_data_buffer_reference.clone()
+        self.materials_data_buffer_reference
     }
 
     pub fn set_materials_data_buffer_reference(
@@ -207,8 +207,8 @@ impl MaterialsPool {
         }
     }
 
-    pub fn get_materials_data_to_write<'a>(&'a self) -> &'a [u8] {
-        &self.materials_to_write.as_slice()
+    pub fn get_materials_data_to_write(&self) -> &[u8] {
+        self.materials_to_write.as_slice()
     }
 
     pub fn get_material_info_device_address_by_id(&self, material_label_id: Id) -> MaterialInfo {
@@ -322,13 +322,10 @@ impl<'a> RendererResources {
             ..Default::default()
         };
 
-        let last_instance_object_index = self
-            .resources_pool
+        self.resources_pool
             .instances_buffer
             .as_mut()
             .unwrap()
-            .write_data_to_current_buffer(&instance_object);
-
-        last_instance_object_index
+            .write_data_to_current_buffer(&instance_object)
     }
 }
