@@ -2,6 +2,7 @@ use bevy_ecs::world::World;
 
 use crate::engine::{
     Engine,
+    ecs::mesh_buffers_pool::MeshBuffersPool,
     resources::{
         buffers_pool::BuffersPool, model_loader::ModelLoader, samplers_pool::SamplersPool,
         textures_pool::TexturesPool, *,
@@ -43,10 +44,12 @@ impl Engine {
         );
         let textures_pool = TexturesPool::new(device, vulkan_context.allocator);
         let samplers_pool = SamplersPool::new(device);
+        let mesh_buffers_pool = MeshBuffersPool::new(10_000);
 
         world.insert_resource(renderer_resources);
         world.insert_resource(buffers_pool);
         world.insert_resource(samplers_pool);
         world.insert_resource(textures_pool);
+        world.insert_resource(mesh_buffers_pool);
     }
 }

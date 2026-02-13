@@ -24,13 +24,16 @@ use crate::engine::{
         },
         transform::Transform,
     },
-    ecs::{buffers_pool::BuffersMut, textures_pool::TexturesMut},
+    ecs::{
+        buffers_pool::BuffersMut,
+        mesh_buffers_pool::{MeshBuffer, MeshBufferReference, MeshBuffersMut},
+        textures_pool::TexturesMut,
+    },
     events::{LoadModelEvent, SpawnEvent, SpawnEventRecord},
     general::renderer::{DescriptorKind, DescriptorSampledImage},
     id::Id,
     resources::{
-        MeshBuffer, MeshObject, Meshlet, RendererContext, RendererResources, Vertex,
-        VulkanContextResource,
+        MeshObject, Meshlet, RendererContext, RendererResources, Vertex, VulkanContextResource,
         buffers_pool::{BufferReference, BufferVisibility},
         textures_pool::{TextureMetadata, TextureReference},
     },
@@ -102,6 +105,7 @@ pub fn on_load_model_system(
     mut renderer_resources: ResMut<RendererResources>,
     mut buffers_mut: BuffersMut,
     mut textures_mut: TexturesMut,
+    mut mesh_buffers_mut: MeshBuffersMut,
 ) {
     let model_loader = &renderer_resources.model_loader;
 
@@ -166,8 +170,10 @@ pub fn on_load_model_system(
     });
 
     let mut mesh_buffers_to_upload = Vec::with_capacity(scene.num_meshes());
-    let mut uploaded_mesh_buffers: HashMap<usize, (asset_importer::mesh::Mesh, Id)> =
-        HashMap::with_capacity(scene.num_meshes());
+    let mut uploaded_mesh_buffers: HashMap<
+        usize,
+        (asset_importer::mesh::Mesh, MeshBufferReference),
+    > = HashMap::with_capacity(scene.num_meshes());
     let mut uploaded_textures: HashMap<usize, TextureReference> =
         HashMap::with_capacity(uploaded_mesh_buffers.capacity());
     let uploaded_materials: HashMap<usize, Id> = HashMap::with_capacity(scene.num_materials());
@@ -176,7 +182,7 @@ pub fn on_load_model_system(
     for node_data in nodes.into_iter() {
         if node_data.mesh_indices.len() > Default::default() {
             let mut mesh_name: String;
-            let mut mesh_buffer_id: Id;
+            let mut mesh_buffer_reference: MeshBufferReference;
             let mut texture_reference: TextureReference;
             for &mesh_index in node_data.mesh_indices.iter() {
                 texture_reference = renderer_resources.fallback_texture_reference;
@@ -252,7 +258,7 @@ pub fn on_load_model_system(
                 if uploaded_mesh_buffers.contains_key(&mesh_index) {
                     let already_uploaded_mesh = uploaded_mesh_buffers.get(&mesh_index).unwrap();
                     mesh_name = already_uploaded_mesh.0.name();
-                    mesh_buffer_id = already_uploaded_mesh.1;
+                    mesh_buffer_reference = already_uploaded_mesh.1;
                 } else {
                     let mesh = scene.mesh(mesh_index).unwrap();
                     mesh_name = mesh.name();
@@ -346,7 +352,6 @@ pub fn on_load_model_system(
                     );
 
                     let mesh_buffer = MeshBuffer {
-                        id: Id::new(vertex_buffer_reference.get_buffer_info().device_address),
                         mesh_object_device_address: Default::default(),
                         vertex_buffer_reference,
                         vertex_indices_buffer_reference,
@@ -355,16 +360,16 @@ pub fn on_load_model_system(
                         meshlets_count: meshlets.len(),
                     };
 
-                    mesh_buffer_id = renderer_resources.insert_mesh_buffer(mesh_buffer);
-                    mesh_buffers_to_upload.push(mesh_buffer_id);
+                    mesh_buffer_reference = mesh_buffers_mut.insert_mesh_buffer(mesh_buffer);
+                    mesh_buffers_to_upload.push(mesh_buffer_reference);
 
-                    uploaded_mesh_buffers.insert(mesh_index, (mesh, mesh_buffer_id));
+                    uploaded_mesh_buffers.insert(mesh_index, (mesh, mesh_buffer_reference));
                 }
 
                 spawn_event_record.name = mesh_name;
                 spawn_event_record.parent_index = Some(node_data.index);
                 spawn_event_record.material_id = material_id;
-                spawn_event_record.mesh_buffer_id = mesh_buffer_id;
+                spawn_event_record.mesh_buffer_reference = Some(mesh_buffer_reference);
                 spawn_event_record.transform = Transform::IDENTITY;
 
                 spawn_event.spawn_records.push(spawn_event_record.clone());
@@ -374,8 +379,8 @@ pub fn on_load_model_system(
 
     let mesh_objects_to_write = mesh_buffers_to_upload
         .iter()
-        .map(|mesh_buffer| {
-            let mesh_buffer_ref = renderer_resources.get_mesh_buffer_ref(*mesh_buffer);
+        .map(|mesh_buffer_reference| {
+            let mesh_buffer_ref = mesh_buffers_mut.get(*mesh_buffer_reference);
 
             let device_address_vertex_buffer: DeviceAddress = mesh_buffer_ref
                 .vertex_buffer_reference
@@ -408,12 +413,14 @@ pub fn on_load_model_system(
         .mesh_objects_buffer_reference
         .get_buffer_info()
         .device_address;
-    let mesh_objects_to_copy_regions = renderer_resources
-        .get_mesh_buffers_iter_mut()
+    let mesh_objects_to_copy_regions = mesh_buffers_to_upload
+        .into_iter()
         .enumerate()
-        .map(|(mesh_buffer_index, mesh_buffer)| {
+        .map(|(mesh_buffer_index, mesh_buffer_reference)| {
             let src_offset = mesh_buffer_index * mesh_object_size;
             let dst_offset = src_offset;
+
+            let mesh_buffer = mesh_buffers_mut.get_mut(mesh_buffer_reference);
 
             mesh_buffer.mesh_object_device_address =
                 mesh_objects_device_address + dst_offset as u64;

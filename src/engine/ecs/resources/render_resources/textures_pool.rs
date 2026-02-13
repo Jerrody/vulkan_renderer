@@ -34,8 +34,8 @@ pub struct AllocatedImage {
 
 #[derive(Default, Clone, Copy)]
 pub struct TextureReference {
-    pub index: usize,
-    pub generation: usize,
+    pub index: u32,
+    pub generation: u32,
     pub texture_metadata: TextureMetadata,
     read_only: bool,
 }
@@ -43,16 +43,16 @@ pub struct TextureReference {
 #[derive(Default)]
 struct TextureSlot {
     pub image: Option<AllocatedImage>,
-    pub generation: usize,
+    pub generation: u32,
 }
 
 struct TextureSlotsPool {
     pub slots: Vec<TextureSlot>,
-    pub free_indices: Vec<usize>,
+    pub free_indices: Vec<u32>,
 }
 
 impl TextureSlotsPool {
-    pub fn new(pre_allocated_count: usize) -> Self {
+    pub fn new(pre_allocated_count: u32) -> Self {
         let slots = (0..pre_allocated_count)
             .into_iter()
             .map(|_| Default::default())
@@ -303,8 +303,8 @@ impl TexturesPool {
         allocated_image: AllocatedImage,
         read_only: bool,
     ) -> TextureReference {
-        let free_index: usize;
-        let generation: usize;
+        let free_index: u32;
+        let generation: u32;
         let texture_metadata: TextureMetadata;
 
         match read_only {
@@ -315,7 +315,7 @@ impl TexturesPool {
                 let texture_slot = unsafe {
                     self.sampled_slots
                         .slots
-                        .get_mut(free_index)
+                        .get_mut(free_index as usize)
                         .unwrap_unchecked()
                 };
                 texture_slot.image = Some(allocated_image);
@@ -330,7 +330,7 @@ impl TexturesPool {
                 let texture_slot = unsafe {
                     self.storage_slots
                         .slots
-                        .get_mut(free_index)
+                        .get_mut(free_index as usize)
                         .unwrap_unchecked()
                 };
                 texture_slot.image = Some(allocated_image);
@@ -371,7 +371,7 @@ impl TexturesPool {
             let slot = unsafe {
                 self.sampled_slots
                     .slots
-                    .get(texture_reference.index)
+                    .get(texture_reference.index as usize)
                     .unwrap_unchecked()
             };
             if slot.generation == texture_reference.generation {
@@ -381,7 +381,7 @@ impl TexturesPool {
             let slot = unsafe {
                 self.storage_slots
                     .slots
-                    .get(texture_reference.index)
+                    .get(texture_reference.index as usize)
                     .unwrap_unchecked()
             };
             if slot.generation == texture_reference.generation {

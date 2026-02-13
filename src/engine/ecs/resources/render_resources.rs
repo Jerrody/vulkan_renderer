@@ -1,4 +1,5 @@
 pub mod buffers_pool;
+pub mod mesh_buffers_pool;
 pub mod model_loader;
 pub mod samplers_pool;
 pub mod textures_pool;
@@ -7,7 +8,7 @@ use std::slice::{Iter, IterMut};
 
 use bevy_ecs::resource::Resource;
 use bytemuck::{NoUninit, Pod, Zeroable};
-use glam::{Mat4, Vec2, Vec3, Vec4};
+use glam::{Mat4, Vec3, Vec4};
 use padding_struct::padding_struct;
 use vulkanite::vk::{rs::*, *};
 
@@ -66,16 +67,6 @@ pub struct GraphicsPushConstant {
     pub device_address_instance_object: DeviceAddress,
     pub draw_image_index: u32,
     pub current_material_type: u32,
-}
-
-pub struct MeshBuffer {
-    pub id: Id,
-    pub mesh_object_device_address: DeviceAddress,
-    pub vertex_buffer_reference: BufferReference,
-    pub vertex_indices_buffer_reference: BufferReference,
-    pub meshlets_buffer_reference: BufferReference,
-    pub local_indices_buffer_reference: BufferReference,
-    pub meshlets_count: usize,
 }
 
 #[derive(Default, Clone, Copy)]
@@ -238,7 +229,6 @@ impl MaterialsPool {
 }
 
 pub struct ResourcesPool {
-    pub mesh_buffers: Vec<MeshBuffer>,
     pub instances_buffer: Option<SwappableBuffer>,
     pub scene_data_buffer: Option<SwappableBuffer>,
     materials_pool: MaterialsPool,
@@ -247,7 +237,6 @@ pub struct ResourcesPool {
 impl ResourcesPool {
     pub fn new() -> Self {
         Self {
-            mesh_buffers: Default::default(),
             instances_buffer: Default::default(),
             scene_data_buffer: Default::default(),
             materials_pool: Default::default(),
@@ -345,40 +334,5 @@ impl<'a> RendererResources {
             .write_data_to_current_buffer(&instance_object);
 
         last_instance_object_index
-    }
-
-    #[must_use]
-    pub fn insert_mesh_buffer(&'a mut self, mesh_buffer: MeshBuffer) -> Id {
-        let mesh_buffer_id = mesh_buffer.id;
-
-        if !self
-            .resources_pool
-            .mesh_buffers
-            .iter()
-            .any(|mesh_buffer| mesh_buffer.id == mesh_buffer_id)
-        {
-            self.resources_pool.mesh_buffers.push(mesh_buffer);
-        }
-
-        mesh_buffer_id
-    }
-
-    #[must_use]
-    pub fn get_mesh_buffers_iter(&'a self) -> Iter<'a, MeshBuffer> {
-        self.resources_pool.mesh_buffers.iter()
-    }
-
-    #[must_use]
-    pub fn get_mesh_buffers_iter_mut(&'a mut self) -> IterMut<'a, MeshBuffer> {
-        self.resources_pool.mesh_buffers.iter_mut()
-    }
-
-    #[must_use]
-    pub fn get_mesh_buffer_ref(&'a self, id: Id) -> &'a MeshBuffer {
-        self.resources_pool
-            .mesh_buffers
-            .iter()
-            .find(|&mesh_buffer| mesh_buffer.id == id)
-            .unwrap()
     }
 }

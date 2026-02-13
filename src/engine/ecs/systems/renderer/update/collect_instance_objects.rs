@@ -6,8 +6,9 @@ use vulkanite::vk::DeviceAddress;
 
 use crate::engine::{
     components::{material::MaterialType, mesh::Mesh, transform::GlobalTransform},
+    ecs::mesh_buffers_pool::MeshBuffers,
     id::Id,
-    resources::{MeshBuffer, RendererResources},
+    resources::RendererResources,
 };
 
 struct InstanceDataToWrite {
@@ -22,25 +23,17 @@ struct InstanceDataToWrite {
 pub fn collect_instance_objects_system(
     mut renderer_resources: ResMut<RendererResources>,
     mut mesh_query: Query<(&GlobalTransform, &mut Mesh)>,
+    mesh_buffers: MeshBuffers,
 ) {
     let mut instances_data_to_write: Vec<InstanceDataToWrite> =
         Vec::with_capacity(mesh_query.iter().len());
-
-    let mesh_buffers_map = renderer_resources
-        .get_mesh_buffers_iter()
-        .map(|mesh_buffer| (mesh_buffer.id, mesh_buffer))
-        .collect::<HashMap<Id, &MeshBuffer>>();
 
     let mut current_instance_data_index = usize::default();
     for (global_transform, mut mesh) in &mut mesh_query {
         let material_info =
             renderer_resources.get_material_data_device_address_by_id(mesh.material_id);
 
-        let mesh_buffer = unsafe {
-            mesh_buffers_map
-                .get(&mesh.mesh_buffer_id)
-                .unwrap_unchecked()
-        };
+        let mesh_buffer = mesh_buffers.get(mesh.mesh_buffer_reference);
 
         instances_data_to_write.push(InstanceDataToWrite {
             index: current_instance_data_index,

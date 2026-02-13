@@ -7,7 +7,6 @@ use crate::engine::{
         transform::{GlobalTransform, Parent, Transform},
     },
     events::SpawnEvent,
-    id::Id,
 };
 
 pub fn on_spawn_mesh_system(spawn_event: On<SpawnEvent>, mut commands: Commands) {
@@ -36,11 +35,10 @@ pub fn on_spawn_mesh_system(spawn_event: On<SpawnEvent>, mut commands: Commands)
             spawn_event_record.name.as_str()
         ));
 
-        let mesh_buffer_id = spawn_event_record.mesh_buffer_id;
-        if mesh_buffer_id != Id::NULL {
+        if let Some(mesh_buffer_reference) = spawn_event_record.mesh_buffer_reference {
             let mesh = Mesh {
                 instance_object_index: None,
-                mesh_buffer_id,
+                mesh_buffer_reference,
                 material_id: spawn_event_record.material_id,
             };
             name.set(std::format!(

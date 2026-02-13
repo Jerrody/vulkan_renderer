@@ -41,8 +41,8 @@ impl<'w> SamplersMut<'w> {
 
 #[derive(Default, Clone, Copy)]
 pub struct SamplerReference {
-    pub index: usize,
-    pub generation: usize,
+    pub index: u32,
+    pub generation: u32,
 }
 
 impl SamplerReference {
@@ -54,14 +54,14 @@ impl SamplerReference {
 #[derive(Default)]
 struct SamplerSlot {
     pub sampler: Option<Sampler>,
-    pub generation: usize,
+    pub generation: u32,
 }
 
 #[derive(Resource)]
 pub struct SamplersPool {
     device: Device,
     slots: Vec<SamplerSlot>,
-    free_indices: Vec<usize>,
+    free_indices: Vec<u32>,
 }
 
 impl SamplersPool {
@@ -122,7 +122,7 @@ impl SamplersPool {
     fn insert_sampler(&mut self, sampler: Sampler) -> SamplerReference {
         let index = self.free_indices.pop().unwrap();
 
-        let sampler_slot = unsafe { self.slots.get_mut(index).unwrap_unchecked() };
+        let sampler_slot = unsafe { self.slots.get_mut(index as usize).unwrap_unchecked() };
         sampler_slot.sampler = Some(sampler);
         sampler_slot.generation += 1;
 
@@ -134,7 +134,11 @@ impl SamplersPool {
     fn get_sampler(&self, sampler_reference: SamplerReference) -> Option<Sampler> {
         let mut sampler = None;
 
-        let slot = unsafe { self.slots.get(sampler_reference.index).unwrap_unchecked() };
+        let slot = unsafe {
+            self.slots
+                .get(sampler_reference.index as usize)
+                .unwrap_unchecked()
+        };
         if slot.generation == sampler_reference.generation {
             sampler = slot.sampler.to_owned();
         }

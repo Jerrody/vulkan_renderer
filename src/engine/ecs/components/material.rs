@@ -45,14 +45,14 @@ pub struct MaterialTextures {
 
 impl MaterialTextures {
     pub fn new(
-        albedo_texture_index: usize,
-        metallic_texture_index: usize,
-        roughness_texture_index: usize,
+        albedo_texture_index: u32,
+        metallic_texture_index: u32,
+        roughness_texture_index: u32,
     ) -> Self {
         Self {
-            albedo_texture_index: albedo_texture_index as _,
-            metallic_texture_index: metallic_texture_index as _,
-            roughness_texture_index: roughness_texture_index as _,
+            albedo_texture_index: albedo_texture_index,
+            metallic_texture_index: metallic_texture_index,
+            roughness_texture_index: roughness_texture_index,
         }
     }
 }

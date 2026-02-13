@@ -2,7 +2,9 @@ use std::path::PathBuf;
 
 use bevy_ecs::event::Event;
 
-use crate::engine::{components::transform::Transform, id::Id};
+use crate::engine::{
+    components::transform::Transform, ecs::mesh_buffers_pool::MeshBufferReference, id::Id,
+};
 
 #[derive(Event)]
 pub struct LoadModelEvent {
@@ -13,7 +15,7 @@ pub struct LoadModelEvent {
 pub struct SpawnEventRecord {
     pub name: String,
     pub parent_index: Option<usize>,
-    pub mesh_buffer_id: Id,
+    pub mesh_buffer_reference: Option<MeshBufferReference>,
     pub material_id: Id,
     pub transform: Transform,
 }
@@ -23,7 +25,7 @@ impl Default for SpawnEventRecord {
         Self {
             name: String::default(),
             parent_index: Default::default(),
-            mesh_buffer_id: Id::NULL,
+            mesh_buffer_reference: Default::default(),
             material_id: Id::NULL,
             transform: Default::default(),
         }

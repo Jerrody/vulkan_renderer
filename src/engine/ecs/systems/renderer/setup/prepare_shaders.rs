@@ -7,7 +7,6 @@ use crate::engine::{
         InstanceObject, MeshObject, RendererContext, RendererResources, SceneData, ShaderObject,
         SwappableBuffer, VulkanContextResource,
         buffers_pool::{BufferVisibility, BuffersMut},
-        samplers_pool::SamplersMut,
         textures_pool::TexturesMut,
     },
     general::renderer::{DescriptorKind, DescriptorSampledImage, DescriptorStorageImage},
@@ -18,7 +17,6 @@ pub fn prepare_shaders_system(
     vulkan_ctx_resource: Res<VulkanContextResource>,
     mut render_context: ResMut<RendererContext>,
     mut renderer_resources: ResMut<RendererResources>,
-    mut samplers_mut: SamplersMut,
     mut textures_mut: TexturesMut,
     mut buffers_mut: BuffersMut,
 ) {

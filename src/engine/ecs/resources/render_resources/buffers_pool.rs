@@ -38,8 +38,8 @@ pub struct AllocatedBuffer {
 
 #[derive(Default, Clone, Copy)]
 pub struct BufferReference {
-    pub index: usize,
-    pub generation: usize,
+    pub index: u32,
+    pub generation: u32,
     buffer_info: BufferInfo,
 }
 
@@ -142,7 +142,7 @@ impl BufferReference {
 #[derive(Default)]
 struct BufferSlot {
     pub buffer: Option<AllocatedBuffer>,
-    pub generation: usize,
+    pub generation: u32,
 }
 
 #[derive(Resource)]
@@ -150,7 +150,7 @@ pub struct BuffersPool {
     device: Device,
     allocator: Allocator,
     slots: Vec<BufferSlot>,
-    free_indices: Vec<usize>,
+    free_indices: Vec<u32>,
     staging_buffer_reference: BufferReference,
     upload_command_group: CommandGroup,
     transfer_queue: Queue,
@@ -271,7 +271,7 @@ impl BuffersPool {
         let index = self.free_indices.pop().unwrap();
 
         let buffer_info = allocated_buffer.buffer_info;
-        let buffer_slot = unsafe { self.slots.get_mut(index).unwrap_unchecked() };
+        let buffer_slot = unsafe { self.slots.get_mut(index as usize).unwrap_unchecked() };
         buffer_slot.buffer = Some(allocated_buffer);
         buffer_slot.generation += 1;
 
@@ -290,7 +290,11 @@ impl BuffersPool {
     ) -> Option<&'a AllocatedBuffer> {
         let mut allocated_buffer = None;
 
-        let slot = unsafe { self.slots.get(buffer_reference.index).unwrap_unchecked() };
+        let slot = unsafe {
+            self.slots
+                .get(buffer_reference.index as usize)
+                .unwrap_unchecked()
+        };
         if slot.generation == buffer_reference.generation {
             allocated_buffer = slot.buffer.as_ref();
         }
