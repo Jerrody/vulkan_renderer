@@ -70,6 +70,7 @@ pub struct Buffers<'w> {
 }
 
 impl<'w> Buffers<'w> {
+    #[inline(always)]
     pub fn get(&'w self, buffer_reference: BufferReference) -> Option<&'w AllocatedBuffer> {
         self.buffers_pool.get_buffer(buffer_reference)
     }
@@ -81,10 +82,12 @@ pub struct BuffersMut<'w> {
 }
 
 impl<'w> BuffersMut<'w> {
+    #[inline(always)]
     pub fn get(&'w self, buffer_reference: BufferReference) -> Option<&'w AllocatedBuffer> {
         self.buffers_pool.get_buffer(buffer_reference)
     }
 
+    #[inline(always)]
     pub fn create(
         &mut self,
         allocation_size: usize,
@@ -96,10 +99,12 @@ impl<'w> BuffersMut<'w> {
             .create_buffer(allocation_size, usage, buffer_visibility, name)
     }
 
+    #[inline(always)]
     pub fn get_staging_buffer_reference(&self) -> BufferReference {
         self.buffers_pool.get_staging_buffer_reference()
     }
 
+    #[inline(always)]
     pub unsafe fn transfer_data_to_buffer_raw(
         &mut self,
         buffer_reference: BufferReference,
@@ -112,6 +117,7 @@ impl<'w> BuffersMut<'w> {
         }
     }
 
+    #[inline(always)]
     pub unsafe fn transfer_data_to_buffer_with_offset(
         &self,
         buffer_reference: &BufferReference,

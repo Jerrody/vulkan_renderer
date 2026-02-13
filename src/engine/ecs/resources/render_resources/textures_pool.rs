@@ -71,6 +71,7 @@ pub struct Textures<'w> {
 }
 
 impl<'w> Textures<'w> {
+    #[inline(always)]
     pub fn get(&'w self, texture_reference: TextureReference) -> Option<&'w AllocatedImage> {
         self.textures_pool.get_image(texture_reference)
     }
@@ -82,10 +83,12 @@ pub struct TexturesMut<'w> {
 }
 
 impl<'w> TexturesMut<'w> {
+    #[inline(always)]
     pub fn get(&'w self, texture_reference: TextureReference) -> Option<&'w AllocatedImage> {
         self.textures_pool.get_image(texture_reference)
     }
 
+    #[inline(always)]
     pub fn create_texture(
         &mut self,
         data: Option<&mut [u8]>,

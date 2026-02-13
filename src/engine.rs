@@ -111,17 +111,20 @@ impl Engine {
         Self { world }
     }
 
+    #[inline(always)]
     pub fn update(&mut self) {
         self.world.flush();
         self.world.run_schedule(SchedulerWorldUpdate);
         self.world.run_schedule(SchedulerRendererUpdate);
     }
 
+    #[inline(always)]
     pub fn process_input(&mut self, key_code: KeyCode, state: ElementState) {
         let mut camera = unsafe { self.world.get_resource_mut::<Camera>().unwrap_unchecked() };
         camera.process_keycode(key_code, state);
     }
 
+    #[inline(always)]
     pub fn process_mouse(&mut self, mouse_delta: (f32, f32)) {
         let mut camera = unsafe { self.world.get_resource_mut::<Camera>().unwrap_unchecked() };
         camera.process_mouse(mouse_delta.0, mouse_delta.1);

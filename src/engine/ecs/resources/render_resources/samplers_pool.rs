@@ -13,6 +13,7 @@ pub struct Samplers<'w> {
 }
 
 impl<'w> Samplers<'w> {
+    #[inline(always)]
     pub fn get(&self, sampler_reference: SamplerReference) -> Option<Sampler> {
         self.samplers_pool.get_sampler(sampler_reference)
     }
@@ -24,10 +25,12 @@ pub struct SamplersMut<'w> {
 }
 
 impl<'w> SamplersMut<'w> {
+    #[inline(always)]
     pub fn get(&self, sampler_reference: SamplerReference) -> Option<Sampler> {
         self.samplers_pool.get_sampler(sampler_reference)
     }
 
+    #[inline(always)]
     pub fn create_sampler(
         &mut self,
         filter: Filter,
@@ -43,12 +46,6 @@ impl<'w> SamplersMut<'w> {
 pub struct SamplerReference {
     pub index: u32,
     pub generation: u32,
-}
-
-impl SamplerReference {
-    pub fn get_sampler(&self, samplers_pool: &SamplersPool) -> Option<Sampler> {
-        samplers_pool.get_sampler(*self)
-    }
 }
 
 #[derive(Default)]

@@ -27,6 +27,7 @@ pub struct MeshBuffers<'w> {
 }
 
 impl<'w> MeshBuffers<'w> {
+    #[inline(always)]
     pub fn get(&self, mesh_buffer_reference: MeshBufferReference) -> &MeshBuffer {
         self.mesh_buffers_pool
             .get_mesh_buffer(mesh_buffer_reference)
@@ -39,16 +40,19 @@ pub struct MeshBuffersMut<'w> {
 }
 
 impl<'w> MeshBuffersMut<'w> {
+    #[inline(always)]
     pub fn get(&self, mesh_buffer_reference: MeshBufferReference) -> &MeshBuffer {
         self.mesh_buffers_pool
             .get_mesh_buffer(mesh_buffer_reference)
     }
 
+    #[inline(always)]
     pub fn get_mut(&mut self, mesh_buffer_reference: MeshBufferReference) -> &mut MeshBuffer {
         self.mesh_buffers_pool
             .get_mut_mesh_buffer(mesh_buffer_reference)
     }
 
+    #[inline(always)]
     pub fn insert_mesh_buffer(&mut self, mesh_buffer: MeshBuffer) -> MeshBufferReference {
         self.mesh_buffers_pool.insert_mesh_buffer(mesh_buffer)
     }
