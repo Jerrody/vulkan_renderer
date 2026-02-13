@@ -1,6 +1,7 @@
 use std::mem::ManuallyDrop;
 
 use ahash::HashMap;
+use bevy_ecs::resource::Resource;
 use vma::Allocator;
 
 use vulkanite::{
@@ -8,14 +9,18 @@ use vulkanite::{
     vk::{rs::*, *},
 };
 
-use crate::engine::{general::renderer::DescriptorKind, resources::buffers_pool::AllocatedBuffer};
+use crate::engine::{
+    ecs::buffers_pool::{BufferInfo, BufferReference, BuffersMut},
+    general::renderer::DescriptorKind,
+};
 
+#[derive(Default)]
 pub struct DescriptorSetLayoutHandle {
-    pub descriptor_set_layout: DescriptorSetLayout,
+    pub descriptor_set_layout: Option<DescriptorSetLayout>,
     pub descriptor_set_layout_size: u64,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Default, Clone, Copy)]
 pub struct DescriptorsSizes {
     pub sampled_image_descriptor_size: usize,
     pub sampler_descriptor_size: usize,
@@ -27,22 +32,33 @@ pub struct BindingInfo {
     pub binding_offset: DeviceSize,
 }
 
+#[derive(Resource)]
 pub struct DescriptorSetHandle {
-    pub buffer: AllocatedBuffer,
+    device: Device,
+    allocator: Allocator,
+    pub descriptor_buffer_reference: BufferReference,
     pub descriptor_set_layout_handle: DescriptorSetLayoutHandle,
     pub push_contant_ranges: Vec<PushConstantRange>,
     pub bindings_infos: HashMap<u32, BindingInfo>,
-    pub pipeline_layout: PipelineLayout,
+    pub pipeline_layout: Option<PipelineLayout>,
     pub descriptors_sizes: DescriptorsSizes,
 }
 
 impl DescriptorSetHandle {
-    pub fn update_binding(
-        &mut self,
-        device: Device,
-        allocator: Allocator,
-        descriptor_kind: DescriptorKind,
-    ) {
+    pub fn new(device: Device, allocator: Allocator) -> Self {
+        Self {
+            device,
+            allocator,
+            descriptor_buffer_reference: Default::default(),
+            descriptor_set_layout_handle: Default::default(),
+            push_contant_ranges: Default::default(),
+            bindings_infos: Default::default(),
+            pipeline_layout: Default::default(),
+            descriptors_sizes: Default::default(),
+        }
+    }
+
+    pub fn update_binding(&mut self, buffers_mut: &BuffersMut, descriptor_kind: DescriptorKind) {
         let descriptor_type = descriptor_kind.get_descriptor_type();
 
         let descriptors_sizes = self.descriptors_sizes;
@@ -74,11 +90,10 @@ impl DescriptorSetHandle {
         let binding_offset =
             base_binding_offset + (descriptor_slot_index as u64 * descriptor_size as u64);
 
-        let allocation = self.buffer.allocation;
-        let descriptor_buffer_address = unsafe { allocator.map_memory(allocation).unwrap() };
+        let mapped_allocation = buffers_mut.map_allocation(self.descriptor_buffer_reference);
 
         let target_descriptor_buffer_address =
-            unsafe { descriptor_buffer_address.add(binding_offset as usize) };
+            unsafe { mapped_allocation.get_ptr().add(binding_offset as usize) };
 
         let mut descriptor_data = DescriptorDataEXT::default();
         let mut descriptor_get_info = DescriptorGetInfoEXT::default();
@@ -98,7 +113,7 @@ impl DescriptorSetHandle {
                 descriptor_get_info.ty = DescriptorType::StorageImage;
                 descriptor_get_info.data = descriptor_data;
 
-                device.get_descriptor_ext(
+                self.device.get_descriptor_ext(
                     &descriptor_get_info,
                     descriptor_size,
                     target_descriptor_buffer_address as _,
@@ -122,7 +137,7 @@ impl DescriptorSetHandle {
                 descriptor_get_info.ty = DescriptorType::SampledImage;
                 descriptor_get_info.data = descriptor_data;
 
-                device.get_descriptor_ext(
+                self.device.get_descriptor_ext(
                     &descriptor_get_info,
                     descriptor_size,
                     target_descriptor_buffer_address as _,
@@ -139,7 +154,7 @@ impl DescriptorSetHandle {
                 descriptor_get_info.ty = DescriptorType::Sampler;
                 descriptor_get_info.data = descriptor_data;
 
-                device.get_descriptor_ext(
+                self.device.get_descriptor_ext(
                     &descriptor_get_info,
                     descriptor_size,
                     target_descriptor_buffer_address as _,
@@ -150,9 +165,36 @@ impl DescriptorSetHandle {
                 }
             }
         };
+    }
+
+    #[inline(always)]
+    pub fn get_pipeline_layout(&self) -> PipelineLayout {
+        unsafe { self.pipeline_layout.unwrap_unchecked() }
+    }
+
+    #[inline(always)]
+    pub fn get_descriptor_set_layout(&self) -> DescriptorSetLayout {
+        unsafe {
+            self.descriptor_set_layout_handle
+                .descriptor_set_layout
+                .unwrap_unchecked()
+        }
+    }
+
+    #[inline(always)]
+    pub fn get_buffer_info(&self) -> BufferInfo {
+        self.descriptor_buffer_reference.get_buffer_info()
+    }
+
+    pub fn destroy(&self) {
+        let device = self.device;
 
         unsafe {
-            allocator.unmap_memory(allocation);
+            device.destroy_pipeline_layout(self.pipeline_layout);
+
+            device.destroy_descriptor_set_layout(
+                self.descriptor_set_layout_handle.descriptor_set_layout,
+            );
         }
     }
 }

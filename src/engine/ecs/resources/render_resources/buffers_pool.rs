@@ -22,6 +22,35 @@ use vulkanite::{
 
 use crate::engine::resources::CommandGroup;
 
+pub struct MapppedAllocationHandler {
+    allocator: Allocator,
+    allocation: Allocation,
+    ptr: *mut u8,
+}
+
+impl MapppedAllocationHandler {
+    pub fn new(allocator: Allocator, allocation: Allocation, ptr: *mut u8) -> Self {
+        Self {
+            allocator,
+            allocation,
+            ptr,
+        }
+    }
+
+    #[inline(always)]
+    pub fn get_ptr(&self) -> *mut u8 {
+        self.ptr
+    }
+}
+
+impl Drop for MapppedAllocationHandler {
+    fn drop(&mut self) {
+        unsafe {
+            self.allocator.unmap_memory(self.allocation);
+        }
+    }
+}
+
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
 pub enum BufferVisibility {
     #[default]
@@ -73,6 +102,11 @@ impl<'w> Buffers<'w> {
     #[inline(always)]
     pub fn get(&'w self, buffer_reference: BufferReference) -> Option<&'w AllocatedBuffer> {
         self.buffers_pool.get_buffer(buffer_reference)
+    }
+
+    #[inline(always)]
+    pub fn map_allocation(&self, buffer_reference: BufferReference) -> MapppedAllocationHandler {
+        self.buffers_pool.map_allocation(buffer_reference)
     }
 }
 
@@ -131,6 +165,11 @@ impl<'w> BuffersMut<'w> {
                 regions_to_copy,
             );
         }
+    }
+
+    #[inline(always)]
+    pub fn map_allocation(&self, buffer_reference: BufferReference) -> MapppedAllocationHandler {
+        self.buffers_pool.map_allocation(buffer_reference)
     }
 }
 
@@ -200,11 +239,15 @@ impl BuffersPool {
         buffer_visibility: BufferVisibility,
         name: Option<String>,
     ) -> BufferReference {
-        let buffer_kind_usage = if allocation_size < 1024 * 64 {
+        let mut buffer_kind_usage = if allocation_size < 1024 * 64 {
             BufferUsageFlags::UniformBuffer
         } else {
             BufferUsageFlags::StorageBuffer
         };
+
+        if usage.contains(BufferUsageFlags::ResourceDescriptorBufferEXT) {
+            buffer_kind_usage = BufferUsageFlags::empty();
+        }
 
         let buffer_create_info = BufferCreateInfo {
             size: allocation_size as _,
@@ -481,6 +524,19 @@ impl BuffersPool {
                 CommandPoolResetFlags::ReleaseResources,
             )
             .unwrap();
+    }
+
+    #[inline(always)]
+    pub fn map_allocation(&self, buffer_reference: BufferReference) -> MapppedAllocationHandler {
+        let allocated_buffer = self.get_buffer(buffer_reference).unwrap();
+
+        let ptr = unsafe {
+            self.allocator
+                .map_memory(allocated_buffer.allocation)
+                .unwrap()
+        };
+
+        MapppedAllocationHandler::new(self.allocator, allocated_buffer.allocation, ptr)
     }
 
     pub unsafe fn free_allocations(&mut self) {

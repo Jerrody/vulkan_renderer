@@ -30,7 +30,7 @@ use crate::engine::{
         textures_pool::TexturesMut,
     },
     events::{LoadModelEvent, SpawnEvent, SpawnEventRecord},
-    general::renderer::{DescriptorKind, DescriptorSampledImage},
+    general::renderer::{DescriptorKind, DescriptorSampledImage, DescriptorSetHandle},
     id::Id,
     resources::{
         MeshObject, Meshlet, RendererContext, RendererResources, Vertex, VulkanContextResource,
@@ -103,6 +103,7 @@ pub fn on_load_model_system(
     vulkan_context: Res<VulkanContextResource>,
     renderer_context_resource: Res<RendererContext>,
     mut renderer_resources: ResMut<RendererResources>,
+    mut descriptor_set_handle: ResMut<DescriptorSetHandle>,
     mut buffers_mut: BuffersMut,
     mut textures_mut: TexturesMut,
     mut mesh_buffers_mut: MeshBuffersMut,
@@ -211,7 +212,7 @@ pub fn on_load_model_system(
                         &renderer_context_resource,
                         &mut textures_mut,
                         &mut buffers_mut,
-                        &mut renderer_resources,
+                        &mut descriptor_set_handle,
                         &scene,
                         &mut uploaded_textures,
                         material.clone(),
@@ -487,8 +488,8 @@ fn try_upload_texture(
     vulkan_context: &VulkanContextResource,
     renderer_context: &RendererContext,
     textures_mut: &mut TexturesMut,
-    buffers_pool: &mut BuffersMut,
-    renderer_resources: &mut RendererResources,
+    buffers_mut: &mut BuffersMut,
+    descriptor_set_handle: &mut DescriptorSetHandle,
     scene: &asset_importer::Scene,
     uploaded_textures: &mut HashMap<usize, TextureReference>,
     material: asset_importer::Material,
@@ -519,7 +520,7 @@ fn try_upload_texture(
 
             vulkan_context.transfer_data_to_image(
                 textures_mut.get(texture_reference).unwrap(),
-                buffers_pool,
+                buffers_mut,
                 texture_data.as_ptr() as *const _,
                 &renderer_context.upload_context,
                 Some(texture_data.len()),
@@ -529,15 +530,7 @@ fn try_upload_texture(
                 image_view: textures_mut.get(texture_reference).unwrap().image_view,
                 index: texture_reference.index,
             });
-            renderer_resources
-                .resources_descriptor_set_handle
-                .as_mut()
-                .unwrap()
-                .update_binding(
-                    vulkan_context.device,
-                    vulkan_context.allocator,
-                    descriptor_texture,
-                );
+            descriptor_set_handle.update_binding(&buffers_mut, descriptor_texture);
 
             let texture_metadata = texture_reference.texture_metadata;
             println!(

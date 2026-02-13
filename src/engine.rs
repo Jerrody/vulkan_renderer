@@ -13,24 +13,23 @@ use bevy_ecs::{
     schedule::{IntoScheduleConfigs, Schedule, ScheduleLabel},
     world::World,
 };
-use vulkanite::{Handle, vk};
 use winit::{event::ElementState, keyboard::KeyCode, window::Window};
 
 use crate::engine::{
     components::{camera::Camera, time::Time},
     ecs::{
-        buffers_pool::{AllocatedBuffer, BuffersPool},
+        buffers_pool::BuffersPool,
         general::{update_camera, update_time},
         samplers_pool::SamplersPool,
         setup::{
             prepare_default_samplers::prepare_default_samplers_system,
             prepare_default_textures::prepare_default_textures_system,
-            prepare_descriptors::prepare_descriptors_system,
             prepare_shaders::prepare_shaders_system,
         },
         textures_pool::TexturesPool,
     },
     events::LoadModelEvent,
+    general::renderer::DescriptorSetHandle,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
@@ -74,8 +73,7 @@ impl Engine {
 
         let mut scheduler_renderer_setup = Schedule::new(SchedulerRendererSetup);
         scheduler_renderer_setup.add_systems((
-            prepare_descriptors_system,
-            prepare_default_samplers_system.after(prepare_descriptors_system),
+            prepare_default_samplers_system,
             prepare_default_textures_system.after(prepare_default_samplers_system),
             prepare_shaders_system.after(prepare_default_textures_system),
         ));
@@ -131,18 +129,6 @@ impl Engine {
         let mut camera = unsafe { self.world.get_resource_mut::<Camera>().unwrap_unchecked() };
         camera.process_mouse(mouse_delta.0, mouse_delta.1);
     }
-
-    unsafe fn destroy_buffer(
-        &self,
-        allocator: &vma::Allocator,
-        allocated_buffer: &mut AllocatedBuffer,
-    ) {
-        let allocation = &mut allocated_buffer.allocation;
-        unsafe {
-            let buffer_raw = vk::raw::Buffer::from_raw(allocated_buffer.buffer.as_raw());
-            allocator.destroy_buffer(buffer_raw, allocation);
-        }
-    }
 }
 
 impl Drop for Engine {
@@ -155,40 +141,18 @@ impl Drop for Engine {
         let mut buffers_pool = self.world.remove_resource::<BuffersPool>().unwrap();
         let mut textures_pool = self.world.remove_resource::<TexturesPool>().unwrap();
         let mut samplers_pool = self.world.remove_resource::<SamplersPool>().unwrap();
-        let mut renderer_resources = self.world.remove_resource::<RendererResources>().unwrap();
+        let renderer_resources = self.world.remove_resource::<RendererResources>().unwrap();
+        let descriptor_set_handle = self.world.remove_resource::<DescriptorSetHandle>().unwrap();
 
         let device = vulkan_context_resource.device;
 
         device.wait_idle().unwrap();
 
         unsafe {
-            let allocated_buffer = &mut renderer_resources
-                .resources_descriptor_set_handle
-                .as_mut()
-                .unwrap()
-                .buffer;
-            self.destroy_buffer(&vulkan_context_resource.allocator, allocated_buffer);
-
-            device.destroy_pipeline_layout(Some(
-                renderer_resources
-                    .resources_descriptor_set_handle
-                    .as_ref()
-                    .unwrap()
-                    .pipeline_layout,
-            ));
-
-            device.destroy_descriptor_set_layout(Some(
-                renderer_resources
-                    .resources_descriptor_set_handle
-                    .as_ref()
-                    .unwrap()
-                    .descriptor_set_layout_handle
-                    .descriptor_set_layout,
-            ));
-
             buffers_pool.free_allocations();
             textures_pool.free_allocations();
             samplers_pool.destroy_samplers();
+            descriptor_set_handle.destroy();
 
             vulkan_context_resource.allocator.drop();
 

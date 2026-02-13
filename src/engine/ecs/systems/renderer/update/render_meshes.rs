@@ -7,6 +7,7 @@ use vulkanite::vk::{Bool32, ColorBlendEquationEXT, ShaderStageFlags};
 
 use crate::engine::{
     components::{material::MaterialType, mesh::Mesh, transform::Parent},
+    general::renderer::DescriptorSetHandle,
     resources::{FrameContext, GraphicsPushConstant, RendererResources},
 };
 
@@ -15,6 +16,7 @@ pub fn render_meshes_system(
     entities: Query<(Entity, &Name)>,
     entities_with_parent: Query<&Parent>,
     mut renderer_resources: ResMut<RendererResources>,
+    descriptor_set_handle: Res<DescriptorSetHandle>,
     frame_context: Res<FrameContext>,
 ) {
     let command_buffer = frame_context.command_buffer.unwrap();
@@ -58,11 +60,7 @@ pub fn render_meshes_system(
             ..Default::default()
         };
         command_buffer.push_constants(
-            renderer_resources
-                .resources_descriptor_set_handle
-                .as_ref()
-                .unwrap()
-                .pipeline_layout,
+            descriptor_set_handle.get_pipeline_layout(),
             ShaderStageFlags::Fragment
                 | ShaderStageFlags::TaskEXT
                 | ShaderStageFlags::MeshEXT

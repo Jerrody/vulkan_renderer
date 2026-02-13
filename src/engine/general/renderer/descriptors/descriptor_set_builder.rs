@@ -4,12 +4,12 @@ use vma::*;
 use vulkanite::vk::{rs::*, *};
 
 use crate::engine::{
+    ecs::buffers_pool::BuffersPool,
     general::renderer::{
         BindingInfo, DescriptorSampledImage, DescriptorSampler, DescriptorSetHandle,
         DescriptorSetLayoutHandle, DescriptorStorageImage, DescriptorsSizes,
     },
-    resources::buffers_pool::{AllocatedBuffer, BufferInfo, BufferVisibility},
-    utils::get_device_address,
+    resources::buffers_pool::BufferVisibility,
 };
 
 pub enum DescriptorKind {
@@ -46,11 +46,11 @@ impl<'a> DescriptorSetBuilder<'a> {
     }
 
     pub fn add_binding(
-        &mut self,
+        mut self,
         descriptor_type: DescriptorType,
         descriptor_count: u32,
         binding_flags: DescriptorBindingFlags,
-    ) {
+    ) -> Self {
         let next_binding_index = self.bindings_infos.len();
         let binding = DescriptorSetLayoutBinding::default()
             .binding(next_binding_index as _)
@@ -63,16 +63,15 @@ impl<'a> DescriptorSetBuilder<'a> {
         };
 
         self.bindings_infos.push(binding_info);
-    }
 
-    pub fn clear(&mut self) {
-        self.bindings_infos.clear();
+        self
     }
 
     pub fn build(
-        &mut self,
+        mut self,
         device: Device,
         allocator: Allocator,
+        buffers_pool: &mut BuffersPool,
         descriptor_buffer_properties: &PhysicalDeviceDescriptorBufferPropertiesEXT,
         push_constant_ranges: &[PushConstantRange],
         shader_stages: ShaderStageFlags,
@@ -83,13 +82,15 @@ impl<'a> DescriptorSetBuilder<'a> {
             DescriptorSetLayoutCreateFlags::DescriptorBufferEXT,
         );
 
+        let descriptor_set_layouts = [descriptor_set_layout_handle.descriptor_set_layout.unwrap()];
+
         let mut bindings_infos: HashMap<u32, BindingInfo, ahash::RandomState> =
             HashMap::with_hasher(ahash::RandomState::new());
 
         self.bindings_infos.iter().enumerate().for_each(
             |(binding_index, descriptor_set_layout_binding_info)| {
                 let binding_offset = device.get_descriptor_set_layout_binding_offset_ext(
-                    descriptor_set_layout_handle.descriptor_set_layout,
+                    *descriptor_set_layouts.first().unwrap(),
                     binding_index as _,
                 );
 
@@ -106,10 +107,13 @@ impl<'a> DescriptorSetBuilder<'a> {
             descriptor_buffer_properties.descriptor_buffer_offset_alignment,
         );
 
-        let descriptor_buffer =
-            self.create_descriptor_buffer(device, allocator, descriptor_buffer_size);
+        let descriptor_buffer_reference = buffers_pool.create_buffer(
+            descriptor_buffer_size as _,
+            BufferUsageFlags::ShaderDeviceAddress | BufferUsageFlags::ResourceDescriptorBufferEXT,
+            BufferVisibility::HostVisible,
+            Some("Descriptor Set".to_string()),
+        );
 
-        let descriptor_set_layouts = [descriptor_set_layout_handle.descriptor_set_layout];
         let pipeline_layout_info = PipelineLayoutCreateInfo::default()
             .set_layouts(descriptor_set_layouts.as_slice())
             .push_constant_ranges(push_constant_ranges);
@@ -117,64 +121,27 @@ impl<'a> DescriptorSetBuilder<'a> {
             .create_pipeline_layout(&pipeline_layout_info)
             .unwrap();
 
-        self.clear();
-
         let sampled_image_descriptor_size =
             descriptor_buffer_properties.sampled_image_descriptor_size;
         let storage_image_descriptor_size =
             descriptor_buffer_properties.storage_image_descriptor_size;
         let sampler_descriptor_size = descriptor_buffer_properties.sampler_descriptor_size;
 
-        DescriptorSetHandle {
-            buffer: descriptor_buffer,
-            descriptor_set_layout_handle,
-            push_contant_ranges: push_constant_ranges.to_vec(),
-            pipeline_layout,
-            bindings_infos,
-            descriptors_sizes: DescriptorsSizes {
-                sampled_image_descriptor_size,
-                sampler_descriptor_size,
-                storage_image_descriptor_size,
-            },
-        }
-    }
-
-    fn create_descriptor_buffer(
-        &mut self,
-        device: Device,
-        allocator: Allocator,
-        descriptor_buffer_size: u64,
-    ) -> AllocatedBuffer {
-        let buffer_info = BufferCreateInfo::default()
-            .size(descriptor_buffer_size)
-            .usage(
-                BufferUsageFlags::ShaderDeviceAddress
-                    | BufferUsageFlags::ResourceDescriptorBufferEXT,
-            );
-
-        let allocation_info = AllocationCreateInfo {
-            flags: AllocationCreateFlags::Mapped | AllocationCreateFlags::HostAccessRandom,
-            usage: MemoryUsage::AutoPreferDevice,
-            ..Default::default()
+        let descriptor_sizes = DescriptorsSizes {
+            sampled_image_descriptor_size,
+            sampler_descriptor_size,
+            storage_image_descriptor_size,
         };
 
-        let (descriptor_buffer_raw, allocation) = unsafe {
-            allocator
-                .create_buffer(&buffer_info, &allocation_info)
-                .unwrap()
-        };
-        let descriptor_buffer = Buffer::from_inner(descriptor_buffer_raw);
+        let mut descriptor_set_handle = DescriptorSetHandle::new(device, allocator);
+        descriptor_set_handle.descriptor_buffer_reference = descriptor_buffer_reference;
+        descriptor_set_handle.descriptor_set_layout_handle = descriptor_set_layout_handle;
+        descriptor_set_handle.push_contant_ranges = push_constant_ranges.to_vec();
+        descriptor_set_handle.pipeline_layout = Some(pipeline_layout);
+        descriptor_set_handle.bindings_infos = bindings_infos;
+        descriptor_set_handle.descriptors_sizes = descriptor_sizes;
 
-        let buffer_device_address = get_device_address(device, &descriptor_buffer);
-        AllocatedBuffer {
-            buffer: descriptor_buffer,
-            allocation,
-            buffer_info: BufferInfo::new(
-                buffer_device_address,
-                descriptor_buffer_size,
-                BufferVisibility::HostVisible,
-            ),
-        }
+        descriptor_set_handle
     }
 
     fn create_descriptor_set_layout(
@@ -223,7 +190,7 @@ impl<'a> DescriptorSetBuilder<'a> {
             device.get_descriptor_set_layout_size_ext(descriptor_set_layout);
 
         DescriptorSetLayoutHandle {
-            descriptor_set_layout,
+            descriptor_set_layout: Some(descriptor_set_layout),
             descriptor_set_layout_size: descriptor_set_layout_size,
         }
     }

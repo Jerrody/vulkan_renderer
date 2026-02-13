@@ -2,12 +2,13 @@ use bevy_ecs::system::{Res, ResMut};
 use vulkanite::{
     Handle,
     vk::{
-        rs::{CommandBuffer, Image},
+        rs::{CommandBuffer, PipelineLayout},
         *,
     },
 };
 
 use crate::engine::{
+    general::renderer::DescriptorSetHandle,
     resources::{
         FrameContext, GraphicsPushConstant, RendererContext, RendererResources,
         textures_pool::Textures,
@@ -18,6 +19,7 @@ use crate::engine::{
 pub fn begin_rendering_system(
     render_context: Res<RendererContext>,
     renderer_resources: Res<RendererResources>,
+    descriptor_set_handle: Res<DescriptorSetHandle>,
     textures: Textures,
     mut frame_context: ResMut<FrameContext>,
 ) {
@@ -99,12 +101,11 @@ pub fn begin_rendering_system(
         ..Default::default()
     };
 
+    let pipeline_layout = descriptor_set_handle.get_pipeline_layout();
+    let descriptor_buffer_info = descriptor_set_handle.get_buffer_info();
+
     command_buffer.push_constants(
-        renderer_resources
-            .resources_descriptor_set_handle
-            .as_ref()
-            .unwrap()
-            .pipeline_layout,
+        pipeline_layout,
         ShaderStageFlags::MeshEXT
             | ShaderStageFlags::Fragment
             | ShaderStageFlags::Compute
@@ -118,6 +119,8 @@ pub fn begin_rendering_system(
         renderer_resources.as_ref(),
         command_buffer,
         draw_image_extent2d,
+        pipeline_layout,
+        descriptor_buffer_info.device_address,
     );
 
     transition_image(
@@ -241,15 +244,7 @@ pub fn begin_rendering_system(
 
     let descriptor_binding_info = DescriptorBufferBindingInfoEXT::default()
         .usage(BufferUsageFlags::ResourceDescriptorBufferEXT)
-        .address(
-            renderer_resources
-                .resources_descriptor_set_handle
-                .as_ref()
-                .unwrap()
-                .buffer
-                .buffer_info
-                .device_address,
-        );
+        .address(descriptor_buffer_info.device_address);
     let descriptor_binding_infos = [descriptor_binding_info];
     command_buffer.bind_descriptor_buffers_ext(&descriptor_binding_infos);
 
@@ -257,11 +252,7 @@ pub fn begin_rendering_system(
     let offsets = [0];
     command_buffer.set_descriptor_buffer_offsets_ext(
         PipelineBindPoint::Graphics,
-        renderer_resources
-            .resources_descriptor_set_handle
-            .as_ref()
-            .unwrap()
-            .pipeline_layout,
+        pipeline_layout,
         Default::default(),
         &buffer_indices,
         &offsets,
@@ -274,6 +265,8 @@ fn draw_gradient(
     renderer_resources: &RendererResources,
     command_buffer: CommandBuffer,
     draw_extent: Extent2D,
+    pipeline_layout: PipelineLayout,
+    descriptor_buffer_device_address: DeviceAddress,
 ) {
     let gradient_compute_shader_object = renderer_resources.gradient_compute_shader_object;
 
@@ -284,15 +277,7 @@ fn draw_gradient(
 
     let descriptor_binding_info = DescriptorBufferBindingInfoEXT::default()
         .usage(BufferUsageFlags::ResourceDescriptorBufferEXT)
-        .address(
-            renderer_resources
-                .resources_descriptor_set_handle
-                .as_ref()
-                .unwrap()
-                .buffer
-                .buffer_info
-                .device_address,
-        );
+        .address(descriptor_buffer_device_address);
 
     let descriptor_binding_infos = [descriptor_binding_info];
     command_buffer.bind_descriptor_buffers_ext(&descriptor_binding_infos);
@@ -301,11 +286,7 @@ fn draw_gradient(
     let offsets = [0];
     command_buffer.set_descriptor_buffer_offsets_ext(
         PipelineBindPoint::Compute,
-        renderer_resources
-            .resources_descriptor_set_handle
-            .as_ref()
-            .unwrap()
-            .pipeline_layout,
+        pipeline_layout,
         Default::default(),
         &buffer_indices,
         &offsets,
@@ -316,21 +297,4 @@ fn draw_gradient(
         f32::ceil(draw_extent.height as f32 / 16.0) as _,
         1,
     );
-}
-
-#[allow(unused)]
-fn draw_background(
-    render_context: &RendererContext,
-    command_buffer: CommandBuffer,
-    draw_image: &Image,
-) {
-    let flash = f32::abs(f32::sin(render_context.frame_number as f32 / 120.0));
-    let clear_value = ClearColorValue {
-        float32: [0.0, 0.0, flash, 1.0],
-    };
-
-    //let clear_range = image_subresource_range(ImageAspectFlags::Color);
-
-    /*   let ranges = [clear_range];
-    command_buffer.clear_color_image(*draw_image, ImageLayout::General, &clear_value, &ranges); */
 }

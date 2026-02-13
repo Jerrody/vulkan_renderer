@@ -12,7 +12,6 @@ use vulkanite::vk::{rs::*, *};
 
 use crate::engine::{
     components::material::{MaterialState, MaterialType},
-    general::renderer::DescriptorSetHandle,
     id::Id,
     resources::{
         buffers_pool::BufferReference, render_resources::model_loader::ModelLoader,
@@ -248,7 +247,6 @@ pub struct RendererResources {
     pub fallback_texture_reference: TextureReference,
     pub default_sampler_reference: SamplerReference,
     pub mesh_objects_buffer_reference: BufferReference,
-    pub resources_descriptor_set_handle: Option<DescriptorSetHandle>,
     pub gradient_compute_shader_object: ShaderObject,
     pub task_shader_object: ShaderObject,
     pub mesh_shader_object: ShaderObject,

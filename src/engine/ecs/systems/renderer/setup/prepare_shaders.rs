@@ -7,6 +7,7 @@ use crate::engine::{
         SwappableBuffer, VulkanContextResource,
         buffers_pool::{BufferVisibility, BuffersMut},
     },
+    general::renderer::DescriptorSetHandle,
     utils::{ShaderInfo, load_shader},
 };
 
@@ -14,18 +15,12 @@ pub fn prepare_shaders_system(
     vulkan_ctx_resource: Res<VulkanContextResource>,
     render_context: ResMut<RendererContext>,
     mut renderer_resources: ResMut<RendererResources>,
+    descriptor_set_handle: Res<DescriptorSetHandle>,
     mut buffers_mut: BuffersMut,
 ) {
     let device = vulkan_ctx_resource.device;
 
-    let descriptor_set_handle = renderer_resources
-        .resources_descriptor_set_handle
-        .as_ref()
-        .unwrap();
-
-    let descriptor_set_layouts = [descriptor_set_handle
-        .descriptor_set_layout_handle
-        .descriptor_set_layout];
+    let descriptor_set_layouts = [descriptor_set_handle.get_descriptor_set_layout()];
     let push_constant_ranges = descriptor_set_handle.push_contant_ranges.as_slice();
 
     let mesh_shader_path = r"intermediate\shaders\mesh.slang.spv";

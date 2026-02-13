@@ -8,19 +8,19 @@ use crate::engine::{
         RendererContext, RendererResources, VulkanContextResource, buffers_pool::BuffersMut,
         textures_pool::TexturesMut,
     },
-    general::renderer::{DescriptorKind, DescriptorSampledImage, DescriptorStorageImage},
+    general::renderer::{
+        DescriptorKind, DescriptorSampledImage, DescriptorSetHandle, DescriptorStorageImage,
+    },
 };
 
 pub fn prepare_default_textures_system(
     vulkan_ctx_resource: Res<VulkanContextResource>,
     mut renderer_context: ResMut<RendererContext>,
     mut renderer_resources: ResMut<RendererResources>,
+    mut descriptor_set_handle: ResMut<DescriptorSetHandle>,
     mut textures_mut: TexturesMut,
     mut buffers_mut: BuffersMut,
 ) {
-    let device = vulkan_ctx_resource.device;
-    let allocator = vulkan_ctx_resource.allocator;
-
     let magenta = &pack_unorm_4x8(Vec4::new(1.0, 0.0, 1.0, 1.0));
     let black = &pack_unorm_4x8(Vec4::new(0.0, 0.0, 0.0, 0.0));
     let mut pixels: Vec<u32> = vec![0; 16 * 16];
@@ -56,11 +56,7 @@ pub fn prepare_default_textures_system(
             .image_view,
         index: checkerboard_texture_reference.index,
     });
-    renderer_resources
-        .resources_descriptor_set_handle
-        .as_mut()
-        .unwrap()
-        .update_binding(device, allocator, descriptor_checkerboard_image);
+    descriptor_set_handle.update_binding(&buffers_mut, descriptor_checkerboard_image);
 
     vulkan_ctx_resource.transfer_data_to_image(
         textures_mut.get(checkerboard_texture_reference).unwrap(),
@@ -101,11 +97,7 @@ pub fn prepare_default_textures_system(
             .image_view,
         index: white_texture_reference.index,
     });
-    renderer_resources
-        .resources_descriptor_set_handle
-        .as_mut()
-        .unwrap()
-        .update_binding(device, allocator, descriptor_white_image);
+    descriptor_set_handle.update_binding(&buffers_mut, descriptor_white_image);
 
     let draw_extent = renderer_context.draw_extent;
     renderer_context
@@ -142,11 +134,7 @@ pub fn prepare_default_textures_system(
                 image_view: textures_mut.get(draw_texture_reference).unwrap().image_view,
                 index: draw_texture_reference.index,
             });
-            renderer_resources
-                .resources_descriptor_set_handle
-                .as_mut()
-                .unwrap()
-                .update_binding(device, allocator, descriptor_draw_image);
+            descriptor_set_handle.update_binding(&buffers_mut, descriptor_draw_image);
 
             frame_data.draw_texture_reference = draw_texture_reference;
             frame_data.depth_texture_reference = depth_texture_reference;
