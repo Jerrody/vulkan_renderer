@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use bevy_ecs::system::{Query, ResMut};
 use glam::Mat4;
 use vulkanite::vk::DeviceAddress;
@@ -7,7 +5,6 @@ use vulkanite::vk::DeviceAddress;
 use crate::engine::{
     components::{material::MaterialType, mesh::Mesh, transform::GlobalTransform},
     ecs::mesh_buffers_pool::MeshBuffers,
-    id::Id,
     resources::RendererResources,
 };
 

@@ -5,4 +5,3 @@ pub mod prepare_frame;
 pub mod present;
 pub mod render_meshes;
 pub mod update_resources;
-

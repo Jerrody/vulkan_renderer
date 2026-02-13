@@ -4,8 +4,6 @@ pub mod model_loader;
 pub mod samplers_pool;
 pub mod textures_pool;
 
-use std::slice::{Iter, IterMut};
-
 use bevy_ecs::resource::Resource;
 use bytemuck::{NoUninit, Pod, Zeroable};
 use glam::{Mat4, Vec3, Vec4};
