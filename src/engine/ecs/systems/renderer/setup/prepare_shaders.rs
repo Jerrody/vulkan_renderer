@@ -6,20 +6,17 @@ use crate::engine::{
         InstanceObject, MeshObject, RendererContext, RendererResources, SceneData, ShaderObject,
         SwappableBuffer, VulkanContextResource,
         buffers_pool::{BufferVisibility, BuffersMut},
-        textures_pool::TexturesMut,
     },
     utils::{ShaderInfo, load_shader},
 };
 
 pub fn prepare_shaders_system(
     vulkan_ctx_resource: Res<VulkanContextResource>,
-    mut render_context: ResMut<RendererContext>,
+    render_context: ResMut<RendererContext>,
     mut renderer_resources: ResMut<RendererResources>,
-    mut textures_mut: TexturesMut,
     mut buffers_mut: BuffersMut,
 ) {
     let device = vulkan_ctx_resource.device;
-    let allocator = vulkan_ctx_resource.allocator;
 
     let descriptor_set_handle = renderer_resources
         .resources_descriptor_set_handle

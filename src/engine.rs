@@ -24,7 +24,7 @@ use crate::engine::{
         samplers_pool::SamplersPool,
         setup::{
             prepare_default_samplers::prepare_default_samplers_system,
-            prepare_default_textures::{self, prepare_default_textures_system},
+            prepare_default_textures::prepare_default_textures_system,
             prepare_descriptors::prepare_descriptors_system,
             prepare_shaders::prepare_shaders_system,
         },
