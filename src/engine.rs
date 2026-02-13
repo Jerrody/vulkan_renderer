@@ -24,6 +24,7 @@ use crate::engine::{
         samplers_pool::SamplersPool,
         setup::{
             prepare_default_samplers::prepare_default_samplers_system,
+            prepare_default_textures::{self, prepare_default_textures_system},
             prepare_descriptors::prepare_descriptors_system,
             prepare_shaders::prepare_shaders_system,
         },
@@ -75,7 +76,8 @@ impl Engine {
         scheduler_renderer_setup.add_systems((
             prepare_descriptors_system,
             prepare_default_samplers_system.after(prepare_descriptors_system),
-            prepare_shaders_system.after(prepare_default_samplers_system),
+            prepare_default_textures_system.after(prepare_default_samplers_system),
+            prepare_shaders_system.after(prepare_default_textures_system),
         ));
 
         let mut scheduler_renderer_update = Schedule::new(SchedulerRendererUpdate);
