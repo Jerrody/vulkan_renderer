@@ -44,7 +44,7 @@ impl Engine {
         );
         let textures_pool = TexturesPool::new(device, vulkan_context.allocator);
         let samplers_pool = SamplersPool::new(device);
-        let mesh_buffers_pool = MeshBuffersPool::new(10_000);
+        let mesh_buffers_pool = MeshBuffersPool::new(5_120);
 
         world.insert_resource(renderer_resources);
         world.insert_resource(buffers_pool);
