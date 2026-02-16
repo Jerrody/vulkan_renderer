@@ -1231,6 +1231,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "game_logic"
+version = "0.1.0"
+
+[[package]]
 name = "game_runner"
 version = "0.1.0"
 dependencies = [

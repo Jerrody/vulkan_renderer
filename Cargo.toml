@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/engine", "crates/game_runner"]
+members = ["crates/engine", "crates/game_logic", "crates/game_runner"]
 
 [workspace.dependencies]
 bevy_ecs = { version = "0.18.0", default-features = false, features = [

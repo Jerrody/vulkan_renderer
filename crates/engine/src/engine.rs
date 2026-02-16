@@ -10,7 +10,7 @@ use ecs::*;
 use std::path::PathBuf;
 
 use bevy_ecs::{
-    schedule::{IntoScheduleConfigs, Schedule, ScheduleLabel},
+    schedule::{IntoScheduleConfigs, Schedule, ScheduleLabel, Schedules},
     world::World,
 };
 use winit::{event::ElementState, keyboard::KeyCode, window::Window};
@@ -39,6 +39,9 @@ struct SchedulerRendererSetup;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
 struct SchedulerRendererUpdate;
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
+struct SchedulerGameUpdate;
 
 pub struct Engine {
     world: World,
@@ -72,25 +75,28 @@ impl Engine {
         ));
 
         let mut scheduler_renderer_setup = Schedule::new(SchedulerRendererSetup);
-        scheduler_renderer_setup.add_systems((
-            prepare_default_samplers_system,
-            prepare_default_textures_system.after(prepare_default_samplers_system),
-            prepare_shaders_system.after(prepare_default_textures_system),
-        ));
+        scheduler_renderer_setup.add_systems(
+            (
+                prepare_default_samplers_system,
+                prepare_default_textures_system,
+                prepare_shaders_system,
+            )
+                .chain(),
+        );
 
         let mut scheduler_renderer_update = Schedule::new(SchedulerRendererUpdate);
-        scheduler_renderer_update.add_systems((
-            prepare_frame::prepare_frame_system,
-            collect_instance_objects::collect_instance_objects_system
-                .after(prepare_frame::prepare_frame_system),
-            update_resources::update_resources_system
-                .after(collect_instance_objects::collect_instance_objects_system),
-            begin_rendering::begin_rendering_system
-                .after(update_resources::update_resources_system),
-            render_meshes::render_meshes_system.after(begin_rendering::begin_rendering_system),
-            end_rendering::end_rendering_system.after(render_meshes::render_meshes_system),
-            present::present_system.after(render_meshes::render_meshes_system),
-        ));
+        scheduler_renderer_update.add_systems(
+            (
+                prepare_frame::prepare_frame_system,
+                collect_instance_objects::collect_instance_objects_system,
+                update_resources::update_resources_system,
+                begin_rendering::begin_rendering_system,
+                render_meshes::render_meshes_system,
+                end_rendering::end_rendering_system,
+                present::present_system,
+            )
+                .chain(),
+        );
 
         world.add_schedule(scheduler_world_update);
         world.add_schedule(scheduler_renderer_update);
