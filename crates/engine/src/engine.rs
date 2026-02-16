@@ -103,9 +103,18 @@ impl Engine {
 
         world.run_schedule(SchedulerRendererSetup);
 
+        let mut exe_path = std::env::current_exe().unwrap();
+
+        exe_path.pop();
+        exe_path.pop();
+        exe_path.pop();
+
         // TODO: TEMP
         world.trigger(LoadModelEvent {
-            path: PathBuf::from(r"assets/structure.glb"),
+            path: PathBuf::from(std::format!(
+                "{}/assets/structure.glb",
+                exe_path.as_os_str().display()
+            )),
         });
 
         Self { world }

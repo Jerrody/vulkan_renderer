@@ -1,7 +1,6 @@
 //#![windows_subsystem = "windows"]
 
-mod engine;
-
+use engine::engine::Engine;
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
@@ -10,8 +9,6 @@ use winit::{
     keyboard::{KeyCode, PhysicalKey},
     window::{Window, WindowAttributes},
 };
-
-use crate::engine::Engine;
 
 #[derive(Default)]
 struct Application {
