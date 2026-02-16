@@ -10,6 +10,7 @@ bevy_ecs = { version = "0.18.0", default-features = false, features = [
 ] }
 glam = { version = "0.32.0", features = ["fast-math", "bytemuck"] }
 engine = { path = "crates/engine" }
+game_logic = { path = "crates/game_logic" }
 
 [profile.dev]
 opt-level = 2

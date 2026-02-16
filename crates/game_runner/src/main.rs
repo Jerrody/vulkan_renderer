@@ -1,6 +1,7 @@
 //#![windows_subsystem = "windows"]
 
-use engine::engine::Engine;
+use engine::{GamePlugin, engine::Engine};
+use libloading::{Library, Symbol};
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
@@ -14,6 +15,8 @@ use winit::{
 struct Application {
     window: Option<Box<dyn Window>>,
     engine: Option<Engine>,
+    lib: Option<Library>,
+    game: Option<Box<dyn GamePlugin>>,
 }
 
 impl ApplicationHandler for Application {
@@ -25,7 +28,28 @@ impl ApplicationHandler for Application {
 
         self.window = match event_loop.create_window(window_attributes) {
             Ok(window) => {
-                self.engine = Some(Engine::new(window.as_ref()));
+                let mut engine = Engine::new(window.as_ref());
+
+                let lib_path = if cfg!(target_os = "windows") {
+                    "game_logic.dll"
+                } else {
+                    "libgame_logic.so"
+                };
+
+                unsafe {
+                    let lib = Library::new(lib_path).expect("Failed to load DLL.");
+
+                    let get_game_func: Symbol<fn() -> Box<dyn GamePlugin>> =
+                        lib.get(b"get_game").unwrap();
+
+                    let game_plugin = get_game_func();
+                    engine.init_game(game_plugin.as_ref());
+
+                    self.lib = Some(lib);
+                    self.game = Some(game_plugin);
+                }
+
+                self.engine = Some(engine);
 
                 Some(window)
             }

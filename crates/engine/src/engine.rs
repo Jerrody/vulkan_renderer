@@ -10,26 +10,29 @@ use ecs::*;
 use std::path::PathBuf;
 
 use bevy_ecs::{
-    schedule::{IntoScheduleConfigs, Schedule, ScheduleLabel, Schedules},
+    schedule::{IntoScheduleConfigs, ScheduleLabel, Schedules},
     world::World,
 };
 use winit::{event::ElementState, keyboard::KeyCode, window::Window};
 
-use crate::engine::{
-    components::{camera::Camera, time::Time},
-    ecs::{
-        buffers_pool::BuffersPool,
-        general::{update_camera, update_time},
-        samplers_pool::SamplersPool,
-        setup::{
-            prepare_default_samplers::prepare_default_samplers_system,
-            prepare_default_textures::prepare_default_textures_system,
-            prepare_shaders::prepare_shaders_system,
+use crate::{
+    GamePlugin,
+    engine::{
+        components::{camera::Camera, time::Time},
+        ecs::{
+            buffers_pool::BuffersPool,
+            general::{update_camera, update_time},
+            samplers_pool::SamplersPool,
+            setup::{
+                prepare_default_samplers::prepare_default_samplers_system,
+                prepare_default_textures::prepare_default_textures_system,
+                prepare_shaders::prepare_shaders_system,
+            },
+            textures_pool::TexturesPool,
         },
-        textures_pool::TexturesPool,
+        events::LoadModelEvent,
+        general::renderer::DescriptorSetHandle,
     },
-    events::LoadModelEvent,
-    general::renderer::DescriptorSetHandle,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
@@ -41,7 +44,10 @@ struct SchedulerRendererSetup;
 struct SchedulerRendererUpdate;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
-struct SchedulerGameUpdate;
+pub struct SchedulerGameInit;
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
+pub struct SchedulerGameUpdate;
 
 pub struct Engine {
     world: World,
@@ -67,14 +73,18 @@ impl Engine {
 
         world.insert_resource(Camera::new(0.05, 0.5));
 
-        let mut scheduler_world_update = Schedule::new(SchedulerWorldUpdate);
+        world.init_resource::<Schedules>();
+
+        let mut schedulers = world.resource_mut::<Schedules>();
+
+        let scheduler_world_update = schedulers.entry(SchedulerWorldUpdate);
         scheduler_world_update.add_systems((
             propogate_transforms_system,
             update_time::update_time_system,
             update_camera::update_camera_system.after(update_time::update_time_system),
         ));
 
-        let mut scheduler_renderer_setup = Schedule::new(SchedulerRendererSetup);
+        let scheduler_renderer_setup = schedulers.entry(SchedulerRendererSetup);
         scheduler_renderer_setup.add_systems(
             (
                 prepare_default_samplers_system,
@@ -84,7 +94,7 @@ impl Engine {
                 .chain(),
         );
 
-        let mut scheduler_renderer_update = Schedule::new(SchedulerRendererUpdate);
+        let scheduler_renderer_update = schedulers.entry(SchedulerRendererUpdate);
         scheduler_renderer_update.add_systems(
             (
                 prepare_frame::prepare_frame_system,
@@ -98,9 +108,8 @@ impl Engine {
                 .chain(),
         );
 
-        world.add_schedule(scheduler_world_update);
-        world.add_schedule(scheduler_renderer_update);
-        world.add_schedule(scheduler_renderer_setup);
+        schedulers.entry(SchedulerGameInit);
+        schedulers.entry(SchedulerGameUpdate);
 
         world.add_observer(on_load_model::on_load_model_system);
         world.add_observer(on_spawn_mesh::on_spawn_mesh_system);
@@ -127,9 +136,21 @@ impl Engine {
         Self { world }
     }
 
+    pub fn init_game(&mut self, game_plugin: &dyn GamePlugin) {
+        let mut schedules = self.world.resource_mut::<Schedules>();
+
+        game_plugin.add_systems_init(schedules.get_mut(SchedulerGameInit).unwrap());
+        game_plugin.add_systems_update(schedules.get_mut(SchedulerGameUpdate).unwrap());
+
+        self.world.run_schedule(SchedulerGameInit);
+    }
+
     #[inline(always)]
     pub fn update(&mut self) {
         self.world.flush();
+
+        self.world.run_schedule(SchedulerGameUpdate);
+
         self.world.run_schedule(SchedulerWorldUpdate);
         self.world.run_schedule(SchedulerRendererUpdate);
     }
