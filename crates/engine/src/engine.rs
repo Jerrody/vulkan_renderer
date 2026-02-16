@@ -103,6 +103,7 @@ impl Engine {
 
         world.run_schedule(SchedulerRendererSetup);
 
+        // TODO: In future, we need to fix this. Awful code.
         let mut exe_path = std::env::current_exe().unwrap();
 
         exe_path.pop();
