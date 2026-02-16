@@ -15,8 +15,8 @@ use winit::{
 struct Application {
     window: Option<Box<dyn Window>>,
     engine: Option<Engine>,
-    lib: Option<Library>,
     game: Option<Box<dyn GamePlugin>>,
+    lib: Option<Library>,
 }
 
 impl ApplicationHandler for Application {
@@ -129,6 +129,12 @@ impl ApplicationHandler for Application {
             }
             _ => {}
         }
+    }
+}
+
+impl Drop for Application {
+    fn drop(&mut self) {
+        self.game = None;
     }
 }
 
