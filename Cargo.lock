@@ -965,6 +965,7 @@ dependencies = [
  "num_cpus",
  "padding-struct",
  "raw-window-handle",
+ "rayon",
  "vk-mem",
  "vulkanite",
  "winit",

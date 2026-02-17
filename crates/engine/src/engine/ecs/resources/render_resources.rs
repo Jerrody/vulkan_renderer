@@ -12,6 +12,7 @@ use vulkanite::vk::{rs::*, *};
 
 use crate::engine::{
     components::material::{MaterialState, MaterialType},
+    ecs::collect_instance_objects::InstanceDataToWrite,
     id::Id,
     resources::{
         buffers_pool::BufferReference, render_resources::model_loader::ModelLoader,
@@ -136,6 +137,7 @@ impl<'a> SwappableBuffer {
         self.data_to_write.as_slice()
     }
 
+    #[inline(always)]
     pub fn write_data_to_current_buffer<T: NoUninit>(&mut self, object_to_write: &T) -> usize {
         let object_to_write = bytemuck::bytes_of(object_to_write);
         self.data_to_write.extend_from_slice(object_to_write);
@@ -305,6 +307,7 @@ impl<'a> RendererResources {
             .get_material_info_device_address_by_id(material_label_id)
     }
 
+    #[inline(always)]
     pub fn write_instance_object(
         &mut self,
         model_matrix: Mat4,
@@ -322,10 +325,12 @@ impl<'a> RendererResources {
             ..Default::default()
         };
 
-        self.resources_pool
-            .instances_buffer
-            .as_mut()
-            .unwrap()
-            .write_data_to_current_buffer(&instance_object)
+        unsafe {
+            self.resources_pool
+                .instances_buffer
+                .as_mut()
+                .unwrap_unchecked()
+                .write_data_to_current_buffer(&instance_object)
+        }
     }
 }

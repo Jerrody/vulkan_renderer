@@ -3,6 +3,7 @@ resolver = "3"
 members = ["crates/engine", "crates/game_logic", "crates/game_runner"]
 
 [workspace.dependencies]
+rayon = "1.11.0"
 bevy_ecs = { version = "0.18.0", default-features = false, features = [
     "std",
     "backtrace",
@@ -13,8 +14,8 @@ engine = { path = "crates/engine" }
 game_logic = { path = "crates/game_logic" }
 
 [profile.dev]
-opt-level = 0
-debug = 1
+opt-level = 2
+debug = 0
 
 [profile.dev.build-override]
 opt-level = 2
