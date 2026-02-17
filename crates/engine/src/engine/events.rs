@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use bevy_ecs::event::Event;
+use bevy_ecs::{entity::Entity, event::Event};
 
 use crate::engine::{
     components::transform::Transform, ecs::mesh_buffers_pool::MeshBufferReference, id::Id,
@@ -9,6 +9,7 @@ use crate::engine::{
 #[derive(Event)]
 pub struct LoadModelEvent {
     pub path: PathBuf,
+    pub parent_entity: Option<Entity>,
 }
 
 #[derive(Clone)]
@@ -35,4 +36,5 @@ impl Default for SpawnEventRecord {
 #[derive(Default, Event)]
 pub struct SpawnEvent {
     pub spawn_records: Vec<SpawnEventRecord>,
+    pub parent_entity: Option<Entity>,
 }

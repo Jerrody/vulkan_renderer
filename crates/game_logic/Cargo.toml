@@ -9,3 +9,4 @@ crate-type = ["dylib"]
 [dependencies]
 engine = { workspace = true }
 bevy_ecs = { workspace = true }
+glam = { workspace = true }

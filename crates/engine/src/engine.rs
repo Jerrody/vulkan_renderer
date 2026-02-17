@@ -18,7 +18,7 @@ use winit::{event::ElementState, keyboard::KeyCode, window::Window};
 use crate::{
     GamePlugin,
     engine::{
-        components::{camera::Camera, time::Time},
+        components::camera::Camera,
         ecs::{
             buffers_pool::BuffersPool,
             general::{update_camera, update_time},
@@ -30,10 +30,13 @@ use crate::{
             },
             textures_pool::TexturesPool,
         },
-        events::LoadModelEvent,
         general::renderer::DescriptorSetHandle,
     },
 };
+
+pub use components::time::Time;
+pub use components::transform::Transform;
+pub use events::LoadModelEvent;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
 struct SchedulerWorldUpdate;
@@ -112,7 +115,7 @@ impl Engine {
         schedulers.entry(SchedulerGameUpdate);
 
         world.add_observer(on_load_model::on_load_model_system);
-        world.add_observer(on_spawn_mesh::on_spawn_mesh_system);
+        world.add_observer(on_spawn_model::on_spawn_mesh_system);
 
         world.insert_resource(Time::new());
 
@@ -126,12 +129,13 @@ impl Engine {
         exe_path.pop();
 
         // TODO: TEMP
-        world.trigger(LoadModelEvent {
+        /*         world.trigger(LoadModelEvent {
             path: PathBuf::from(std::format!(
                 "{}/assets/structure.glb",
                 exe_path.as_os_str().display()
             )),
-        });
+            parent_entity: None,
+        }); */
 
         Self { world }
     }
@@ -149,9 +153,8 @@ impl Engine {
     pub fn update(&mut self) {
         self.world.flush();
 
-        self.world.run_schedule(SchedulerGameUpdate);
-
         self.world.run_schedule(SchedulerWorldUpdate);
+        self.world.run_schedule(SchedulerGameUpdate);
         self.world.run_schedule(SchedulerRendererUpdate);
     }
 

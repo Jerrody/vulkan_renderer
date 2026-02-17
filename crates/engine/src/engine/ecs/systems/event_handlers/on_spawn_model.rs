@@ -21,6 +21,11 @@ pub fn on_spawn_mesh_system(spawn_event: On<SpawnEvent>, mut commands: Commands)
         .spawn((Name::new("Scene"), scene_global_transform, scene_transform))
         .id();
 
+    if let Some(parent_entity_id) = spawn_event.parent_entity {
+        let mut scene_entity = commands.get_entity(scene_entity_id).unwrap();
+        scene_entity.insert(Parent(parent_entity_id));
+    };
+
     let mut spawned_entities = Vec::with_capacity(spawn_event.spawn_records.len());
 
     for spawn_event_record in spawn_event.spawn_records.iter() {

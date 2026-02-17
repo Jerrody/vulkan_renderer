@@ -151,6 +151,7 @@ pub fn on_load_model_system(
     }
 
     let mut spawn_event = SpawnEvent::default();
+    spawn_event.parent_entity = load_model_event.parent_entity;
     let mut spawn_event_record = SpawnEventRecord::default();
 
     nodes.iter().for_each(|node_data| {

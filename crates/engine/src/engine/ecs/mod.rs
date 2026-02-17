@@ -1,5 +1,6 @@
 pub mod components;
 pub mod resources;
+pub mod system_params;
 pub mod systems;
 
 pub use resources::*;

@@ -7,7 +7,7 @@ use crate::engine::{
 #[derive(Component)]
 #[require(Transform, Name)]
 pub struct Mesh {
-    pub instance_object_index: Option<usize>,
-    pub mesh_buffer_reference: MeshBufferReference,
-    pub material_id: Id,
+    pub(crate) instance_object_index: Option<usize>,
+    pub(crate) mesh_buffer_reference: MeshBufferReference,
+    pub(crate) material_id: Id,
 }
