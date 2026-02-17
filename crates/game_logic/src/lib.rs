@@ -17,10 +17,6 @@ impl GamePlugin for Game {
     }
 }
 
-fn hello_init() {
-    println!("HELLO!");
-}
+fn hello_init() {}
 
-fn hello_update() {
-    println!("BRUH UPDATE");
-}
+fn hello_update() {}
