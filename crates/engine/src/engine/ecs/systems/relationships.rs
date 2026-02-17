@@ -14,7 +14,7 @@ pub fn propogate_transforms_system(
     children_query: Query<&Children>,
     mut transforms: ParamSet<(Query<&mut GlobalTransform>, Query<&Transform>)>,
 ) {
-    let mut stack = Vec::new();
+    let mut stack = Vec::with_capacity(children_query.iter().len());
 
     for (entity, transform) in root_query.iter() {
         let matrix = transform.get_matrix();
