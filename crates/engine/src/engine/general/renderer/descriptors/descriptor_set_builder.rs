@@ -68,7 +68,7 @@ impl<'a> DescriptorSetBuilder<'a> {
     pub fn build(
         mut self,
         device: Device,
-        allocator: Allocator,
+        _allocator: Allocator,
         buffers_pool: &mut BuffersPool,
         descriptor_buffer_properties: &PhysicalDeviceDescriptorBufferPropertiesEXT,
         push_constant_ranges: &[PushConstantRange],

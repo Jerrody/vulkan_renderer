@@ -2,7 +2,7 @@ use crate::engine::{
     ecs::{RendererResources, buffers_pool::BuffersMut, samplers_pool::SamplersMut},
     general::renderer::{DescriptorKind, DescriptorSampler, DescriptorSetHandle},
 };
-use bevy_ecs::system::{Res, ResMut};
+use bevy_ecs::system::ResMut;
 use vulkanite::vk::*;
 
 pub fn prepare_default_samplers_system(

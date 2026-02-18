@@ -2,7 +2,6 @@ use std::mem::ManuallyDrop;
 
 use ahash::HashMap;
 use bevy_ecs::resource::Resource;
-use vma::Allocator;
 
 use vulkanite::{
     Handle,
