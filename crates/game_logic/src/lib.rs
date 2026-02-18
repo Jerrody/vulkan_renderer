@@ -83,21 +83,23 @@ fn move_player(
 
     let (mut transform, player_stats) = player_query.single_mut().unwrap();
 
+    let forward = transform.forward();
+    let right = transform.right();
     // TODO: Something wrong with transformations, need to check later (W should be negative, but S should be positive, but it should be vice versa).
     if input.pressed(KeyCode::KeyW) {
-        transform.local_position.z -= player_stats.move_speed * delta_time;
+        transform.local_position += forward * player_stats.move_speed * delta_time;
     }
 
     if input.pressed(KeyCode::KeyS) {
-        transform.local_position.z += player_stats.move_speed * delta_time;
+        transform.local_position -= forward * player_stats.move_speed * delta_time;
     }
 
     if input.pressed(KeyCode::KeyA) {
-        transform.local_position.x -= player_stats.move_speed * delta_time;
+        transform.local_position -= right * player_stats.move_speed * delta_time;
     }
 
     if input.pressed(KeyCode::KeyD) {
-        transform.local_position.x += player_stats.move_speed * delta_time;
+        transform.local_position += right * player_stats.move_speed * delta_time;
     }
 }
 

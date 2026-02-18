@@ -56,11 +56,17 @@ impl Transform {
     }
 
     pub fn forward(&self) -> Vec3 {
-        self.local_rotation * -Vec3::Z
+        let mut forward = self.local_rotation * Vec3::NEG_Z;
+        forward.y = Default::default();
+
+        forward
     }
 
     pub fn right(&self) -> Vec3 {
-        self.local_rotation * Vec3::X
+        let mut right = self.local_rotation * Vec3::X;
+        right.y = Default::default();
+
+        right
     }
 
     pub fn up(&self) -> Vec3 {
