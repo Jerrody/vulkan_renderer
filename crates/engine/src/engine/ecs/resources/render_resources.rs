@@ -8,17 +8,23 @@ use bevy_ecs::resource::Resource;
 use bytemuck::{NoUninit, Pod, Zeroable};
 use glam::{Mat4, Vec3, Vec4};
 use padding_struct::padding_struct;
+use slotmap::new_key_type;
 use vulkanite::vk::{rs::*, *};
 
 use crate::engine::{
     components::material::{MaterialState, MaterialType},
-    ecs::collect_instance_objects::InstanceDataToWrite,
     id::Id,
     resources::{
         buffers_pool::BufferReference, render_resources::model_loader::ModelLoader,
         samplers_pool::SamplerReference, textures_pool::TextureReference,
     },
 };
+
+new_key_type! {
+    pub struct BufferKey;
+    pub struct TextureKey;
+    pub struct SamplerKey;
+}
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]

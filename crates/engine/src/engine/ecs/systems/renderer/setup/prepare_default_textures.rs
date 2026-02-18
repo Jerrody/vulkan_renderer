@@ -54,7 +54,7 @@ pub fn prepare_default_textures_system(
             .get(checkerboard_texture_reference)
             .unwrap()
             .image_view,
-        index: checkerboard_texture_reference.index,
+        index: checkerboard_texture_reference.get_index(),
     });
     descriptor_set_handle.update_binding(&buffers_mut, descriptor_checkerboard_image);
 
@@ -95,7 +95,7 @@ pub fn prepare_default_textures_system(
             .get(white_texture_reference)
             .unwrap()
             .image_view,
-        index: white_texture_reference.index,
+        index: white_texture_reference.get_index(),
     });
     descriptor_set_handle.update_binding(&buffers_mut, descriptor_white_image);
 
@@ -132,7 +132,7 @@ pub fn prepare_default_textures_system(
 
             let descriptor_draw_image = DescriptorKind::StorageImage(DescriptorStorageImage {
                 image_view: textures_mut.get(draw_texture_reference).unwrap().image_view,
-                index: draw_texture_reference.index,
+                index: draw_texture_reference.get_index(),
             });
             descriptor_set_handle.update_binding(&buffers_mut, descriptor_draw_image);
 

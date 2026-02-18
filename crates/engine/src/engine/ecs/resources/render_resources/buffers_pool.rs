@@ -7,6 +7,7 @@ use bevy_ecs::{
     resource::Resource,
     system::{Res, ResMut, SystemParam},
 };
+use slotmap::SlotMap;
 use vma::{
     Alloc as _, Allocation, AllocationCreateFlags, AllocationCreateInfo, Allocator, MemoryUsage,
 };
@@ -20,7 +21,7 @@ use vulkanite::{
     },
 };
 
-use crate::engine::resources::CommandGroup;
+use crate::engine::{ecs::BufferKey, resources::CommandGroup};
 
 pub struct MapppedAllocationHandler {
     allocator: Allocator,
@@ -67,8 +68,7 @@ pub struct AllocatedBuffer {
 
 #[derive(Default, Clone, Copy)]
 pub struct BufferReference {
-    pub index: u32,
-    pub generation: u32,
+    pub key: BufferKey,
     buffer_info: BufferInfo,
 }
 
@@ -184,18 +184,11 @@ impl BufferReference {
     }
 }
 
-#[derive(Default)]
-struct BufferSlot {
-    pub buffer: Option<AllocatedBuffer>,
-    pub generation: u32,
-}
-
 #[derive(Resource)]
 pub struct BuffersPool {
     device: Device,
     allocator: Allocator,
-    slots: Vec<BufferSlot>,
-    free_indices: Vec<u32>,
+    slots: SlotMap<BufferKey, AllocatedBuffer>,
     staging_buffer_reference: BufferReference,
     upload_command_group: CommandGroup,
     transfer_queue: Queue,
@@ -208,13 +201,10 @@ impl BuffersPool {
         upload_command_group: CommandGroup,
         transfer_queue: Queue,
     ) -> Self {
-        let slots = (0..2048).map(|_| Default::default()).collect();
-
         let mut memory_bucket = Self {
             device,
             allocator,
-            slots,
-            free_indices: (0..2048).rev().collect(),
+            slots: SlotMap::with_capacity_and_key(2_048),
             staging_buffer_reference: Default::default(),
             upload_command_group,
             transfer_queue,
@@ -316,36 +306,20 @@ impl BuffersPool {
         self.insert_buffer(allocated_buffer)
     }
 
+    #[inline(always)]
     fn insert_buffer(&mut self, allocated_buffer: AllocatedBuffer) -> BufferReference {
-        let index = self.free_indices.pop().unwrap();
-
         let buffer_info = allocated_buffer.buffer_info;
-        let buffer_slot = unsafe { self.slots.get_mut(index as usize).unwrap_unchecked() };
-        buffer_slot.buffer = Some(allocated_buffer);
-        buffer_slot.generation += 1;
-
-        let generation = buffer_slot.generation;
+        let buffer_key = self.slots.insert(allocated_buffer);
 
         BufferReference {
-            index,
-            generation,
+            key: buffer_key,
             buffer_info,
         }
     }
 
+    #[inline(always)]
     pub fn get_buffer(&self, buffer_reference: BufferReference) -> Option<&AllocatedBuffer> {
-        let mut allocated_buffer = None;
-
-        let slot = unsafe {
-            self.slots
-                .get(buffer_reference.index as usize)
-                .unwrap_unchecked()
-        };
-        if slot.generation == buffer_reference.generation {
-            allocated_buffer = slot.buffer.as_ref();
-        }
-
-        allocated_buffer
+        self.slots.get(buffer_reference.key)
     }
 
     unsafe fn get_device_address(&self, buffer: Buffer) -> DeviceAddress {
@@ -537,13 +511,11 @@ impl BuffersPool {
     }
 
     pub unsafe fn free_allocations(&mut self) {
-        self.slots.drain(..).for_each(|buffer_slot| unsafe {
-            if let Some(allocated_buffer) = buffer_slot.buffer {
-                let mut allocation = allocated_buffer.allocation;
+        self.slots.drain().for_each(|(_, allocated_buffer)| unsafe {
+            let mut allocation = allocated_buffer.allocation;
 
-                self.allocator
-                    .destroy_buffer(*allocated_buffer.buffer, &mut allocation);
-            }
+            self.allocator
+                .destroy_buffer(*allocated_buffer.buffer, &mut allocation);
         });
     }
 }

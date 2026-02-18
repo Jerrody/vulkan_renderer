@@ -1,4 +1,5 @@
 use bevy_ecs::system::{Res, ResMut};
+use slotmap::Key;
 use vulkanite::{
     Handle,
     vk::{
@@ -97,7 +98,7 @@ pub fn begin_rendering_system(
     let mesh_push_constant = GraphicsPushConstant {
         device_address_scene_data: device_address_scene_data_buffer,
         device_address_instance_object: device_address_instance_objects_buffer,
-        draw_image_index: frame_context.draw_texture_reference.index as _,
+        draw_image_index: frame_context.draw_texture_reference.key.data().get_key() as _,
         ..Default::default()
     };
 

@@ -2,10 +2,13 @@ use bevy_ecs::{
     resource::Resource,
     system::{Res, ResMut, SystemParam},
 };
+use slotmap::SlotMap;
 use vulkanite::vk::{
     CompareOp, Filter, LOD_CLAMP_NONE, SamplerAddressMode, SamplerCreateInfo, SamplerMipmapMode,
     rs::{Device, Sampler},
 };
+
+use crate::engine::ecs::SamplerKey;
 
 #[derive(SystemParam)]
 pub struct Samplers<'w> {
@@ -14,7 +17,7 @@ pub struct Samplers<'w> {
 
 impl<'w> Samplers<'w> {
     #[inline(always)]
-    pub fn get(&self, sampler_reference: SamplerReference) -> Option<Sampler> {
+    pub fn get(&self, sampler_reference: SamplerReference) -> Option<&Sampler> {
         self.samplers_pool.get_sampler(sampler_reference)
     }
 }
@@ -26,7 +29,7 @@ pub struct SamplersMut<'w> {
 
 impl<'w> SamplersMut<'w> {
     #[inline(always)]
-    pub fn get(&self, sampler_reference: SamplerReference) -> Option<Sampler> {
+    pub fn get(&self, sampler_reference: SamplerReference) -> Option<&Sampler> {
         self.samplers_pool.get_sampler(sampler_reference)
     }
 
@@ -44,31 +47,26 @@ impl<'w> SamplersMut<'w> {
 
 #[derive(Default, Clone, Copy)]
 pub struct SamplerReference {
-    pub index: u32,
-    pub generation: u32,
+    pub key: SamplerKey,
 }
 
-#[derive(Default)]
-struct SamplerSlot {
-    pub sampler: Option<Sampler>,
-    pub generation: u32,
+impl SamplerReference {
+    pub fn get_index(&self) -> u32 {
+        self.key.0.get_key()
+    }
 }
 
 #[derive(Resource)]
 pub struct SamplersPool {
     device: Device,
-    slots: Vec<SamplerSlot>,
-    free_indices: Vec<u32>,
+    slots: SlotMap<SamplerKey, Sampler>,
 }
 
 impl SamplersPool {
     pub fn new(device: Device) -> Self {
-        let slots = (0..16).map(|_| Default::default()).collect();
-
         Self {
             device,
-            slots,
-            free_indices: (0..16).rev().collect(),
+            slots: SlotMap::with_capacity_and_key(16),
         }
     }
 
@@ -117,35 +115,18 @@ impl SamplersPool {
     }
 
     fn insert_sampler(&mut self, sampler: Sampler) -> SamplerReference {
-        let index = self.free_indices.pop().unwrap();
+        let sampler_key = self.slots.insert(sampler);
 
-        let sampler_slot = unsafe { self.slots.get_mut(index as usize).unwrap_unchecked() };
-        sampler_slot.sampler = Some(sampler);
-        sampler_slot.generation += 1;
-
-        let generation = sampler_slot.generation;
-
-        SamplerReference { index, generation }
+        SamplerReference { key: sampler_key }
     }
 
-    fn get_sampler(&self, sampler_reference: SamplerReference) -> Option<Sampler> {
-        let mut sampler = None;
-
-        let slot = unsafe {
-            self.slots
-                .get(sampler_reference.index as usize)
-                .unwrap_unchecked()
-        };
-        if slot.generation == sampler_reference.generation {
-            sampler = slot.sampler.to_owned();
-        }
-
-        sampler
+    fn get_sampler(&self, sampler_reference: SamplerReference) -> Option<&Sampler> {
+        self.slots.get(sampler_reference.key)
     }
 
     pub fn destroy_samplers(&mut self) {
-        self.slots.drain(..).for_each(|sampler_slot| unsafe {
-            self.device.destroy_sampler(sampler_slot.sampler);
+        self.slots.drain().for_each(|(_, sampler)| unsafe {
+            self.device.destroy_sampler(Some(sampler));
         });
     }
 }

@@ -230,11 +230,11 @@ pub fn on_load_model_system(
 
                     let metallic_value = material.metallic_factor().unwrap_or(0.0);
                     let roughness_value = material.roughness_factor().unwrap_or(0.0);
-                    let albedo_texture_index = texture_reference.index;
+                    let albedo_texture_index = texture_reference.get_index();
                     let metallic_texture_index =
-                        renderer_resources.fallback_texture_reference.index;
+                        renderer_resources.fallback_texture_reference.get_index();
                     let roughness_texture_index =
-                        renderer_resources.fallback_texture_reference.index;
+                        renderer_resources.fallback_texture_reference.get_index();
 
                     let material_data = MaterialData {
                         material_properties: MaterialProperties::new(
@@ -528,7 +528,7 @@ fn try_upload_texture(
 
             let descriptor_texture = DescriptorKind::SampledImage(DescriptorSampledImage {
                 image_view: textures_mut.get(texture_reference).unwrap().image_view,
-                index: texture_reference.index,
+                index: texture_reference.get_index(),
             });
             descriptor_set_handle.update_binding(buffers_mut, descriptor_texture);
 
@@ -536,7 +536,7 @@ fn try_upload_texture(
             println!(
                 "Name: {} | Index: {} | Extent: {}x{}x{}",
                 texture_name,
-                texture_reference.index,
+                texture_reference.get_index(),
                 texture_metadata.width,
                 texture_metadata.height,
                 1,

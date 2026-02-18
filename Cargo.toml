@@ -14,7 +14,7 @@ engine = { path = "crates/engine" }
 game_logic = { path = "crates/game_logic" }
 
 [profile.dev]
-opt-level = 2
+opt-level = 0
 debug = 0
 
 [profile.dev.build-override]
