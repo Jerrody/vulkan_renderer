@@ -117,8 +117,7 @@ fn rotate_player(
     angles.y -= player_stats.rotation_speed * mouse_axis.x * delta_time;
 
     angles.x += player_stats.rotation_speed * mouse_axis.y * delta_time;
-
-    //angles.x = angles.x.clamp(-90.0, 90.0);
+    angles.x = angles.x.clamp(-90.0, 90.0);
 
     transform.set_local_euler_angles(angles);
 }
