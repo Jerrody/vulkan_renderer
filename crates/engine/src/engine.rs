@@ -16,10 +16,9 @@ use winit::{event::ElementState, keyboard::KeyCode, window::Window};
 use crate::{
     GamePlugin,
     engine::{
-        components::camera::Camera,
         ecs::{
             buffers_pool::BuffersPool,
-            general::{update_camera, update_time},
+            general::update_time,
             samplers_pool::SamplersPool,
             setup::{
                 prepare_default_samplers::prepare_default_samplers_system,
@@ -32,6 +31,7 @@ use crate::{
     },
 };
 
+pub use components::camera::{Camera, ClippingPlanes};
 pub use components::time::Time;
 pub use components::transform::Transform;
 pub use events::LoadModelEvent;
@@ -73,7 +73,7 @@ impl Engine {
         let frame_context = FrameContext::default();
         world.insert_resource(frame_context);
 
-        world.insert_resource(Camera::new(0.05, 0.5));
+        //world.insert_resource(Camera::new(60.0, 0.1, 1000.0));
 
         world.init_resource::<Schedules>();
 
@@ -83,7 +83,7 @@ impl Engine {
         scheduler_world_update.add_systems((
             propogate_transforms_system,
             update_time::update_time_system,
-            update_camera::update_camera_system.after(update_time::update_time_system),
+            //update_camera::update_camera_system.after(update_time::update_time_system),
         ));
 
         let scheduler_renderer_setup = schedulers.entry(SchedulerRendererSetup);
@@ -158,13 +158,13 @@ impl Engine {
         self.world.run_schedule(SchedulerRendererUpdate);
 
         let mut input = unsafe { self.world.get_resource_mut::<Input>().unwrap_unchecked() };
-        input.clear();
+        input.reset();
     }
 
     #[inline(always)]
     pub fn process_input(&mut self, key_code: KeyCode, state: ElementState) {
-        let mut camera = unsafe { self.world.get_resource_mut::<Camera>().unwrap_unchecked() };
-        camera.process_keycode(key_code, state);
+        //let mut camera = unsafe { self.world.get_resource_mut::<Camera>().unwrap_unchecked() };
+        //camera.process_keycode(key_code, state);
 
         let mut input = unsafe { self.world.get_resource_mut::<Input>().unwrap_unchecked() };
         if state == ElementState::Pressed {
@@ -176,8 +176,8 @@ impl Engine {
 
     #[inline(always)]
     pub fn process_mouse(&mut self, mouse_delta: (f32, f32)) {
-        let mut camera = unsafe { self.world.get_resource_mut::<Camera>().unwrap_unchecked() };
-        camera.process_mouse(mouse_delta.0, mouse_delta.1);
+        let mut input = unsafe { self.world.get_resource_mut::<Input>().unwrap_unchecked() };
+        input.set_mouse_delta(mouse_delta);
     }
 }
 

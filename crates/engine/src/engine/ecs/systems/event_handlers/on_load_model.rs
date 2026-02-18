@@ -159,8 +159,8 @@ pub fn on_load_model_system(
 
         let (local_scale, rotation, position) = local_matrix.to_scale_rotation_translation();
         let transform = Transform {
-            position,
-            rotation,
+            local_position: position,
+            local_rotation: rotation,
             local_scale,
         };
         spawn_event_record.name = node_data.name.clone();

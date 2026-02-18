@@ -1,14 +1,18 @@
 use std::collections::HashSet;
 
+use ahash::AHashSet;
 //use ahash::{AHashSet, HashSet};
 use bevy_ecs::resource::Resource;
+use glam::Vec2;
 use winit::keyboard::KeyCode;
 
 #[derive(Resource)]
 pub struct Input {
-    pressed: HashSet<KeyCode>,
-    just_pressed: HashSet<KeyCode>,
-    just_released: HashSet<KeyCode>,
+    pressed: AHashSet<KeyCode>,
+    just_pressed: AHashSet<KeyCode>,
+    just_released: AHashSet<KeyCode>,
+    mouse_delta: Vec2,
+    mouse_axis: Vec2,
 }
 
 impl Input {
@@ -16,9 +20,11 @@ impl Input {
 
     pub(crate) fn new() -> Self {
         Self {
-            pressed: HashSet::with_capacity(Self::CAPACITY),
-            just_pressed: HashSet::with_capacity(Self::CAPACITY),
-            just_released: HashSet::with_capacity(Self::CAPACITY),
+            pressed: AHashSet::with_capacity(Self::CAPACITY),
+            just_pressed: AHashSet::with_capacity(Self::CAPACITY),
+            just_released: AHashSet::with_capacity(Self::CAPACITY),
+            mouse_delta: Default::default(),
+            mouse_axis: Default::default(),
         }
     }
 
@@ -28,6 +34,14 @@ impl Input {
 
     pub fn just_pressed(&self, key: KeyCode) -> bool {
         self.just_pressed.contains(&key)
+    }
+
+    pub fn get_mouse_delta(&self) -> Vec2 {
+        self.mouse_delta
+    }
+
+    pub fn get_mouse_axis(&self) -> Vec2 {
+        self.mouse_axis
     }
 
     #[inline(always)]
@@ -45,8 +59,17 @@ impl Input {
     }
 
     #[inline(always)]
-    pub(crate) fn clear(&mut self) {
+    pub(crate) fn set_mouse_delta(&mut self, mouse_delta: (f32, f32)) {
+        self.mouse_delta = Vec2::new(mouse_delta.0, mouse_delta.1);
+
+        let mouse_delta = Vec2::new(self.mouse_delta.x, -self.mouse_delta.y);
+        self.mouse_axis += mouse_delta;
+    }
+
+    #[inline(always)]
+    pub(crate) fn reset(&mut self) {
         self.just_pressed.clear();
         self.just_released.clear();
+        self.mouse_axis = Default::default();
     }
 }

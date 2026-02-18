@@ -17,7 +17,7 @@ pub fn propogate_transforms_system(
     let mut stack = Vec::with_capacity(children_query.iter().len());
 
     for (entity, transform) in root_query.iter() {
-        let matrix = transform.get_matrix();
+        let matrix = transform.local_to_world_matrix();
 
         if let Ok(mut global_transform) = transforms.p0().get_mut(entity) {
             global_transform.0 = matrix;
@@ -32,7 +32,7 @@ pub fn propogate_transforms_system(
 
     while let Some((child_entity, parent_matrix)) = stack.pop() {
         let local_matrix = if let Ok(transform) = transforms.p1().get(child_entity) {
-            transform.get_matrix()
+            transform.local_to_world_matrix()
         } else {
             Mat4::IDENTITY
         };

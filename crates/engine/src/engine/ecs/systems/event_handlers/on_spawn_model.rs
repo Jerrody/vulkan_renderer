@@ -11,11 +11,11 @@ use crate::engine::{
 
 pub fn on_spawn_mesh_system(spawn_event: On<SpawnEvent>, mut commands: Commands) {
     let scene_transform = Transform {
-        position: Vec3::ZERO,
-        rotation: Quat::IDENTITY,
+        local_position: Vec3::ZERO,
+        local_rotation: Quat::IDENTITY,
         local_scale: Vec3::ONE,
     };
-    let scene_global_transform = GlobalTransform(scene_transform.get_matrix());
+    let scene_global_transform = GlobalTransform(scene_transform.local_to_world_matrix());
 
     let scene_entity_id = commands
         .spawn((Name::new("Scene"), scene_global_transform, scene_transform))
@@ -30,7 +30,7 @@ pub fn on_spawn_mesh_system(spawn_event: On<SpawnEvent>, mut commands: Commands)
 
     for spawn_event_record in spawn_event.spawn_records.iter() {
         let basic_components = (
-            GlobalTransform(spawn_event_record.transform.get_matrix()),
+            GlobalTransform(spawn_event_record.transform.local_to_world_matrix()),
             spawn_event_record.transform,
         );
         let mut spawned_entity = commands.spawn(basic_components);
