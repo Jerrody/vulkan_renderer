@@ -51,7 +51,7 @@ impl VulkanContextResource {
 
         let size = match size {
             Some(size) => size,
-            None => (1 * texture_metadata.width * texture_metadata.height * 8) as usize,
+            None => (texture_metadata.width * texture_metadata.height * 8) as usize,
         };
 
         let staging_buffer_reference =
@@ -100,8 +100,8 @@ impl VulkanContextResource {
                 },
                 ..Default::default()
             };
-            let blocks_wide = (mip_width + 3) / 4;
-            let blocks_high = (mip_height + 3) / 4;
+            let blocks_wide = mip_width.div_ceil(4);
+            let blocks_high = mip_height.div_ceil(4);
 
             let block_size_in_bytes = 8;
 
