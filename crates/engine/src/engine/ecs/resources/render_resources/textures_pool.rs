@@ -1,6 +1,3 @@
-use std::ops::Index;
-
-use asset_importer::texture;
 use bevy_ecs::{
     resource::Resource,
     system::{Res, ResMut, SystemParam},
@@ -327,7 +324,7 @@ impl TexturesPool {
 
     #[inline(always)]
     pub fn get_image(&self, texture_reference: TextureReference) -> Option<&AllocatedImage> {
-        let mut allocated_image;
+        let allocated_image;
 
         if texture_reference.read_only {
             allocated_image = self.sampled_slots.get(texture_reference.key);

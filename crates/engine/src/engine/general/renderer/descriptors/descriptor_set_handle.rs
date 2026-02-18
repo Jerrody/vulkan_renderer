@@ -35,7 +35,6 @@ pub struct BindingInfo {
 #[derive(Resource)]
 pub struct DescriptorSetHandle {
     device: Device,
-    allocator: Allocator,
     pub descriptor_buffer_reference: BufferReference,
     pub descriptor_set_layout_handle: DescriptorSetLayoutHandle,
     pub push_contant_ranges: Vec<PushConstantRange>,
@@ -45,10 +44,9 @@ pub struct DescriptorSetHandle {
 }
 
 impl DescriptorSetHandle {
-    pub fn new(device: Device, allocator: Allocator) -> Self {
+    pub fn new(device: Device) -> Self {
         Self {
             device,
-            allocator,
             descriptor_buffer_reference: Default::default(),
             descriptor_set_layout_handle: Default::default(),
             push_contant_ranges: Default::default(),

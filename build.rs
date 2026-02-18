@@ -119,18 +119,18 @@ fn find_and_copy(src_dir: &Path, dst_dir: &Path, prefix: &str) -> std::io::Resul
         let entry = entry?;
         let path = entry.path();
 
-        if path.is_file() {
-            if let Some(filename) = path.file_name().and_then(|s| s.to_str()) {
-                if filename.starts_with(prefix) && filename.ends_with(".dll") {
-                    let dest_path = dst_dir.join(filename);
+        if path.is_file()
+            && let Some(filename) = path.file_name().and_then(|s| s.to_str())
+            && filename.starts_with(prefix)
+            && filename.ends_with(".dll")
+        {
+            let dest_path = dst_dir.join(filename);
 
-                    if !dest_path.exists() {
-                        fs::copy(&path, &dest_path)?;
-                    }
-
-                    break;
-                }
+            if !dest_path.exists() {
+                fs::copy(&path, &dest_path)?;
             }
+
+            break;
         }
     }
     Ok(())

@@ -131,7 +131,7 @@ impl<'a> DescriptorSetBuilder<'a> {
             storage_image_descriptor_size,
         };
 
-        let mut descriptor_set_handle = DescriptorSetHandle::new(device, allocator);
+        let mut descriptor_set_handle = DescriptorSetHandle::new(device);
         descriptor_set_handle.descriptor_buffer_reference = descriptor_buffer_reference;
         descriptor_set_handle.descriptor_set_layout_handle = descriptor_set_layout_handle;
         descriptor_set_handle.push_contant_ranges = push_constant_ranges.to_vec();
