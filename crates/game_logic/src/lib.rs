@@ -85,7 +85,6 @@ fn move_player(
 
     let forward = transform.forward();
     let right = transform.right();
-    // TODO: Something wrong with transformations, need to check later (W should be negative, but S should be positive, but it should be vice versa).
     if input.pressed(KeyCode::KeyW) {
         transform.local_position += forward * player_stats.move_speed * delta_time;
     }
