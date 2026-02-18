@@ -9,12 +9,6 @@ pub struct Time {
     last_frame: Instant,
 }
 
-impl Default for Time {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Time {
     pub fn new() -> Self {
         Self {

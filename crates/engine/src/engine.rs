@@ -7,6 +7,8 @@ mod utils;
 
 use ecs::*;
 
+use std::path::PathBuf;
+
 use bevy_ecs::{
     schedule::{IntoScheduleConfigs, ScheduleLabel, Schedules},
     world::World,

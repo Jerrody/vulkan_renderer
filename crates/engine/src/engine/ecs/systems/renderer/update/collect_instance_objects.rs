@@ -1,6 +1,6 @@
 use bevy_ecs::system::{Query, ResMut};
 use glam::Mat4;
-use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
+use rayon::iter::{IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator};
 use vulkanite::vk::DeviceAddress;
 
 use crate::engine::{

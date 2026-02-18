@@ -256,9 +256,11 @@ pub fn on_load_model_system(
                     );
                 }
 
-                if let std::collections::hash_map::Entry::Vacant(e) =
-                    uploaded_mesh_buffers.entry(mesh_index)
-                {
+                if uploaded_mesh_buffers.contains_key(&mesh_index) {
+                    let already_uploaded_mesh = uploaded_mesh_buffers.get(&mesh_index).unwrap();
+                    mesh_name = already_uploaded_mesh.0.name();
+                    mesh_buffer_reference = already_uploaded_mesh.1;
+                } else {
                     let mesh = scene.mesh(mesh_index).unwrap();
                     mesh_name = mesh.name();
 
@@ -362,11 +364,7 @@ pub fn on_load_model_system(
                     mesh_buffer_reference = mesh_buffers_mut.insert_mesh_buffer(mesh_buffer);
                     mesh_buffers_to_upload.push(mesh_buffer_reference);
 
-                    e.insert((mesh, mesh_buffer_reference));
-                } else {
-                    let already_uploaded_mesh = uploaded_mesh_buffers.get(&mesh_index).unwrap();
-                    mesh_name = already_uploaded_mesh.0.name();
-                    mesh_buffer_reference = already_uploaded_mesh.1;
+                    uploaded_mesh_buffers.insert(mesh_index, (mesh, mesh_buffer_reference));
                 }
 
                 spawn_event_record.name = mesh_name;
@@ -504,8 +502,9 @@ fn try_upload_texture(
             .unwrap();
         let texture_index = texture_info.path[1..].parse::<usize>().unwrap();
 
-        if let std::collections::hash_map::Entry::Vacant(e) = uploaded_textures.entry(texture_index)
-        {
+        if uploaded_textures.contains_key(&texture_index) {
+            *texture_reference_to_use = *uploaded_textures.get(&texture_index).unwrap();
+        } else {
             let texture = scene.texture(texture_index).unwrap();
             let texture_name = texture
                 .filename()
@@ -543,9 +542,7 @@ fn try_upload_texture(
                 1,
             );
 
-            e.insert(texture_reference);
-        } else {
-            *texture_reference_to_use = *uploaded_textures.get(&texture_index).unwrap();
+            uploaded_textures.insert(texture_index, texture_reference);
         }
     }
 }
