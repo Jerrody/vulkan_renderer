@@ -11,8 +11,8 @@ crate-type = ["dylib"]
 rayon = { workspace = true }
 bevy_ecs = { workspace = true }
 glam = { workspace = true }
+winit = { workspace = true }
 raw-window-handle = "0.6.2"
-winit = { version = "=0.31.0-beta.2", default-features = false }
 vulkanite = { git = "https://github.com/Jerrody/vulkanite", features = [
     "version_1_4",
     "loaded",

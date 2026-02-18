@@ -1239,6 +1239,7 @@ dependencies = [
  "bevy_ecs",
  "engine",
  "glam 0.32.0",
+ "winit",
 ]
 
 [[package]]

@@ -7,9 +7,10 @@ use bevy_ecs::{
 };
 use engine::{
     GamePlugin,
-    engine::{LoadModelEvent, Time, Transform},
+    engine::{Input, LoadModelEvent, Time, Transform},
 };
 use glam::Vec3;
+use winit::keyboard::KeyCode;
 
 #[unsafe(no_mangle)]
 pub extern "Rust" fn get_game() -> Box<dyn GamePlugin> {
@@ -54,10 +55,18 @@ fn spawn_entity(mut commands: Commands) {
     });
 }
 
-fn move_slowly_entity(mut bullets: Query<&mut Transform, With<BulletTag>>, time: Res<Time>) {
+fn move_slowly_entity(
+    mut bullets: Query<&mut Transform, With<BulletTag>>,
+    time: Res<Time>,
+    input: Res<Input>,
+) {
     let delta_time = time.get_delta_time();
 
+    let is_pressed_w = input.pressed(KeyCode::Space);
+
     for mut transform in bullets.iter_mut() {
-        transform.position += Vec3::new(1.0 * delta_time, 0.0, 0.0);
+        if is_pressed_w {
+            transform.position += Vec3::new(1.0 * delta_time, 0.0, 0.0);
+        }
     }
 }

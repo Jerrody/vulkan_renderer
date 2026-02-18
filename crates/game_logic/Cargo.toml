@@ -10,3 +10,4 @@ crate-type = ["dylib"]
 engine = { workspace = true }
 bevy_ecs = { workspace = true }
 glam = { workspace = true }
+winit = { workspace = true }

@@ -6,13 +6,14 @@ use bevy_ecs::system::{Res, ResMut};
 use vulkanite::vk::*;
 
 pub fn prepare_default_samplers_system(
-    renderer_resources: Res<RendererResources>,
+    mut renderer_resources: ResMut<RendererResources>,
     mut descriptor_set_handle: ResMut<DescriptorSetHandle>,
     buffers_mut: BuffersMut,
     mut samplers_mut: SamplersMut,
 ) {
     let default_sampler_reference =
         samplers_mut.create_sampler(Filter::Linear, SamplerAddressMode::Repeat, true);
+    renderer_resources.default_sampler_reference = default_sampler_reference;
 
     let sampler = samplers_mut.get(default_sampler_reference).unwrap();
     let sampler_descriptor = DescriptorKind::Sampler(DescriptorSampler {

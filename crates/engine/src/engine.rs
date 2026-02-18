@@ -35,6 +35,7 @@ use crate::{
 pub use components::time::Time;
 pub use components::transform::Transform;
 pub use events::LoadModelEvent;
+pub use resources::Input;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
 struct SchedulerWorldUpdate;
@@ -116,6 +117,7 @@ impl Engine {
         world.add_observer(on_spawn_model::on_spawn_mesh_system);
 
         world.insert_resource(Time::new());
+        world.insert_resource(Input::new());
 
         world.run_schedule(SchedulerRendererSetup);
 
@@ -154,12 +156,22 @@ impl Engine {
         self.world.run_schedule(SchedulerWorldUpdate);
         self.world.run_schedule(SchedulerGameUpdate);
         self.world.run_schedule(SchedulerRendererUpdate);
+
+        let mut input = unsafe { self.world.get_resource_mut::<Input>().unwrap_unchecked() };
+        input.clear();
     }
 
     #[inline(always)]
     pub fn process_input(&mut self, key_code: KeyCode, state: ElementState) {
         let mut camera = unsafe { self.world.get_resource_mut::<Camera>().unwrap_unchecked() };
         camera.process_keycode(key_code, state);
+
+        let mut input = unsafe { self.world.get_resource_mut::<Input>().unwrap_unchecked() };
+        if state == ElementState::Pressed {
+            input.press(key_code);
+        } else {
+            input.release(key_code);
+        }
     }
 
     #[inline(always)]
