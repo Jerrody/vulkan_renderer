@@ -83,7 +83,7 @@ fn spawn_entity(mut commands: Commands) {
     };
 
     let player_jump = PlayerJump {
-        jump_duration: 1.5,
+        jump_duration: 0.9,
         jump_height: 4.0,
         ..Default::default()
     };
@@ -101,7 +101,7 @@ fn move_player(
 
     let (mut transform, player_stats, player_jump) = player_query.single_mut().unwrap();
 
-    let target_speed = if input.pressed(KeyCode::ShiftLeft) {
+    let target_speed = if input.pressed(KeyCode::ShiftLeft) && !player_jump.is_jumping {
         player_stats.run_speed
     } else {
         player_stats.move_speed
