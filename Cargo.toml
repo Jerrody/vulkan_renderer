@@ -16,7 +16,7 @@ game_logic = { path = "crates/game_logic" }
 
 [profile.dev]
 opt-level = 0
-debug = 0
+debug = 2
 
 [profile.dev.build-override]
 opt-level = 2
