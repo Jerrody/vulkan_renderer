@@ -33,6 +33,7 @@ impl GamePlugin for Game {
 #[require(Camera)]
 pub struct PlayerStats {
     pub move_speed: f32,
+    pub run_speed: f32,
     pub rotation_speed: f32,
 }
 
@@ -67,6 +68,7 @@ fn spawn_entity(mut commands: Commands) {
     };
     let player_stats_component = PlayerStats {
         move_speed: 5.0,
+        run_speed: 15.0,
         rotation_speed: 5.0,
     };
 
@@ -83,22 +85,28 @@ fn move_player(
 
     let (mut transform, player_stats) = player_query.single_mut().unwrap();
 
+    let target_speed = if input.pressed(KeyCode::ShiftLeft) {
+        player_stats.run_speed
+    } else {
+        player_stats.move_speed
+    };
+
     let forward = transform.forward();
     let right = transform.right();
     if input.pressed(KeyCode::KeyW) {
-        transform.local_position += forward * player_stats.move_speed * delta_time;
+        transform.local_position += forward * target_speed * delta_time;
     }
 
     if input.pressed(KeyCode::KeyS) {
-        transform.local_position -= forward * player_stats.move_speed * delta_time;
+        transform.local_position -= forward * target_speed * delta_time;
     }
 
     if input.pressed(KeyCode::KeyA) {
-        transform.local_position -= right * player_stats.move_speed * delta_time;
+        transform.local_position -= right * target_speed * delta_time;
     }
 
     if input.pressed(KeyCode::KeyD) {
-        transform.local_position += right * player_stats.move_speed * delta_time;
+        transform.local_position += right * target_speed * delta_time;
     }
 }
 
