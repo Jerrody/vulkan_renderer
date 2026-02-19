@@ -2,14 +2,13 @@ use std::path::PathBuf;
 
 use bevy_ecs::{
     component::Component,
-    query::With,
     system::{Commands, Query, Res},
 };
 use engine::{
     GamePlugin,
     engine::{Camera, ClippingPlanes, Input, LoadModelEvent, Time, Transform},
 };
-use glam::{FloatExt, Vec3};
+use glam::FloatExt;
 use winit::keyboard::KeyCode;
 
 #[unsafe(no_mangle)]
