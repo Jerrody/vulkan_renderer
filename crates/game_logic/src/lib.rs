@@ -20,7 +20,7 @@ struct Game;
 
 impl GamePlugin for Game {
     fn add_systems_init(&self, schedule: &mut bevy_ecs::schedule::Schedule) {
-        schedule.add_systems((spawn_scene, spawn_player));
+        schedule.add_systems((spawn_planet, spawn_asteroid, spawn_player));
     }
 
     fn add_systems_update(&self, schedule: &mut bevy_ecs::schedule::Schedule) {
@@ -54,7 +54,7 @@ struct BulletTag;
 #[require(Transform)]
 pub struct PlanetTag;
 
-fn spawn_scene(mut commands: Commands) {
+fn spawn_planet(mut commands: Commands) {
     let planet_scale = 20.0;
     let mut planet_transform = Transform::IDENTITY;
     planet_transform.local_scale *= planet_scale;
@@ -75,6 +75,48 @@ fn spawn_scene(mut commands: Commands) {
             exe_path.as_os_str().display()
         )),
         parent_entity: Some(planet_entity_id),
+    });
+
+    // FIXME: When we call the second load immediatly, we get a crash or if we call the second call in separate system, then we get an absolutely broken geometry.
+    return;
+    let asteroid = 1.0;
+    let mut asteroid_transform = Transform::IDENTITY;
+    asteroid_transform.local_scale *= asteroid;
+
+    let asteroid_entity = commands.spawn((PlanetTag, asteroid_transform));
+    let asteroid_entity_id = asteroid_entity.id();
+
+    commands.trigger(LoadModelEvent {
+        path: PathBuf::from(std::format!(
+            "{}/assets/asteroid.glb",
+            exe_path.as_os_str().display()
+        )),
+        parent_entity: Some(asteroid_entity_id),
+    });
+}
+
+fn spawn_asteroid(mut commands: Commands) {
+    return;
+    // TODO: Deduplicate and simplify.
+    let mut exe_path = std::env::current_exe().unwrap();
+
+    exe_path.pop();
+    exe_path.pop();
+    exe_path.pop();
+
+    let asteroid = 1.0;
+    let mut asteroid_transform = Transform::IDENTITY;
+    asteroid_transform.local_scale *= asteroid;
+
+    let asteroid_entity = commands.spawn((PlanetTag, asteroid_transform));
+    let asteroid_entity_id = asteroid_entity.id();
+
+    commands.trigger(LoadModelEvent {
+        path: PathBuf::from(std::format!(
+            "{}/assets/asteroid.glb",
+            exe_path.as_os_str().display()
+        )),
+        parent_entity: Some(asteroid_entity_id),
     });
 }
 
