@@ -2,9 +2,10 @@ use bevy_ecs::{
     resource::Resource,
     system::{Res, ResMut, SystemParam},
 };
+use slotmap::{Key, SlotMap};
 use vulkanite::vk::DeviceAddress;
 
-use crate::engine::ecs::buffers_pool::BufferReference;
+use crate::engine::ecs::{MeshBufferKey, buffers_pool::BufferReference};
 
 #[derive(Default)]
 pub struct MeshBuffer {
@@ -18,7 +19,13 @@ pub struct MeshBuffer {
 
 #[derive(Clone, Copy)]
 pub struct MeshBufferReference {
-    index: u32,
+    key: MeshBufferKey,
+}
+
+impl MeshBufferReference {
+    pub fn get_index(&self) -> u32 {
+        self.key.data().get_key() - 1
+    }
 }
 
 #[derive(SystemParam)]
@@ -28,7 +35,7 @@ pub struct MeshBuffers<'w> {
 
 impl<'w> MeshBuffers<'w> {
     #[inline(always)]
-    pub fn get(&self, mesh_buffer_reference: MeshBufferReference) -> &MeshBuffer {
+    pub fn get(&self, mesh_buffer_reference: MeshBufferReference) -> Option<&MeshBuffer> {
         self.mesh_buffers_pool
             .get_mesh_buffer(mesh_buffer_reference)
     }
@@ -41,13 +48,16 @@ pub struct MeshBuffersMut<'w> {
 
 impl<'w> MeshBuffersMut<'w> {
     #[inline(always)]
-    pub fn get(&self, mesh_buffer_reference: MeshBufferReference) -> &MeshBuffer {
+    pub fn get(&self, mesh_buffer_reference: MeshBufferReference) -> Option<&MeshBuffer> {
         self.mesh_buffers_pool
             .get_mesh_buffer(mesh_buffer_reference)
     }
 
     #[inline(always)]
-    pub fn get_mut(&mut self, mesh_buffer_reference: MeshBufferReference) -> &mut MeshBuffer {
+    pub fn get_mut(
+        &mut self,
+        mesh_buffer_reference: MeshBufferReference,
+    ) -> Option<&mut MeshBuffer> {
         self.mesh_buffers_pool
             .get_mut_mesh_buffer(mesh_buffer_reference)
     }
@@ -60,38 +70,32 @@ impl<'w> MeshBuffersMut<'w> {
 
 #[derive(Resource)]
 pub struct MeshBuffersPool {
-    slots: Vec<MeshBuffer>,
-    free_indices: Vec<u32>,
+    slots: SlotMap<MeshBufferKey, MeshBuffer>,
 }
 
 impl MeshBuffersPool {
-    pub fn new(pre_allocated_count: u32) -> Self {
-        let slots = (0..pre_allocated_count)
-            .map(|_| Default::default())
-            .collect();
-
+    pub fn new(pre_allocated_count: usize) -> Self {
         Self {
-            slots,
-            free_indices: (0..pre_allocated_count).rev().collect(),
+            slots: SlotMap::with_capacity_and_key(pre_allocated_count),
         }
     }
 
     fn insert_mesh_buffer(&mut self, mesh_buffer: MeshBuffer) -> MeshBufferReference {
-        let free_index = self.free_indices.pop().unwrap();
+        let mesh_buffer_key = self.slots.insert(mesh_buffer);
 
-        self.slots[free_index as usize] = mesh_buffer;
-
-        MeshBufferReference { index: free_index }
+        MeshBufferReference {
+            key: mesh_buffer_key,
+        }
     }
 
-    fn get_mesh_buffer(&self, mesh_buffer_reference: MeshBufferReference) -> &MeshBuffer {
-        &self.slots[mesh_buffer_reference.index as usize]
+    fn get_mesh_buffer(&self, mesh_buffer_reference: MeshBufferReference) -> Option<&MeshBuffer> {
+        self.slots.get(mesh_buffer_reference.key)
     }
 
     fn get_mut_mesh_buffer(
         &mut self,
         mesh_buffer_reference: MeshBufferReference,
-    ) -> &mut MeshBuffer {
-        &mut self.slots[mesh_buffer_reference.index as usize]
+    ) -> Option<&mut MeshBuffer> {
+        self.slots.get_mut(mesh_buffer_reference.key)
     }
 }

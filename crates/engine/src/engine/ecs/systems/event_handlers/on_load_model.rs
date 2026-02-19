@@ -383,7 +383,11 @@ pub fn on_load_model_system(
     let mesh_objects_to_write = mesh_buffers_to_upload
         .iter()
         .map(|mesh_buffer_reference| {
-            let mesh_buffer_ref = mesh_buffers_mut.get(*mesh_buffer_reference);
+            let mesh_buffer_ref = unsafe {
+                mesh_buffers_mut
+                    .get(*mesh_buffer_reference)
+                    .unwrap_unchecked()
+            };
 
             let device_address_vertex_buffer: DeviceAddress = mesh_buffer_ref
                 .vertex_buffer_reference
@@ -419,11 +423,15 @@ pub fn on_load_model_system(
     let mesh_objects_to_copy_regions = mesh_buffers_to_upload
         .into_iter()
         .enumerate()
-        .map(|(mesh_buffer_index, mesh_buffer_reference)| {
-            let src_offset = mesh_buffer_index * mesh_object_size;
-            let dst_offset = src_offset;
+        .map(|(src_mesh_buffer_index, mesh_buffer_reference)| {
+            let src_offset = src_mesh_buffer_index as u32 * mesh_object_size as u32;
+            let dst_offset = mesh_buffer_reference.get_index() * mesh_object_size as u32;
 
-            let mesh_buffer = mesh_buffers_mut.get_mut(mesh_buffer_reference);
+            let mesh_buffer = unsafe {
+                mesh_buffers_mut
+                    .get_mut(mesh_buffer_reference)
+                    .unwrap_unchecked()
+            };
 
             mesh_buffer.mesh_object_device_address =
                 mesh_objects_device_address + dst_offset as u64;

@@ -78,7 +78,6 @@ fn spawn_planet(mut commands: Commands) {
     });
 
     // FIXME: When we call the second load immediatly, we get a crash or if we call the second call in separate system, then we get an absolutely broken geometry.
-    return;
     let asteroid = 1.0;
     let mut asteroid_transform = Transform::IDENTITY;
     asteroid_transform.local_scale *= asteroid;

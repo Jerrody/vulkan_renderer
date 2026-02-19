@@ -29,7 +29,11 @@ pub fn collect_instance_objects_system(
         let material_info =
             renderer_resources.get_material_data_device_address_by_id(mesh.material_id);
 
-        let mesh_buffer = mesh_buffers.get(mesh.mesh_buffer_reference);
+        let mesh_buffer = unsafe {
+            mesh_buffers
+                .get(mesh.mesh_buffer_reference)
+                .unwrap_unchecked()
+        };
 
         frame_context
             .instance_objects_to_write

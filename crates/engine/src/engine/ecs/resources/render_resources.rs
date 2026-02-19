@@ -24,6 +24,7 @@ new_key_type! {
     pub struct BufferKey;
     pub struct TextureKey;
     pub struct SamplerKey;
+    pub struct MeshBufferKey;
 }
 
 #[repr(C)]
@@ -254,6 +255,7 @@ pub struct RendererResources {
     pub default_texture_reference: TextureReference,
     pub fallback_texture_reference: TextureReference,
     pub default_sampler_reference: SamplerReference,
+    // TODO: Move to mesh buffers pool
     pub mesh_objects_buffer_reference: BufferReference,
     pub gradient_compute_shader_object: ShaderObject,
     pub task_shader_object: ShaderObject,
