@@ -20,7 +20,7 @@ struct Game;
 
 impl GamePlugin for Game {
     fn add_systems_init(&self, schedule: &mut bevy_ecs::schedule::Schedule) {
-        schedule.add_systems((spawn_scene, spawn_entity));
+        schedule.add_systems((spawn_scene, spawn_player));
     }
 
     fn add_systems_update(&self, schedule: &mut bevy_ecs::schedule::Schedule) {
@@ -50,7 +50,18 @@ pub struct PlayerJump {
 #[require(Transform)]
 struct BulletTag;
 
+#[derive(Component)]
+#[require(Transform)]
+pub struct PlanetTag;
+
 fn spawn_scene(mut commands: Commands) {
+    let planet_scale = 20.0;
+    let mut planet_transform = Transform::IDENTITY;
+    planet_transform.local_scale *= planet_scale;
+
+    let planet_entity = commands.spawn((PlanetTag, planet_transform));
+    let planet_entity_id = planet_entity.id();
+
     // TODO: Deduplicate and simplify.
     let mut exe_path = std::env::current_exe().unwrap();
 
@@ -60,14 +71,14 @@ fn spawn_scene(mut commands: Commands) {
 
     commands.trigger(LoadModelEvent {
         path: PathBuf::from(std::format!(
-            "{}/assets/structure.glb",
+            "{}/assets/planet.glb",
             exe_path.as_os_str().display()
         )),
-        parent_entity: None,
+        parent_entity: Some(planet_entity_id),
     });
 }
 
-fn spawn_entity(mut commands: Commands) {
+fn spawn_player(mut commands: Commands) {
     let camera_component = Camera {
         fov: 75.0,
         clipping_planes: ClippingPlanes {
@@ -88,7 +99,16 @@ fn spawn_entity(mut commands: Commands) {
     };
 
     let mut player_entity = commands.spawn_empty();
-    player_entity.insert((camera_component, player_stats_component, player_jump));
+    let mut player_transform = Transform::IDENTITY;
+    player_transform.local_position.z = 150.0;
+    player_transform.local_position.y = -5.0;
+
+    player_entity.insert((
+        camera_component,
+        player_stats_component,
+        player_jump,
+        player_transform,
+    ));
 }
 
 fn move_player(
