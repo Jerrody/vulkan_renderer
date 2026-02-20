@@ -77,6 +77,7 @@ fn spawn_planet(mut commands: Commands) {
         parent_entity: Some(planet_entity_id),
     });
 
+    return;
     // FIXME: When we call the second load immediatly, we get a crash or if we call the second call in separate system, then we get an absolutely broken geometry.
     let asteroid = 1.0;
     let mut asteroid_transform = Transform::IDENTITY;

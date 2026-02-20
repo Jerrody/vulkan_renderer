@@ -17,14 +17,12 @@ pub struct OffsetElement {
 
 pub struct VariableOffsets {
     offsets: AHashMap<u32, OffsetElement>,
-    base_offset: usize,
 }
 
 impl VariableOffsets {
-    pub fn new(capacity: usize, base_offset: usize) -> Self {
+    pub fn new(capacity: usize) -> Self {
         VariableOffsets {
             offsets: AHashMap::with_capacity(capacity),
-            base_offset,
         }
     }
 
@@ -34,7 +32,7 @@ impl VariableOffsets {
             .iter()
             .last()
             .and_then(|(_, offset_element)| Some(offset_element.offset + offset_element.size))
-            .unwrap_or(self.base_offset);
+            .unwrap_or(Default::default());
 
         let offset_element = OffsetElement { size, offset };
         self.offsets.insert(index, offset_element);
@@ -98,20 +96,20 @@ pub struct MaterialInfo {
 pub struct MaterialsPool {
     slots: SlotMap<MaterialKey, MaterialInstance>,
     materials_to_write: AHashMap<MaterialReference, Vec<u8>>,
+    base_device_address_material_data: DeviceAddress,
     variable_offsets: VariableOffsets,
-    base_device_address_materials_buffer: DeviceAddress,
 }
 
 impl MaterialsPool {
-    pub fn new(materials_data_base_address: DeviceAddress, pre_allocated_count: usize) -> Self {
+    pub fn new(
+        base_device_address_material_data: DeviceAddress,
+        pre_allocated_count: usize,
+    ) -> Self {
         Self {
             slots: SlotMap::with_capacity_and_key(pre_allocated_count),
             materials_to_write: AHashMap::with_capacity(1024),
-            base_device_address_materials_buffer: materials_data_base_address,
-            variable_offsets: VariableOffsets::new(
-                pre_allocated_count,
-                materials_data_base_address as _,
-            ),
+            variable_offsets: VariableOffsets::new(pre_allocated_count),
+            base_device_address_material_data,
         }
     }
 
@@ -160,7 +158,8 @@ impl MaterialsPool {
 
         MaterialInfo {
             material_type: material_instance.material_state.material_type,
-            device_adddress_material_data: material_instance.get_offset() as _,
+            device_adddress_material_data: self.base_device_address_material_data
+                + material_instance.get_offset() as u64,
             size: material_instance.get_size(),
         }
     }

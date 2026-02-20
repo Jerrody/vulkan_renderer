@@ -192,7 +192,7 @@ pub fn on_load_model_system(
                 let mesh = scene.mesh(mesh_index).unwrap();
 
                 let material_index = mesh.material_index();
-                let mut material_reference: Option<MaterialReference>;
+                let material_reference: Option<MaterialReference>;
                 if uploaded_materials.contains_key(&material_index) {
                     material_reference = Some(*uploaded_materials.get(&material_index).unwrap());
                 } else {
@@ -456,16 +456,16 @@ pub fn on_load_model_system(
 
     let materials_data_buffer_reference = renderer_resources.materials_data_buffer_reference;
     let materials_data_to_write_slice = materials_pool.get_materials_data_to_write();
-    for (material_reference, data_to_write) in materials_data_to_write_slice {
-        let ptr_materials_data_to_write = data_to_write.as_ptr();
-        let materials_data_to_write_size = materials_data_to_write_slice.len();
+    for (&material_reference, data_to_write) in materials_data_to_write_slice {
+        let ptr_materials_data_to_write = (*data_to_write).as_ptr();
 
         let material_instance = materials_pool
-            .get_material_instance(*material_reference)
+            .get_material_instance(material_reference)
             .unwrap();
+
         let regions = [BufferCopy {
-            dst_offset: material_instance.get_size() as _,
-            size: materials_data_to_write_size as _,
+            dst_offset: material_instance.get_offset() as _,
+            size: material_instance.get_size() as _,
             ..Default::default()
         }];
 
