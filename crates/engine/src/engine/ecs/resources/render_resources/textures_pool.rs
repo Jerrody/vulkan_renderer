@@ -44,7 +44,7 @@ pub struct TextureReference {
 
 impl TextureReference {
     pub fn get_index(&self) -> u32 {
-        self.key.data().get_key()
+        self.key.data().get_key() - 1
     }
 }
 

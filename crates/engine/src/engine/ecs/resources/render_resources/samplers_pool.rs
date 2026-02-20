@@ -52,7 +52,7 @@ pub struct SamplerReference {
 
 impl SamplerReference {
     pub fn get_index(&self) -> u32 {
-        self.key.0.get_key()
+        self.key.0.get_key() - 1
     }
 }
 
