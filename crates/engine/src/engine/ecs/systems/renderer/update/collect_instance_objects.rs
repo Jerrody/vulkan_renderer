@@ -1,11 +1,11 @@
-use bevy_ecs::system::{Query, ResMut};
+use bevy_ecs::system::{Query, Res, ResMut};
 use glam::Mat4;
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use vulkanite::vk::DeviceAddress;
 
 use crate::engine::{
     components::{material::MaterialType, mesh::Mesh, transform::GlobalTransform},
-    ecs::{FrameContext, mesh_buffers_pool::MeshBuffers},
+    ecs::{FrameContext, materials_pool::MaterialsPool, mesh_buffers_pool::MeshBuffers},
     resources::RendererResources,
 };
 
@@ -20,14 +20,14 @@ pub struct InstanceDataToWrite {
 
 pub fn collect_instance_objects_system(
     mut frame_context: ResMut<FrameContext>,
+    mut materials_pool: Res<MaterialsPool>,
     mut renderer_resources: ResMut<RendererResources>,
     mut mesh_query: Query<(&GlobalTransform, &mut Mesh)>,
     mesh_buffers: MeshBuffers,
 ) {
     let mut current_instance_data_index = usize::default();
     for (global_transform, mut mesh) in &mut mesh_query {
-        let material_info =
-            renderer_resources.get_material_data_device_address_by_id(mesh.material_id);
+        let material_info = materials_pool.get_material_info(mesh.material_reference);
 
         let mesh_buffer = unsafe {
             mesh_buffers
@@ -42,7 +42,7 @@ pub fn collect_instance_objects_system(
                 model_matrix: global_transform.0,
                 device_address_mesh_object: mesh_buffer.mesh_object_device_address,
                 meshlet_count: mesh_buffer.meshlets_count,
-                device_address_material_data: material_info.device_adddress_materail_data,
+                device_address_material_data: material_info.device_adddress_material_data,
                 material_type: material_info.material_type,
             });
 

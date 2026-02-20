@@ -38,6 +38,7 @@ impl Engine {
             model_loader: ModelLoader::new(),
             resources_pool,
             is_printed_scene_hierarchy: true,
+            materials_data_buffer_reference: Default::default(),
         };
 
         let mut buffers_pool = BuffersPool::new(

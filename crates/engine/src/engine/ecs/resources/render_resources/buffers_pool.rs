@@ -72,6 +72,12 @@ pub struct BufferReference {
     buffer_info: BufferInfo,
 }
 
+impl BufferReference {
+    pub fn new(key: BufferKey, buffer_info: BufferInfo) -> Self {
+        Self { key, buffer_info }
+    }
+}
+
 #[derive(Default, Clone, Copy)]
 pub struct BufferInfo {
     pub device_address: DeviceAddress,
@@ -154,7 +160,7 @@ impl<'w> BuffersMut<'w> {
     #[inline(always)]
     pub unsafe fn transfer_data_to_buffer_with_offset(
         &self,
-        buffer_reference: &BufferReference,
+        buffer_reference: BufferReference,
         src: *const c_void,
         regions_to_copy: &[BufferCopy],
     ) {
@@ -410,7 +416,7 @@ impl BuffersPool {
 
     pub unsafe fn transfer_data_to_buffer_with_offset(
         &self,
-        buffer_reference: &BufferReference,
+        buffer_reference: BufferReference,
         src: *const c_void,
         regions_to_copy: &[BufferCopy],
     ) {

@@ -2,8 +2,6 @@ use bytemuck::{Pod, Zeroable};
 use glam::Vec4;
 use vulkanite::vk::DeviceAddress;
 
-use crate::engine::id::Id;
-
 #[derive(Default, Clone, Copy)]
 #[repr(u8)]
 pub enum MaterialType {
@@ -66,7 +64,6 @@ pub struct MaterialData {
 }
 
 pub struct Material {
-    pub id: Id,
     pub ptr_data: DeviceAddress,
     pub state: MaterialState,
 }

@@ -1,7 +1,6 @@
 mod ecs;
 mod events;
 mod general;
-mod id;
 mod setup;
 mod utils;
 
@@ -73,18 +72,13 @@ impl Engine {
         let frame_context = FrameContext::default();
         world.insert_resource(frame_context);
 
-        //world.insert_resource(Camera::new(60.0, 0.1, 1000.0));
-
         world.init_resource::<Schedules>();
 
         let mut schedulers = world.resource_mut::<Schedules>();
 
         let scheduler_world_update = schedulers.entry(SchedulerWorldUpdate);
-        scheduler_world_update.add_systems((
-            propogate_transforms_system,
-            update_time::update_time_system,
-            //update_camera::update_camera_system.after(update_time::update_time_system),
-        ));
+        scheduler_world_update
+            .add_systems((propogate_transforms_system, update_time::update_time_system));
 
         let scheduler_renderer_setup = schedulers.entry(SchedulerRendererSetup);
         scheduler_renderer_setup.add_systems(
@@ -120,6 +114,7 @@ impl Engine {
         world.insert_resource(Input::new());
 
         world.run_schedule(SchedulerRendererSetup);
+        world.flush();
 
         // TODO: In future, we need to fix this. Awful code.
         let mut exe_path = std::env::current_exe().unwrap();
@@ -127,15 +122,6 @@ impl Engine {
         exe_path.pop();
         exe_path.pop();
         exe_path.pop();
-
-        // TODO: TEMP
-        /*         world.trigger(LoadModelEvent {
-            path: PathBuf::from(std::format!(
-                "{}/assets/structure.glb",
-                exe_path.as_os_str().display()
-            )),
-            parent_entity: None,
-        }); */
 
         Self { world }
     }

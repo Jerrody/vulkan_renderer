@@ -1,4 +1,4 @@
-use bevy_ecs::system::{Res, ResMut};
+use bevy_ecs::system::{Commands, Res, ResMut};
 use vulkanite::vk::{rs::*, *};
 
 use crate::engine::{
@@ -6,12 +6,14 @@ use crate::engine::{
         InstanceObject, MeshObject, RendererContext, RendererResources, SceneData, ShaderObject,
         SwappableBuffer, VulkanContextResource,
         buffers_pool::{BufferVisibility, BuffersMut},
+        materials_pool::MaterialsPool,
     },
     general::renderer::DescriptorSetHandle,
     utils::{ShaderInfo, load_shader},
 };
 
 pub fn prepare_shaders_system(
+    mut commands: Commands,
     vulkan_ctx_resource: Res<VulkanContextResource>,
     render_context: ResMut<RendererContext>,
     mut renderer_resources: ResMut<RendererResources>,
@@ -66,6 +68,7 @@ pub fn prepare_shaders_system(
     renderer_resources.mesh_shader_object = created_shaders[2];
     renderer_resources.fragment_shader_object = created_shaders[3];
 
+    // TODO: Move to the other place.
     let materials_data_buffer_reference = buffers_mut.create(
         1024 * 1024 * 64,
         BufferUsageFlags::ShaderDeviceAddress | BufferUsageFlags::TransferDst,
@@ -114,7 +117,15 @@ pub fn prepare_shaders_system(
     renderer_resources.resources_pool.scene_data_buffer =
         Some(SwappableBuffer::new(scene_data_buffers));
 
-    renderer_resources.set_materials_data_buffer_reference(materials_data_buffer_reference);
+    renderer_resources.materials_data_buffer_reference = materials_data_buffer_reference;
+    let materials_pool = MaterialsPool::new(
+        materials_data_buffer_reference
+            .get_buffer_info()
+            .device_address,
+        2048,
+    );
+    commands.insert_resource(materials_pool);
+
     renderer_resources.mesh_objects_buffer_reference = mesh_objects_buffer_reference;
 }
 

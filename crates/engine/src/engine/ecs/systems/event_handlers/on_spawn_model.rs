@@ -44,7 +44,7 @@ pub fn on_spawn_mesh_system(spawn_event: On<SpawnEvent>, mut commands: Commands)
             let mesh = Mesh {
                 instance_object_index: None,
                 mesh_buffer_reference,
-                material_id: spawn_event_record.material_id,
+                material_reference: spawn_event_record.material_reference.unwrap(),
             };
             name.set(std::format!(
                 "Mesh ID: {:?}",

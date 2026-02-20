@@ -1,4 +1,5 @@
 pub mod buffers_pool;
+pub mod materials_pool;
 pub mod mesh_buffers_pool;
 pub mod model_loader;
 pub mod samplers_pool;
@@ -13,7 +14,6 @@ use vulkanite::vk::{rs::*, *};
 
 use crate::engine::{
     components::material::{MaterialState, MaterialType},
-    id::Id,
     resources::{
         buffers_pool::BufferReference, render_resources::model_loader::ModelLoader,
         samplers_pool::SamplerReference, textures_pool::TextureReference,
@@ -25,6 +25,7 @@ new_key_type! {
     pub struct TextureKey;
     pub struct SamplerKey;
     pub struct MeshBufferKey;
+    pub struct MaterialKey;
 }
 
 #[repr(C)]
@@ -153,91 +154,9 @@ impl<'a> SwappableBuffer {
     }
 }
 
-#[derive(Clone, Copy)]
-struct MaterialLabel {
-    pub id: Id,
-    pub material_state: MaterialState,
-    pub size: usize,
-    pub device_address_material_data: DeviceAddress,
-}
-
-pub struct MaterialInfo {
-    pub material_type: MaterialType,
-    pub device_adddress_materail_data: DeviceAddress,
-}
-
-#[derive(Default)]
-struct MaterialsPool {
-    pub materials_data_buffer_reference: BufferReference,
-    pub materials_to_write: Vec<u8>,
-    pub material_labels: Vec<MaterialLabel>,
-}
-
-impl MaterialsPool {
-    pub fn write_material(&mut self, data: &[u8], material_state: MaterialState) -> Id {
-        let material_label = MaterialLabel {
-            id: Id::new(self.material_labels.len()),
-            size: data.len(),
-            material_state,
-            device_address_material_data: Default::default(),
-        };
-        let id = material_label.id;
-
-        self.material_labels.push(material_label);
-        self.materials_to_write.extend_from_slice(data);
-
-        id
-    }
-
-    pub fn reset_materails_to_write(&mut self) {
-        self.materials_to_write.clear();
-    }
-
-    pub fn get_materials_data_buffer_reference(&self) -> BufferReference {
-        self.materials_data_buffer_reference
-    }
-
-    pub fn set_materials_data_buffer_reference(
-        &mut self,
-        materials_data_buffer_reference: BufferReference,
-    ) {
-        self.materials_data_buffer_reference = materials_data_buffer_reference;
-    }
-
-    pub fn set_materials_labels_device_addresses(
-        &mut self,
-        mut device_address_materials_data: DeviceAddress,
-    ) {
-        for material_label_index in 0..self.material_labels.len() {
-            let material_label = &mut self.material_labels[material_label_index];
-            material_label.device_address_material_data = device_address_materials_data;
-
-            device_address_materials_data += material_label.size as u64;
-        }
-    }
-
-    pub fn get_materials_data_to_write(&self) -> &[u8] {
-        self.materials_to_write.as_slice()
-    }
-
-    pub fn get_material_info_device_address_by_id(&self, material_label_id: Id) -> MaterialInfo {
-        let material_label = self
-            .material_labels
-            .iter()
-            .find(|&material_label| material_label.id == material_label_id)
-            .unwrap();
-
-        MaterialInfo {
-            material_type: material_label.material_state.material_type,
-            device_adddress_materail_data: material_label.device_address_material_data,
-        }
-    }
-}
-
 pub struct ResourcesPool {
     pub instances_buffer: Option<SwappableBuffer>,
     pub scene_data_buffer: Option<SwappableBuffer>,
-    materials_pool: MaterialsPool,
 }
 
 impl ResourcesPool {
@@ -245,7 +164,6 @@ impl ResourcesPool {
         Self {
             instances_buffer: Default::default(),
             scene_data_buffer: Default::default(),
-            materials_pool: Default::default(),
         }
     }
 }
@@ -257,6 +175,7 @@ pub struct RendererResources {
     pub default_sampler_reference: SamplerReference,
     // TODO: Move to mesh buffers pool
     pub mesh_objects_buffer_reference: BufferReference,
+    pub materials_data_buffer_reference: BufferReference,
     pub gradient_compute_shader_object: ShaderObject,
     pub task_shader_object: ShaderObject,
     pub mesh_shader_object: ShaderObject,
@@ -267,54 +186,6 @@ pub struct RendererResources {
 }
 
 impl<'a> RendererResources {
-    pub fn write_material(&mut self, data: &[u8], material_state: MaterialState) -> Id {
-        self.resources_pool
-            .materials_pool
-            .write_material(data, material_state)
-    }
-
-    pub fn reset_materails_to_write(&mut self) {
-        self.resources_pool
-            .materials_pool
-            .reset_materails_to_write();
-    }
-
-    pub fn get_materials_data_buffer_reference(&self) -> BufferReference {
-        self.resources_pool
-            .materials_pool
-            .get_materials_data_buffer_reference()
-    }
-
-    pub fn set_materials_data_buffer_reference(
-        &mut self,
-        materials_data_buffer_reference: BufferReference,
-    ) {
-        self.resources_pool
-            .materials_pool
-            .set_materials_data_buffer_reference(materials_data_buffer_reference);
-    }
-
-    pub fn set_materials_labels_device_addresses(
-        &mut self,
-        device_address_materials_data: DeviceAddress,
-    ) {
-        self.resources_pool
-            .materials_pool
-            .set_materials_labels_device_addresses(device_address_materials_data);
-    }
-
-    pub fn get_materials_data_to_write(&'a self) -> &'a [u8] {
-        self.resources_pool
-            .materials_pool
-            .get_materials_data_to_write()
-    }
-
-    pub fn get_material_data_device_address_by_id(&self, material_label_id: Id) -> MaterialInfo {
-        self.resources_pool
-            .materials_pool
-            .get_material_info_device_address_by_id(material_label_id)
-    }
-
     #[inline(always)]
     pub fn write_instance_object(
         &mut self,

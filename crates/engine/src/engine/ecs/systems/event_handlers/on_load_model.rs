@@ -26,12 +26,12 @@ use crate::engine::{
     },
     ecs::{
         buffers_pool::BuffersMut,
+        materials_pool::{self, MaterialReference, MaterialsPool},
         mesh_buffers_pool::{MeshBuffer, MeshBufferReference, MeshBuffersMut},
         textures_pool::TexturesMut,
     },
     events::{LoadModelEvent, SpawnEvent, SpawnEventRecord},
     general::renderer::{DescriptorKind, DescriptorSampledImage, DescriptorSetHandle},
-    id::Id,
     resources::{
         MeshObject, Meshlet, RendererContext, RendererResources, Vertex, VulkanContextResource,
         buffers_pool::{BufferReference, BufferVisibility},
@@ -100,6 +100,7 @@ pub fn on_load_model_system(
     load_model_event: On<LoadModelEvent>,
     mut commands: Commands,
     vulkan_context: Res<VulkanContextResource>,
+    mut materials_pool: ResMut<MaterialsPool>,
     renderer_context_resource: Res<RendererContext>,
     mut renderer_resources: ResMut<RendererResources>,
     mut descriptor_set_handle: ResMut<DescriptorSetHandle>,
@@ -177,9 +178,10 @@ pub fn on_load_model_system(
     > = HashMap::with_capacity(scene.num_meshes());
     let mut uploaded_textures: HashMap<usize, TextureReference> =
         HashMap::with_capacity(uploaded_mesh_buffers.capacity());
-    let uploaded_materials: HashMap<usize, Id> = HashMap::with_capacity(scene.num_materials());
+    let uploaded_materials: HashMap<usize, MaterialReference> =
+        HashMap::with_capacity(scene.num_materials());
 
-    renderer_resources.reset_materails_to_write();
+    materials_pool.reset_materails_to_write();
     for node_data in nodes.into_iter() {
         if node_data.mesh_indices.len() > Default::default() {
             let mut mesh_name: String;
@@ -190,9 +192,9 @@ pub fn on_load_model_system(
                 let mesh = scene.mesh(mesh_index).unwrap();
 
                 let material_index = mesh.material_index();
-                let material_id: Id;
+                let mut material_reference: Option<MaterialReference>;
                 if uploaded_materials.contains_key(&material_index) {
-                    material_id = *uploaded_materials.get(&material_index).unwrap();
+                    material_reference = Some(*uploaded_materials.get(&material_index).unwrap());
                 } else {
                     let material = scene.material(material_index).unwrap();
 
@@ -250,10 +252,10 @@ pub fn on_load_model_system(
                         sampler_index: Default::default(),
                     };
 
-                    material_id = renderer_resources.write_material(
+                    material_reference = Some(materials_pool.write_material(
                         bytemuck::bytes_of(&material_data),
                         MaterialState { material_type },
-                    );
+                    ));
                 }
 
                 if let std::collections::hash_map::Entry::Vacant(e) =
@@ -371,7 +373,7 @@ pub fn on_load_model_system(
 
                 spawn_event_record.name = mesh_name;
                 spawn_event_record.parent_index = Some(node_data.index);
-                spawn_event_record.material_id = material_id;
+                spawn_event_record.material_reference = material_reference;
                 spawn_event_record.mesh_buffer_reference = Some(mesh_buffer_reference);
                 spawn_event_record.transform = Transform::IDENTITY;
 
@@ -446,29 +448,34 @@ pub fn on_load_model_system(
 
     unsafe {
         buffers_mut.transfer_data_to_buffer_with_offset(
-            &renderer_resources.mesh_objects_buffer_reference,
+            renderer_resources.mesh_objects_buffer_reference,
             mesh_objects_to_write.as_ptr() as *const _,
             &mesh_objects_to_copy_regions,
         );
     }
 
-    let materials_data_buffer_reference = renderer_resources.get_materials_data_buffer_reference();
-    let materials_data_to_write_slice = renderer_resources.get_materials_data_to_write();
-    let ptr_materials_data_to_write = materials_data_to_write_slice.as_ptr();
-    let materials_data_to_write_len = materials_data_to_write_slice.len();
+    let materials_data_buffer_reference = renderer_resources.materials_data_buffer_reference;
+    let materials_data_to_write_slice = materials_pool.get_materials_data_to_write();
+    for (material_reference, data_to_write) in materials_data_to_write_slice {
+        let ptr_materials_data_to_write = data_to_write.as_ptr();
+        let materials_data_to_write_size = materials_data_to_write_slice.len();
 
-    unsafe {
-        buffers_mut.transfer_data_to_buffer_raw(
-            materials_data_buffer_reference,
-            ptr_materials_data_to_write as *const _,
-            materials_data_to_write_len,
-        );
+        let material_instance = materials_pool
+            .get_material_instance(*material_reference)
+            .unwrap();
+        let regions = [BufferCopy {
+            dst_offset: material_instance.get_size() as _,
+            size: materials_data_to_write_size as _,
+            ..Default::default()
+        }];
 
-        renderer_resources.set_materials_labels_device_addresses(
-            materials_data_buffer_reference
-                .get_buffer_info()
-                .device_address,
-        );
+        unsafe {
+            buffers_mut.transfer_data_to_buffer_with_offset(
+                materials_data_buffer_reference,
+                ptr_materials_data_to_write as *const _,
+                &regions,
+            );
+        }
     }
 
     commands.trigger(spawn_event);
