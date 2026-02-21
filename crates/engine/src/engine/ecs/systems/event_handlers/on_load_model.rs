@@ -108,6 +108,7 @@ pub fn on_load_model_system(
     mut textures_mut: TexturesMut,
     mut mesh_buffers_mut: MeshBuffersMut,
 ) {
+    println!("LOAD MODEL");
     let model_loader = &renderer_resources.model_loader;
 
     let mut nodes = Vec::new();
@@ -172,14 +173,9 @@ pub fn on_load_model_system(
     });
 
     let mut mesh_buffers_to_upload = Vec::with_capacity(scene.num_meshes());
-    let mut uploaded_mesh_buffers: HashMap<
-        usize,
-        (asset_importer::mesh::Mesh, MeshBufferReference),
-    > = HashMap::with_capacity(scene.num_meshes());
-    let mut uploaded_textures: HashMap<usize, TextureReference> =
-        HashMap::with_capacity(uploaded_mesh_buffers.capacity());
-    let uploaded_materials: HashMap<usize, MaterialReference> =
-        HashMap::with_capacity(scene.num_materials());
+    let mut uploaded_mesh_buffers = HashMap::with_capacity(scene.num_meshes());
+    let mut uploaded_textures = HashMap::with_capacity(uploaded_mesh_buffers.capacity());
+    let mut uploaded_materials = HashMap::with_capacity(scene.num_materials());
 
     materials_pool.reset_materails_to_write();
     for node_data in nodes.into_iter() {
@@ -192,9 +188,9 @@ pub fn on_load_model_system(
                 let mesh = scene.mesh(mesh_index).unwrap();
 
                 let material_index = mesh.material_index();
-                let material_reference: Option<MaterialReference>;
+                let material_reference: MaterialReference;
                 if uploaded_materials.contains_key(&material_index) {
-                    material_reference = Some(*uploaded_materials.get(&material_index).unwrap());
+                    material_reference = *uploaded_materials.get(&material_index).unwrap();
                 } else {
                     let material = scene.material(material_index).unwrap();
 
@@ -252,10 +248,11 @@ pub fn on_load_model_system(
                         sampler_index: Default::default(),
                     };
 
-                    material_reference = Some(materials_pool.write_material(
+                    material_reference = materials_pool.write_material(
                         bytemuck::bytes_of(&material_data),
                         MaterialState { material_type },
-                    ));
+                    );
+                    uploaded_materials.insert(material_index, material_reference);
                 }
 
                 if let std::collections::hash_map::Entry::Vacant(e) =
@@ -305,6 +302,7 @@ pub fn on_load_model_system(
                             normal: normals[i].to_array(),
                             uv: uvs[i].to_array(),
                             color: colors[i].to_array(),
+                            ..Default::default()
                         });
                     }
 
@@ -373,7 +371,7 @@ pub fn on_load_model_system(
 
                 spawn_event_record.name = mesh_name;
                 spawn_event_record.parent_index = Some(node_data.index);
-                spawn_event_record.material_reference = material_reference;
+                spawn_event_record.material_reference = Some(material_reference);
                 spawn_event_record.mesh_buffer_reference = Some(mesh_buffer_reference);
                 spawn_event_record.transform = Transform::IDENTITY;
 
@@ -413,6 +411,7 @@ pub fn on_load_model_system(
                 device_address_vertex_indices_buffer,
                 device_address_meshlets_buffer,
                 device_address_local_indices_buffer,
+                ..Default::default()
             }
         })
         .collect::<Vec<_>>();
@@ -422,6 +421,7 @@ pub fn on_load_model_system(
         .mesh_objects_buffer_reference
         .get_buffer_info()
         .device_address;
+
     let mesh_objects_to_copy_regions = mesh_buffers_to_upload
         .into_iter()
         .enumerate()
@@ -457,7 +457,7 @@ pub fn on_load_model_system(
     let materials_data_buffer_reference = renderer_resources.materials_data_buffer_reference;
     let materials_data_to_write_slice = materials_pool.get_materials_data_to_write();
     for (&material_reference, data_to_write) in materials_data_to_write_slice {
-        let ptr_materials_data_to_write = (*data_to_write).as_ptr();
+        let ptr_materials_data_to_write = data_to_write.as_slice().as_ptr();
 
         let material_instance = materials_pool
             .get_material_instance(material_reference)
@@ -677,6 +677,7 @@ fn generate_meshlets(
             triangle_offset: raw_meshlet.triangle_offset as _,
             vertex_count: raw_meshlet.vertex_count as _,
             triangle_count: raw_meshlet.triangle_count as _,
+            ..Default::default()
         });
     }
 

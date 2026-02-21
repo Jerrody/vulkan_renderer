@@ -55,19 +55,19 @@ struct BulletTag;
 pub struct PlanetTag;
 
 fn spawn_planet(mut commands: Commands) {
-    let planet_scale = 20.0;
-    let mut planet_transform = Transform::IDENTITY;
-    planet_transform.local_scale *= planet_scale;
-
-    let planet_entity = commands.spawn((PlanetTag, planet_transform));
-    let planet_entity_id = planet_entity.id();
-
     // TODO: Deduplicate and simplify.
     let mut exe_path = std::env::current_exe().unwrap();
 
     exe_path.pop();
     exe_path.pop();
     exe_path.pop();
+
+    let planet_scale = 1.0;
+    let mut planet_transform = Transform::IDENTITY;
+    planet_transform.local_scale *= planet_scale;
+
+    let planet_entity = commands.spawn((PlanetTag, planet_transform));
+    let planet_entity_id = planet_entity.id();
 
     commands.trigger(LoadModelEvent {
         path: PathBuf::from(std::format!(
@@ -77,8 +77,6 @@ fn spawn_planet(mut commands: Commands) {
         parent_entity: Some(planet_entity_id),
     });
 
-    return;
-    // FIXME: When we call the second load immediatly, we get a crash or if we call the second call in separate system, then we get an absolutely broken geometry.
     let asteroid = 1.0;
     let mut asteroid_transform = Transform::IDENTITY;
     asteroid_transform.local_scale *= asteroid;
@@ -142,8 +140,8 @@ fn spawn_player(mut commands: Commands) {
 
     let mut player_entity = commands.spawn_empty();
     let mut player_transform = Transform::IDENTITY;
-    player_transform.local_position.z = 150.0;
-    player_transform.local_position.y = -5.0;
+    /*     player_transform.local_position.z = 150.0;
+    player_transform.local_position.y = -5.0; */
 
     player_entity.insert((
         camera_component,

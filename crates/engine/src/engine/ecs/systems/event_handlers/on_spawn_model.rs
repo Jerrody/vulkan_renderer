@@ -17,15 +17,18 @@ pub fn on_spawn_mesh_system(spawn_event: On<SpawnEvent>, mut commands: Commands)
     };
     let scene_global_transform = GlobalTransform(scene_transform.local_to_world_matrix());
 
-    let scene_entity_id = commands
-        .spawn((Name::new("Scene"), scene_global_transform, scene_transform))
-        .id();
+    // 1. Spawn the root Scene entity
+    let mut scene_entity_cmds =
+        commands.spawn((Name::new("Scene"), scene_global_transform, scene_transform));
 
+    // Attach it to the main entity (like the Planet or Asteroid root)
     if let Some(parent_entity_id) = spawn_event.parent_entity {
-        let mut scene_entity = commands.get_entity(scene_entity_id).unwrap();
-        scene_entity.insert(Parent(parent_entity_id));
+        scene_entity_cmds.insert(Parent(parent_entity_id));
     };
 
+    let scene_entity_id = scene_entity_cmds.id();
+
+    // 2. Spawn all meshes
     let mut spawned_entities = Vec::with_capacity(spawn_event.spawn_records.len());
 
     for spawn_event_record in spawn_event.spawn_records.iter() {
@@ -33,8 +36,10 @@ pub fn on_spawn_mesh_system(spawn_event: On<SpawnEvent>, mut commands: Commands)
             GlobalTransform(spawn_event_record.transform.local_to_world_matrix()),
             spawn_event_record.transform,
         );
-        let mut spawned_entity = commands.spawn(basic_components);
-        spawned_entities.push(spawned_entity.id());
+
+        let mut spawned_entity_cmds = commands.spawn(basic_components);
+        spawned_entities.push(spawned_entity_cmds.id());
+
         let mut name = Name::new(std::format!(
             "Entity ID: {}",
             spawn_event_record.name.as_str()
@@ -44,14 +49,16 @@ pub fn on_spawn_mesh_system(spawn_event: On<SpawnEvent>, mut commands: Commands)
             let mesh = Mesh {
                 instance_object_index: None,
                 mesh_buffer_reference,
-                material_reference: spawn_event_record.material_reference.unwrap(),
+                material_reference: unsafe {
+                    spawn_event_record.material_reference.unwrap_unchecked()
+                },
             };
             name.set(std::format!(
-                "Mesh ID: {:?}",
+                "Mesh ID: {}",
                 spawn_event_record.name.as_str()
             ));
 
-            spawned_entity.insert(mesh);
+            spawned_entity_cmds.insert(mesh);
         }
 
         let parent = if let Some(parent_index) = spawn_event_record.parent_index {
@@ -60,6 +67,6 @@ pub fn on_spawn_mesh_system(spawn_event: On<SpawnEvent>, mut commands: Commands)
             Parent(scene_entity_id)
         };
 
-        spawned_entity.insert((name, parent));
+        spawned_entity_cmds.insert((name, parent));
     }
 }

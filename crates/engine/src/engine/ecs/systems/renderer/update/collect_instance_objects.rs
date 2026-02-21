@@ -1,6 +1,5 @@
 use bevy_ecs::system::{Query, Res, ResMut};
 use glam::Mat4;
-use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use vulkanite::vk::DeviceAddress;
 
 use crate::engine::{
@@ -10,7 +9,6 @@ use crate::engine::{
 };
 
 pub struct InstanceDataToWrite {
-    pub index: usize,
     pub model_matrix: Mat4,
     pub device_address_mesh_object: DeviceAddress,
     pub device_address_material_data: DeviceAddress,
@@ -20,13 +18,12 @@ pub struct InstanceDataToWrite {
 
 pub fn collect_instance_objects_system(
     mut frame_context: ResMut<FrameContext>,
-    mut materials_pool: Res<MaterialsPool>,
+    materials_pool: Res<MaterialsPool>,
     mut renderer_resources: ResMut<RendererResources>,
-    mut mesh_query: Query<(&GlobalTransform, &mut Mesh)>,
+    mesh_query: Query<(&GlobalTransform, &Mesh)>,
     mesh_buffers: MeshBuffers,
 ) {
-    let mut current_instance_data_index = usize::default();
-    for (global_transform, mut mesh) in &mut mesh_query {
+    for (global_transform, mesh) in mesh_query {
         let material_info = materials_pool.get_material_info(mesh.material_reference);
 
         let mesh_buffer = unsafe {
@@ -35,38 +32,25 @@ pub fn collect_instance_objects_system(
                 .unwrap_unchecked()
         };
 
+        let instance_data_to_write = InstanceDataToWrite {
+            model_matrix: global_transform.0,
+            device_address_mesh_object: mesh_buffer.mesh_object_device_address,
+            meshlet_count: mesh_buffer.meshlets_count,
+            device_address_material_data: material_info.device_adddress_material_data,
+            material_type: material_info.material_type,
+        };
+
         frame_context
             .instance_objects_to_write
-            .push(InstanceDataToWrite {
-                index: current_instance_data_index,
-                model_matrix: global_transform.0,
-                device_address_mesh_object: mesh_buffer.mesh_object_device_address,
-                meshlet_count: mesh_buffer.meshlets_count,
-                device_address_material_data: material_info.device_adddress_material_data,
-                material_type: material_info.material_type,
-            });
-
-        mesh.instance_object_index = Some(current_instance_data_index);
-
-        current_instance_data_index += 1;
+            .push(instance_data_to_write);
     }
 
-    frame_context
-        .instance_objects_to_write
-        .sort_unstable_by_key(|instance_data_to_write| {
-            instance_data_to_write.device_address_mesh_object
-        });
-
-    mesh_query.par_iter_mut().for_each(|(_, mut mesh)| {
-        let mesh_instance_index = unsafe { mesh.instance_object_index.unwrap_unchecked() };
-        let instance_object_index = frame_context
-            .instance_objects_to_write
-            .iter()
-            .position(|instance_data_to_write| instance_data_to_write.index == mesh_instance_index);
-
-        mesh.instance_object_index = instance_object_index;
-    });
-
+    /*     frame_context
+           .instance_objects_to_write
+           .sort_unstable_by_key(|instance_data_to_write| {
+               instance_data_to_write.device_address_mesh_object
+           });
+    */
     frame_context
         .instance_objects_to_write
         .drain(..)

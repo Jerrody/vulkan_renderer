@@ -12,12 +12,9 @@ use padding_struct::padding_struct;
 use slotmap::new_key_type;
 use vulkanite::vk::{rs::*, *};
 
-use crate::engine::{
-    components::material::{MaterialState, MaterialType},
-    resources::{
-        buffers_pool::BufferReference, render_resources::model_loader::ModelLoader,
-        samplers_pool::SamplerReference, textures_pool::TextureReference,
-    },
+use crate::engine::resources::{
+    buffers_pool::BufferReference, render_resources::model_loader::ModelLoader,
+    samplers_pool::SamplerReference, textures_pool::TextureReference,
 };
 
 new_key_type! {
@@ -29,7 +26,8 @@ new_key_type! {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
+#[padding_struct]
+#[derive(Default, Clone, Copy, Pod, Zeroable)]
 pub struct Meshlet {
     pub vertex_offset: u32,
     pub triangle_offset: u32,
@@ -38,6 +36,7 @@ pub struct Meshlet {
 }
 
 #[repr(C)]
+#[padding_struct]
 #[derive(Default, Clone, Copy, Pod, Zeroable)]
 pub struct Vertex {
     pub position: [f32; 3],
@@ -47,7 +46,8 @@ pub struct Vertex {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
+#[padding_struct]
+#[derive(Default, Clone, Copy, Pod, Zeroable)]
 pub struct MeshObject {
     pub device_address_vertex_buffer: DeviceAddress,
     pub device_address_vertex_indices_buffer: DeviceAddress,
@@ -67,6 +67,7 @@ pub struct InstanceObject {
 }
 
 #[repr(C)]
+#[padding_struct]
 #[derive(Clone, Copy, Default, Pod, Zeroable)]
 pub struct GraphicsPushConstant {
     pub device_address_scene_data: DeviceAddress,

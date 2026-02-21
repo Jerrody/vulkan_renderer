@@ -1,6 +1,6 @@
 use ahash::AHashMap;
 use bevy_ecs::resource::Resource;
-use slotmap::SlotMap;
+use slotmap::{Key, SlotMap};
 use vulkanite::vk::DeviceAddress;
 
 use crate::engine::ecs::{
@@ -17,24 +17,23 @@ pub struct OffsetElement {
 
 pub struct VariableOffsets {
     offsets: AHashMap<u32, OffsetElement>,
+    current_offset: usize,
 }
 
 impl VariableOffsets {
     pub fn new(capacity: usize) -> Self {
         VariableOffsets {
             offsets: AHashMap::with_capacity(capacity),
+            current_offset: Default::default(),
         }
     }
 
     pub fn push(&mut self, index: u32, size: usize) -> OffsetElement {
-        let offset = self
-            .offsets
-            .iter()
-            .last()
-            .and_then(|(_, offset_element)| Some(offset_element.offset + offset_element.size))
-            .unwrap_or(Default::default());
-
-        let offset_element = OffsetElement { size, offset };
+        let offset_element = OffsetElement {
+            size,
+            offset: self.current_offset,
+        };
+        self.current_offset = offset_element.size + offset_element.offset;
         self.offsets.insert(index, offset_element);
 
         offset_element
