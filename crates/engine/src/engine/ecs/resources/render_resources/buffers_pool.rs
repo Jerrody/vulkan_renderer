@@ -68,14 +68,8 @@ pub struct AllocatedBuffer {
 
 #[derive(Default, Clone, Copy)]
 pub struct BufferReference {
-    pub key: BufferKey,
+    key: BufferKey,
     buffer_info: BufferInfo,
-}
-
-impl BufferReference {
-    pub fn new(key: BufferKey, buffer_info: BufferInfo) -> Self {
-        Self { key, buffer_info }
-    }
 }
 
 #[derive(Default, Clone, Copy)]
@@ -429,20 +423,36 @@ impl BuffersPool {
             BufferVisibility::Unspecified => unreachable!(),
         };
 
+        let mut gpu_copy_regions = Vec::with_capacity(regions_to_copy.len());
+
         unsafe {
             let ptr_mapped_memory = self.allocator.map_memory(target_buffer.allocation).unwrap();
+            let mut staging_write_offset = Default::default();
 
             for &buffer_copy in regions_to_copy {
                 let src_with_offset = src.add(buffer_copy.src_offset as usize);
 
-                let ptr_mapped_memory_with_offset =
-                    ptr_mapped_memory.add(buffer_copy.dst_offset as usize);
+                let cpu_write_offset = if buffer_visibility == BufferVisibility::HostVisible {
+                    buffer_copy.dst_offset as usize
+                } else {
+                    staging_write_offset
+                };
+
+                let ptr_mapped_memory_with_offset = ptr_mapped_memory.add(cpu_write_offset);
 
                 std::ptr::copy_nonoverlapping(
                     src_with_offset,
                     ptr_mapped_memory_with_offset as _,
                     buffer_copy.size as usize,
                 );
+
+                if buffer_visibility == BufferVisibility::DeviceOnly {
+                    let mut gpu_region = buffer_copy;
+                    gpu_region.src_offset = staging_write_offset as u64;
+                    gpu_copy_regions.push(gpu_region);
+
+                    staging_write_offset += buffer_copy.size as usize;
+                }
             }
 
             self.allocator.unmap_memory(target_buffer.allocation);
@@ -453,7 +463,7 @@ impl BuffersPool {
                 self.copy_buffer_to_buffer(
                     target_buffer.buffer,
                     allocated_buffer.buffer,
-                    regions_to_copy,
+                    &gpu_copy_regions,
                 )
             }
         }

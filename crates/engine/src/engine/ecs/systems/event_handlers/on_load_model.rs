@@ -102,13 +102,12 @@ pub fn on_load_model_system(
     vulkan_context: Res<VulkanContextResource>,
     mut materials_pool: ResMut<MaterialsPool>,
     renderer_context_resource: Res<RendererContext>,
-    mut renderer_resources: ResMut<RendererResources>,
+    renderer_resources: ResMut<RendererResources>,
     mut descriptor_set_handle: ResMut<DescriptorSetHandle>,
     mut buffers_mut: BuffersMut,
     mut textures_mut: TexturesMut,
     mut mesh_buffers_mut: MeshBuffersMut,
 ) {
-    println!("LOAD MODEL");
     let model_loader = &renderer_resources.model_loader;
 
     let mut nodes = Vec::new();
