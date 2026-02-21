@@ -45,12 +45,6 @@ pub fn collect_instance_objects_system(
             .push(instance_data_to_write);
     }
 
-    /*     frame_context
-           .instance_objects_to_write
-           .sort_unstable_by_key(|instance_data_to_write| {
-               instance_data_to_write.device_address_mesh_object
-           });
-    */
     frame_context
         .instance_objects_to_write
         .drain(..)
