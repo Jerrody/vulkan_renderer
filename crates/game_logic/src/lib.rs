@@ -2,11 +2,14 @@ use std::path::PathBuf;
 
 use bevy_ecs::{
     component::Component,
+    entity::Entity,
+    entity_disabling::Disabled,
+    query::{With, Without},
     system::{Commands, Query, Res},
 };
 use engine::{
     GamePlugin,
-    engine::{Camera, ClippingPlanes, Input, LoadModelEvent, Time, Transform},
+    engine::{Camera, ClippingPlanes, Input, LoadModelEvent, Parent, Time, Transform},
 };
 use glam::FloatExt;
 use winit::keyboard::KeyCode;
@@ -66,7 +69,7 @@ fn spawn_planet(mut commands: Commands) {
     let mut planet_transform = Transform::IDENTITY;
     planet_transform.local_scale *= planet_scale;
 
-    let planet_entity = commands.spawn((PlanetTag, planet_transform));
+    let planet_entity = commands.spawn((PlanetTag, Disabled, planet_transform));
     let planet_entity_id = planet_entity.id();
 
     commands.trigger(LoadModelEvent {

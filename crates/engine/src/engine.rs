@@ -7,6 +7,7 @@ mod utils;
 use ecs::*;
 
 use bevy_ecs::{
+    entity_disabling::Disabled,
     schedule::{IntoScheduleConfigs, ScheduleLabel, Schedules},
     world::World,
 };
@@ -17,7 +18,7 @@ use crate::{
     engine::{
         ecs::{
             buffers_pool::BuffersPool,
-            general::update_time,
+            general::{propogate_disabled_to_new_children, update_time},
             samplers_pool::SamplersPool,
             setup::{
                 prepare_default_samplers::prepare_default_samplers_system,
@@ -32,7 +33,7 @@ use crate::{
 
 pub use components::camera::{Camera, ClippingPlanes};
 pub use components::time::Time;
-pub use components::transform::Transform;
+pub use components::transform::{Children, Parent, Transform};
 pub use events::LoadModelEvent;
 pub use resources::Input;
 
@@ -57,6 +58,7 @@ pub struct Engine {
 impl Engine {
     pub fn new(window: &dyn Window) -> Self {
         let mut world: World = World::new();
+        world.register_disabling_component::<Disabled>();
 
         let vulkan_context_resource = Self::create_vulkan_context(window);
         world.insert_resource(vulkan_context_resource);
@@ -77,8 +79,13 @@ impl Engine {
         let mut schedulers = world.resource_mut::<Schedules>();
 
         let scheduler_world_update = schedulers.entry(SchedulerWorldUpdate);
-        scheduler_world_update
-            .add_systems((propogate_transforms_system, update_time::update_time_system));
+        scheduler_world_update.add_systems((
+            propogate_disabled_to_new_children::propagate_disabled_to_new_children_system,
+            propogate_transforms_system.after(
+                propogate_disabled_to_new_children::propagate_disabled_to_new_children_system,
+            ),
+            update_time::update_time_system,
+        ));
 
         let scheduler_renderer_setup = schedulers.entry(SchedulerRendererSetup);
         scheduler_renderer_setup.add_systems(
@@ -137,10 +144,10 @@ impl Engine {
 
     #[inline(always)]
     pub fn update(&mut self) {
-        self.world.flush();
-
         self.world.run_schedule(SchedulerWorldUpdate);
         self.world.run_schedule(SchedulerGameUpdate);
+        self.world.flush();
+
         self.world.run_schedule(SchedulerRendererUpdate);
 
         let mut input = unsafe { self.world.get_resource_mut::<Input>().unwrap_unchecked() };

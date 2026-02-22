@@ -1,8 +1,6 @@
 use bevy_ecs::{component::Component, entity::Entity};
 use glam::{EulerRot, Mat4, Quat, Vec3};
 
-use crate::engine::ecs::{on_add_parent, on_remove_parent};
-
 #[derive(Clone, Copy, Component, Debug)]
 #[require(GlobalTransform)]
 pub struct Transform {
@@ -118,8 +116,9 @@ impl Default for GlobalTransform {
 }
 
 #[derive(Clone, Copy, Component)]
-#[component(on_add = on_add_parent, on_remove = on_remove_parent)]
+#[relationship(relationship_target = Children)]
 pub struct Parent(pub Entity);
 
 #[derive(Default, Component)]
-pub struct Children(pub Vec<Entity>);
+#[relationship_target(relationship = Parent)]
+pub struct Children(Vec<Entity>);

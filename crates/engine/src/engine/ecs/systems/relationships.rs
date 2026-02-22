@@ -1,9 +1,8 @@
 use bevy_ecs::{
     entity::Entity,
-    lifecycle::HookContext,
     query::Without,
+    relationship::RelationshipTarget,
     system::{ParamSet, Query},
-    world::DeferredWorld,
 };
 use glam::Mat4;
 
@@ -24,8 +23,8 @@ pub fn propogate_transforms_system(
         }
 
         for &children in children_query.get(entity).iter() {
-            for child in children.0.iter() {
-                stack.push((*child, matrix));
+            for entity in children.iter() {
+                stack.push((entity, matrix));
             }
         }
     }
@@ -43,44 +42,9 @@ pub fn propogate_transforms_system(
         }
 
         if let Ok(children) = children_query.get(child_entity) {
-            for &child in children.0.iter() {
-                stack.push((child, child_global_matrix));
+            for entity in children.iter() {
+                stack.push((entity, child_global_matrix));
             }
         }
     }
-}
-
-pub fn on_add_parent(mut world: DeferredWorld, hook_context: HookContext) {
-    let entity = hook_context.entity;
-    let parent_entity = world.get::<Parent>(entity).unwrap().0;
-
-    if world.get::<Children>(parent_entity).is_none() {
-        world
-            .commands()
-            .entity(parent_entity)
-            .insert(Children::default());
-    }
-
-    world
-        .commands()
-        .entity(parent_entity)
-        .entry::<Children>()
-        .and_modify(move |mut children| {
-            if !children.0.contains(&entity) {
-                children.0.push(entity);
-            }
-        });
-}
-
-pub fn on_remove_parent(mut world: DeferredWorld, hook_context: HookContext) {
-    let entity = hook_context.entity;
-    let parent_entity = world.get::<Parent>(entity).unwrap().0;
-
-    world
-        .commands()
-        .entity(parent_entity)
-        .entry::<Children>()
-        .and_modify(move |mut children| {
-            children.0.retain(|&child_entity| child_entity != entity);
-        });
 }
