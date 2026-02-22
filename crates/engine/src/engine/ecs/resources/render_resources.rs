@@ -130,6 +130,7 @@ impl<'a> SwappableBuffer {
         }
     }
 
+    #[inline(always)]
     pub fn next_buffer(&mut self) {
         self.current_buffer_index += 1;
         if self.current_buffer_index >= self.buffers.len() {
@@ -138,10 +139,12 @@ impl<'a> SwappableBuffer {
         self.data_to_write.clear();
     }
 
+    #[inline(always)]
     pub fn get_current_buffer(&self) -> BufferReference {
-        self.buffers[self.current_buffer_index]
+        unsafe { *self.buffers.get_unchecked(self.current_buffer_index) }
     }
 
+    #[inline(always)]
     pub fn get_objects_to_write_as_slice(&'a self) -> &'a [u8] {
         self.data_to_write.as_slice()
     }

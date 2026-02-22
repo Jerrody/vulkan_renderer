@@ -17,11 +17,13 @@ pub fn update_resources_system(
     mut frame_context: ResMut<frame_context::FrameContext>,
     transform_camera_query: Query<(&Camera, &Transform)>,
 ) {
-    let instances_objects_buffer = renderer_resources
-        .resources_pool
-        .instances_buffer
-        .as_ref()
-        .unwrap();
+    let instances_objects_buffer = unsafe {
+        renderer_resources
+            .resources_pool
+            .instances_buffer
+            .as_ref()
+            .unwrap_unchecked()
+    };
 
     update_buffer_data(instances_objects_buffer, &buffers);
 
@@ -44,11 +46,13 @@ pub fn update_resources_system(
 
         frame_context.world_matrix = projection * view;
 
-        let scene_data_buffer = renderer_resources
-            .resources_pool
-            .scene_data_buffer
-            .as_mut()
-            .unwrap();
+        let scene_data_buffer = unsafe {
+            renderer_resources
+                .resources_pool
+                .scene_data_buffer
+                .as_mut()
+                .unwrap_unchecked()
+        };
 
         let scene_data = SceneData {
             camera_view_matrix: frame_context.world_matrix.to_cols_array(),
@@ -68,16 +72,19 @@ pub fn update_resources_system(
         };
         scene_data_buffer.write_data_to_current_buffer(&scene_data);
 
-        let scene_data_buffer = renderer_resources
-            .resources_pool
-            .scene_data_buffer
-            .as_ref()
-            .unwrap();
+        let scene_data_buffer = unsafe {
+            renderer_resources
+                .resources_pool
+                .scene_data_buffer
+                .as_ref()
+                .unwrap_unchecked()
+        };
 
         update_buffer_data(scene_data_buffer, &buffers);
     }
 }
 
+#[inline(always)]
 fn update_buffer_data(buffer_to_update: &SwappableBuffer, buffers: &BuffersPool) {
     let data_to_write = buffer_to_update.get_objects_to_write_as_slice();
 
