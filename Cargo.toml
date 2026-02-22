@@ -1,6 +1,11 @@
 [workspace]
 resolver = "3"
-members = ["crates/engine", "crates/game_logic", "crates/game_runner"]
+members = [
+    "crates/engine",
+    "crates/game_logic",
+    "crates/game_runner",
+    "crates/engine/math",
+]
 
 [workspace.dependencies]
 rayon = "1.11.0"
@@ -13,7 +18,7 @@ glam = { version = "0.32.0", features = ["fast-math", "bytemuck"] }
 winit = { version = "=0.31.0-beta.2", default-features = false }
 engine = { path = "crates/engine" }
 game_logic = { path = "crates/game_logic" }
-rand = { version = "0.10.0", features = ["simd_support"] }
+rand = "0.10.0"
 rand_xoshiro = "0.8.0"
 
 [profile.dev]
