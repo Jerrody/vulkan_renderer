@@ -156,9 +156,6 @@ impl Engine {
 
     #[inline(always)]
     pub fn process_input(&mut self, key_code: KeyCode, state: ElementState) {
-        //let mut camera = unsafe { self.world.get_resource_mut::<Camera>().unwrap_unchecked() };
-        //camera.process_keycode(key_code, state);
-
         let mut input = unsafe { self.world.get_resource_mut::<Input>().unwrap_unchecked() };
         if state == ElementState::Pressed {
             input.press(key_code);
