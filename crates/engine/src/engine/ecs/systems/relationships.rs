@@ -1,49 +1,40 @@
 use bevy_ecs::{
-    entity::Entity,
-    query::Without,
+    query::{With, Without},
     relationship::RelationshipTarget,
-    system::{ParamSet, Query},
+    system::Query,
 };
-use glam::Mat4;
 
 use crate::engine::components::transform::{Children, GlobalTransform, Parent, Transform};
 
 pub fn propogate_transforms_system(
-    root_query: Query<(Entity, &Transform), Without<Parent>>,
-    children_query: Query<&Children>,
-    mut transforms: ParamSet<(Query<&mut GlobalTransform>, Query<&Transform>)>,
+    mut root_query: Query<(&Transform, &mut GlobalTransform, Option<&Children>), Without<Parent>>,
+    mut child_query: Query<(&Transform, &mut GlobalTransform, Option<&Children>), With<Parent>>,
 ) {
-    let mut stack = Vec::with_capacity(children_query.iter().len());
+    let mut stack = Vec::with_capacity(child_query.iter().len());
 
-    for (entity, transform) in root_query.iter() {
+    for (transform, mut global_transform, children) in root_query.iter_mut() {
         let matrix = transform.local_to_world_matrix();
 
-        if let Ok(mut global_transform) = transforms.p0().get_mut(entity) {
-            global_transform.0 = matrix;
-        }
+        global_transform.0 = matrix;
 
-        for &children in children_query.get(entity).iter() {
-            for entity in children.iter() {
-                stack.push((entity, matrix));
+        if let Some(children) = children {
+            for child in children.iter() {
+                stack.push((child, matrix));
             }
         }
     }
 
     while let Some((child_entity, parent_matrix)) = stack.pop() {
-        let local_matrix = if let Ok(transform) = transforms.p1().get(child_entity) {
-            transform.local_to_world_matrix()
-        } else {
-            Mat4::IDENTITY
-        };
+        if let Ok((transform, mut global_transform, children)) = child_query.get_mut(child_entity) {
+            let local_matrix = transform.local_to_world_matrix();
+            let child_global_matrix = parent_matrix * local_matrix;
 
-        let child_global_matrix = parent_matrix * local_matrix;
-        if let Ok(mut child_global_transform) = transforms.p0().get_mut(child_entity) {
-            child_global_transform.0 = child_global_matrix;
-        }
+            global_transform.0 = child_global_matrix;
 
-        if let Ok(children) = children_query.get(child_entity) {
-            for entity in children.iter() {
-                stack.push((entity, child_global_matrix));
+            if let Some(children) = children {
+                for next_child in children.iter() {
+                    stack.push((next_child, child_global_matrix));
+                }
             }
         }
     }

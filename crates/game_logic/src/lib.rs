@@ -67,17 +67,18 @@ fn spawn_planet(mut commands: Commands) {
     let mut planet_transform = Transform::IDENTITY;
     planet_transform.local_scale *= planet_scale;
 
-    let planet_entity = commands.spawn((PlanetTag, Disabled, planet_transform));
+    let planet_entity = commands.spawn((PlanetTag, planet_transform));
     let planet_entity_id = planet_entity.id();
 
     commands.trigger(LoadModelEvent {
         path: PathBuf::from(std::format!(
-            "{}/assets/planet.glb",
+            "{}/assets/structure.glb",
             exe_path.as_os_str().display()
         )),
         parent_entity: Some(planet_entity_id),
     });
 
+    return;
     let asteroid = 1.0;
     let mut asteroid_transform = Transform::IDENTITY;
     asteroid_transform.local_scale *= asteroid;
@@ -225,10 +226,11 @@ fn jump_player(
         player_jump.is_falling = player_jump.current_duration > player_jump.jump_duration / 2.0;
 
         if player_jump.is_falling
-            && f32::abs(transform.local_position.y - player_jump.initial_y_height) < 0.1 {
-                player_jump.is_jumping = false;
-                player_jump.is_falling = false;
-            }
+            && f32::abs(transform.local_position.y - player_jump.initial_y_height) < 0.1
+        {
+            player_jump.is_jumping = false;
+            player_jump.is_falling = false;
+        }
     } else {
         if input.just_pressed(KeyCode::Space) {
             player_jump.is_jumping = true;
