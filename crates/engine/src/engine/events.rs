@@ -14,6 +14,7 @@ pub struct LoadModelEvent {
 }
 
 #[derive(Clone)]
+#[derive(Default)]
 pub struct SpawnEventRecord {
     pub name: String,
     pub parent_index: Option<usize>,
@@ -22,17 +23,6 @@ pub struct SpawnEventRecord {
     pub transform: Transform,
 }
 
-impl Default for SpawnEventRecord {
-    fn default() -> Self {
-        Self {
-            name: String::default(),
-            parent_index: Default::default(),
-            mesh_buffer_reference: Default::default(),
-            material_reference: None,
-            transform: Default::default(),
-        }
-    }
-}
 
 #[derive(Default, Event)]
 pub struct SpawnEvent {

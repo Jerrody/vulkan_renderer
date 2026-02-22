@@ -26,7 +26,7 @@ use crate::engine::{
     },
     ecs::{
         buffers_pool::BuffersMut,
-        materials_pool::{self, MaterialReference, MaterialsPool},
+        materials_pool::{MaterialReference, MaterialsPool},
         mesh_buffers_pool::{MeshBuffer, MeshBufferReference, MeshBuffersMut},
         textures_pool::TexturesMut,
     },
@@ -188,9 +188,7 @@ pub fn on_load_model_system(
 
                 let material_index = mesh.material_index();
                 let material_reference: MaterialReference;
-                if uploaded_materials.contains_key(&material_index) {
-                    material_reference = *uploaded_materials.get(&material_index).unwrap();
-                } else {
+                if let std::collections::hash_map::Entry::Vacant(e) = uploaded_materials.entry(material_index) {
                     let material = scene.material(material_index).unwrap();
 
                     let alpha_mode = std::str::from_utf8(
@@ -251,7 +249,9 @@ pub fn on_load_model_system(
                         bytemuck::bytes_of(&material_data),
                         MaterialState { material_type },
                     );
-                    uploaded_materials.insert(material_index, material_reference);
+                    e.insert(material_reference);
+                } else {
+                    material_reference = *uploaded_materials.get(&material_index).unwrap();
                 }
 
                 if let std::collections::hash_map::Entry::Vacant(e) =

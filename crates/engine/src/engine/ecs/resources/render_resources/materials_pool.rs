@@ -1,12 +1,11 @@
 use ahash::AHashMap;
 use bevy_ecs::resource::Resource;
-use slotmap::{Key, SlotMap};
+use slotmap::SlotMap;
 use vulkanite::vk::DeviceAddress;
 
 use crate::engine::ecs::{
     MaterialKey,
     components::material::{MaterialState, MaterialType},
-    materials_pool,
 };
 
 #[derive(Clone, Copy)]
@@ -141,7 +140,7 @@ impl MaterialsPool {
         self.materials_to_write.clear();
     }
 
-    pub fn get_materials_data_to_write<'a>(&'a self) -> &'a AHashMap<MaterialReference, Vec<u8>> {
+    pub fn get_materials_data_to_write(&self) -> &AHashMap<MaterialReference, Vec<u8>> {
         &self.materials_to_write
     }
 

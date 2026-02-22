@@ -2,7 +2,7 @@ use bevy_ecs::{
     entity::Entity,
     entity_disabling::Disabled,
     query::{With, Without},
-    system::{Commands, ParallelCommands, Query},
+    system::{Commands, Query},
 };
 
 use crate::engine::Parent;

@@ -2,14 +2,12 @@ use std::path::PathBuf;
 
 use bevy_ecs::{
     component::Component,
-    entity::Entity,
     entity_disabling::Disabled,
-    query::{With, Without},
     system::{Commands, Query, Res},
 };
 use engine::{
     GamePlugin,
-    engine::{Camera, ClippingPlanes, Input, LoadModelEvent, Parent, Time, Transform},
+    engine::{Camera, ClippingPlanes, Input, LoadModelEvent, Time, Transform},
 };
 use glam::FloatExt;
 use winit::keyboard::KeyCode;
@@ -226,12 +224,11 @@ fn jump_player(
         transform.local_position.y = new_height;
         player_jump.is_falling = player_jump.current_duration > player_jump.jump_duration / 2.0;
 
-        if player_jump.is_falling {
-            if f32::abs(transform.local_position.y - player_jump.initial_y_height) < 0.1 {
+        if player_jump.is_falling
+            && f32::abs(transform.local_position.y - player_jump.initial_y_height) < 0.1 {
                 player_jump.is_jumping = false;
                 player_jump.is_falling = false;
             }
-        }
     } else {
         if input.just_pressed(KeyCode::Space) {
             player_jump.is_jumping = true;

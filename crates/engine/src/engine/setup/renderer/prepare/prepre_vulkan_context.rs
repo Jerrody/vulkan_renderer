@@ -5,8 +5,7 @@ use vma::{Allocator, AllocatorCreateFlags, AllocatorCreateInfo};
 use vulkanite::{
     DefaultAllocator, Dispatcher, DynamicDispatcher, flagbits, structure_chain,
     vk::{
-        self, EXT_DESCRIPTOR_BUFFER, EXT_MESH_SHADER, EXT_SHADER_OBJECT,
-        KHR_SHADER_NON_SEMANTIC_INFO, KHR_UNIFIED_IMAGE_LAYOUTS,
+        self, EXT_DESCRIPTOR_BUFFER, EXT_MESH_SHADER, EXT_SHADER_OBJECT, KHR_UNIFIED_IMAGE_LAYOUTS,
         PhysicalDeviceDescriptorBufferFeaturesEXT, PhysicalDeviceMeshShaderFeaturesEXT,
         PhysicalDeviceRobustness2FeaturesKHR, PhysicalDeviceShaderObjectFeaturesEXT,
         PhysicalDeviceUnifiedImageLayoutsFeaturesKHR, PhysicalDeviceVulkan11Features,
