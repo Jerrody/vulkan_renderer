@@ -48,10 +48,6 @@ pub struct PlayerJump {
 
 #[derive(Component)]
 #[require(Transform)]
-struct BulletTag;
-
-#[derive(Component)]
-#[require(Transform)]
 pub struct PlanetTag;
 
 fn spawn_planet(mut commands: Commands) {
@@ -62,7 +58,7 @@ fn spawn_planet(mut commands: Commands) {
     exe_path.pop();
     exe_path.pop();
 
-    let planet_scale = 1.0;
+    let planet_scale = 20.0;
     let mut planet_transform = Transform::IDENTITY;
     planet_transform.local_scale *= planet_scale;
 
@@ -71,13 +67,12 @@ fn spawn_planet(mut commands: Commands) {
 
     commands.trigger(LoadModelEvent {
         path: PathBuf::from(std::format!(
-            "{}/assets/structure.glb",
+            "{}/assets/planet.glb",
             exe_path.as_os_str().display()
         )),
         parent_entity: Some(planet_entity_id),
     });
 
-    return;
     let asteroid = 1.0;
     let mut asteroid_transform = Transform::IDENTITY;
     asteroid_transform.local_scale *= asteroid;
