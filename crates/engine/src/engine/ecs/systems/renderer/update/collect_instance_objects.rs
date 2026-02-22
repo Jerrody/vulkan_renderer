@@ -6,6 +6,7 @@ use crate::engine::{
     resources::RendererResources,
 };
 
+// TODO: Take into account if GlobalTransform really changed or not and update if necessary.
 pub fn collect_instance_objects_system(
     materials_pool: Res<MaterialsPool>,
     mut renderer_resources: ResMut<RendererResources>,
