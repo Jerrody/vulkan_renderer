@@ -188,7 +188,9 @@ pub fn on_load_model_system(
 
                 let material_index = mesh.material_index();
                 let material_reference: MaterialReference;
-                if let std::collections::hash_map::Entry::Vacant(e) = uploaded_materials.entry(material_index) {
+                if let std::collections::hash_map::Entry::Vacant(e) =
+                    uploaded_materials.entry(material_index)
+                {
                     let material = scene.material(material_index).unwrap();
 
                     let alpha_mode = std::str::from_utf8(

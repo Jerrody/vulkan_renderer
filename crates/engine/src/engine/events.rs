@@ -13,8 +13,7 @@ pub struct LoadModelEvent {
     pub parent_entity: Option<Entity>,
 }
 
-#[derive(Clone)]
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct SpawnEventRecord {
     pub name: String,
     pub parent_index: Option<usize>,
@@ -22,7 +21,6 @@ pub struct SpawnEventRecord {
     pub material_reference: Option<MaterialReference>,
     pub transform: Transform,
 }
-
 
 #[derive(Default, Event)]
 pub struct SpawnEvent {
