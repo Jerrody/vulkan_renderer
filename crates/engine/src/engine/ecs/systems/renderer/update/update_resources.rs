@@ -1,5 +1,5 @@
 use bevy_ecs::system::{Query, Res, ResMut};
-use glam::{Mat4, Vec3, Vec4};
+use math::{Mat4, Vec3, Vec4};
 
 use crate::engine::{
     Transform,

@@ -1,5 +1,5 @@
 use bevy_ecs::{component::Component, entity::Entity};
-use glam::{EulerRot, Mat4, Quat, Vec3};
+use math::{EulerRot, Mat4, Quat, Vec3};
 
 #[derive(Clone, Copy, Component, Debug)]
 #[require(GlobalTransform)]

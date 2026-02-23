@@ -11,7 +11,7 @@ use bevy_ecs::{
     observer::On,
     system::{Commands, Res, ResMut},
 };
-use glam::{Mat4, Vec2, Vec3, Vec4};
+use math::{Mat4, Vec2, Vec3, Vec4};
 use meshopt::{
     VertexDataAdapter, build_meshlets, optimize_vertex_cache_in_place, optimize_vertex_fetch,
     optimize_vertex_fetch_remap, remap_index_buffer, remap_vertex_buffer, typed_to_bytes,
@@ -67,7 +67,7 @@ impl NodeData {
     }
 
     pub fn get_matrix(transformation: Matrix4x4) -> Mat4 {
-        glam::Mat4 {
+        math::Mat4 {
             x_axis: Vec4::new(
                 transformation.x_axis.x,
                 transformation.x_axis.y,

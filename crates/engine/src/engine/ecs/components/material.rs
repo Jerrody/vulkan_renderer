@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use glam::Vec4;
+use math::Vec4;
 use vulkanite::vk::DeviceAddress;
 
 #[derive(Default, Clone, Copy)]

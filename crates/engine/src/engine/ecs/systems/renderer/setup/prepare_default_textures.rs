@@ -1,5 +1,5 @@
 use bevy_ecs::system::{Res, ResMut};
-use glam::Vec4;
+use math::Vec4;
 
 use vulkanite::vk::*;
 

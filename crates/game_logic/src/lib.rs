@@ -2,13 +2,13 @@ use std::path::PathBuf;
 
 use bevy_ecs::{
     component::Component,
-    system::{Commands, Query, Res},
+    system::{Commands, Query, Res, ResMut},
 };
+use engine::math::*;
 use engine::{
     GamePlugin,
     engine::{Camera, ClippingPlanes, Input, LoadModelEvent, Time, Transform},
 };
-use glam::FloatExt;
 use winit::keyboard::KeyCode;
 
 #[unsafe(no_mangle)]
@@ -126,6 +126,7 @@ fn move_player(
     mut player_query: Query<(&mut Transform, &PlayerStats, &PlayerJump)>,
     time: Res<Time>,
     input: Res<Input>,
+    mut random: ResMut<Random>,
 ) {
     let delta_time = time.get_delta_time();
 

@@ -4,7 +4,7 @@ members = [
     "crates/engine",
     "crates/game_logic",
     "crates/game_runner",
-    "crates/engine/math",
+    "crates/engine/crates/math",
 ]
 
 [workspace.dependencies]
@@ -14,12 +14,10 @@ bevy_ecs = { version = "0.18.0", default-features = false, features = [
     "backtrace",
     "multi_threaded",
 ] }
-glam = { version = "0.32.0", features = ["fast-math", "bytemuck"] }
 winit = { version = "=0.31.0-beta.2", default-features = false }
 engine = { path = "crates/engine" }
 game_logic = { path = "crates/game_logic" }
-rand = "0.10.0"
-rand_xoshiro = "0.8.0"
+math = { path = "crates/engine/crates/math" }
 
 [profile.dev]
 opt-level = 0
@@ -28,6 +26,9 @@ debug = 2
 [profile.dev.build-override]
 opt-level = 2
 debug = 0
+
+[profile.dev.package.math]
+opt-level = 3
 
 [profile.dev.package."*"]
 opt-level = 2

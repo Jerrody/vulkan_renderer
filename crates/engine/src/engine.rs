@@ -11,6 +11,7 @@ use bevy_ecs::{
     schedule::{IntoScheduleConfigs, ScheduleLabel, Schedules},
     world::World,
 };
+use math::Random;
 use winit::{event::ElementState, keyboard::KeyCode, window::Window};
 
 use crate::{
@@ -35,6 +36,7 @@ pub use components::camera::{Camera, ClippingPlanes};
 pub use components::time::Time;
 pub use components::transform::{Children, Parent, Transform};
 pub use events::LoadModelEvent;
+pub use math;
 pub use resources::Input;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
@@ -119,6 +121,7 @@ impl Engine {
 
         world.insert_resource(Time::new());
         world.insert_resource(Input::new());
+        world.insert_resource(Random::new());
 
         world.run_schedule(SchedulerRendererSetup);
         world.flush();

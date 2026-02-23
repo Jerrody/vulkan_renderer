@@ -977,9 +977,9 @@ dependencies = [
  "bytemuck",
  "dolly",
  "fast_image_resize",
- "glam 0.32.0",
  "image",
  "ktx2-rw",
+ "math",
  "meshopt",
  "nameof",
  "num_cpus",
@@ -1258,7 +1258,6 @@ version = "0.1.0"
 dependencies = [
  "bevy_ecs",
  "engine",
- "glam 0.32.0",
  "winit",
 ]
 
@@ -1945,6 +1944,7 @@ dependencies = [
 name = "math"
 version = "0.1.0"
 dependencies = [
+ "bevy_ecs",
  "glam 0.32.0",
  "rand 0.10.0",
  "rand_xoshiro",

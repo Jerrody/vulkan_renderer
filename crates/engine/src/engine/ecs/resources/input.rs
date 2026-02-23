@@ -1,7 +1,7 @@
 use ahash::AHashSet;
 //use ahash::{AHashSet, HashSet};
 use bevy_ecs::resource::Resource;
-use glam::Vec2;
+use math::Vec2;
 use winit::keyboard::KeyCode;
 
 #[derive(Resource)]

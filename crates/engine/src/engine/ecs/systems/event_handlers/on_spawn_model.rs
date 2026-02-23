@@ -1,5 +1,5 @@
 use bevy_ecs::{name::Name, observer::On, system::Commands};
-use glam::{Quat, Vec3};
+use math::{Quat, Vec3};
 
 use crate::engine::{
     components::{

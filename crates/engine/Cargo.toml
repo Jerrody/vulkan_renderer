@@ -10,7 +10,6 @@ crate-type = ["dylib"]
 [dependencies]
 rayon = { workspace = true }
 bevy_ecs = { workspace = true }
-glam = { workspace = true }
 winit = { workspace = true }
 raw-window-handle = "0.6.2"
 vulkanite = { git = "https://github.com/Jerrody/vulkanite", features = [
@@ -47,3 +46,4 @@ fast_image_resize = { version = "6.0.0", features = ["rayon", "image"] }
 num_cpus = "1.17.0"
 padding-struct = "0.2.0"
 slotmap = { git = "https://github.com/Jerrody/slotmap" }
+math = { workspace = true }
