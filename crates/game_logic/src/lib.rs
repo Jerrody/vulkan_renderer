@@ -2,7 +2,13 @@ use std::path::PathBuf;
 
 use bevy_ecs::{
     component::Component,
-    system::{Commands, Query, Res, ResMut},
+    entity::{Entity, EntityCloner},
+    entity_disabling::Disabled,
+    hierarchy::Children,
+    query::{Has, With},
+    relationship::RelationshipTarget,
+    system::{Command, Commands, Local, Query, Res, ResMut},
+    world::World,
 };
 use engine::math::*;
 use engine::{
@@ -24,7 +30,7 @@ impl GamePlugin for Game {
     }
 
     fn add_systems_update(&self, schedule: &mut bevy_ecs::schedule::Schedule) {
-        schedule.add_systems((move_player, rotate_player, jump_player));
+        schedule.add_systems((move_player, spawn_asteroids, rotate_player, jump_player));
     }
 }
 
@@ -49,6 +55,40 @@ pub struct PlayerJump {
 #[derive(Component)]
 #[require(Transform)]
 pub struct PlanetTag;
+
+#[derive(Component)]
+#[require(Transform)]
+pub struct AsteroidTag;
+
+pub trait Prefab {
+    fn instantiate(&self, commands: Commands) -> Entity;
+}
+
+#[derive(Component)]
+#[require(Transform)]
+pub struct AsteroidPrefab;
+
+pub struct CloneHierarchyCommand {
+    pub source: Entity,
+    pub position: Vec3,
+}
+
+impl Command for CloneHierarchyCommand {
+    fn apply(self, world: &mut World) {
+        let mut entity_cloner_builder = EntityCloner::build_opt_out(world);
+        entity_cloner_builder.linked_cloning(true);
+        let mut entity_cloner = entity_cloner_builder.finish();
+
+        let entity = entity_cloner.spawn_clone(world, self.source);
+        let mut entity = world.entity_mut(entity);
+        let mut entity_transform = entity.get_mut::<Transform>().unwrap();
+        entity_transform.local_position = self.position;
+
+        entity.insert(AsteroidTag);
+        entity.remove_recursive::<Children, Disabled>();
+        entity.remove::<AsteroidPrefab>();
+    }
+}
 
 fn spawn_planet(mut commands: Commands) {
     // TODO: Deduplicate and simplify.
@@ -77,7 +117,7 @@ fn spawn_planet(mut commands: Commands) {
     let mut asteroid_transform = Transform::IDENTITY;
     asteroid_transform.local_scale *= asteroid;
 
-    let asteroid_entity = commands.spawn((PlanetTag, asteroid_transform));
+    let asteroid_entity = commands.spawn((AsteroidPrefab, Disabled, asteroid_transform));
     let asteroid_entity_id = asteroid_entity.id();
 
     commands.trigger(LoadModelEvent {
@@ -87,6 +127,32 @@ fn spawn_planet(mut commands: Commands) {
         )),
         parent_entity: Some(asteroid_entity_id),
     });
+}
+
+fn spawn_asteroids(
+    mut commands: Commands,
+    query: Query<(Entity, Option<&Children>, Has<Disabled>), With<AsteroidPrefab>>,
+    mut random: ResMut<Random>,
+    mut has_spawned: Local<bool>,
+) {
+    if !*has_spawned
+        && let Ok((asteroid_prefab_entity, children, _)) = query.single()
+        && children.is_some()
+        && !children.unwrap().is_empty()
+    {
+        *has_spawned = true;
+
+        for _ in 0..999_900 {
+            commands.queue(CloneHierarchyCommand {
+                source: asteroid_prefab_entity,
+                position: Vec3::new(
+                    random.range(0.0..100.0),
+                    random.range(0.0..100.0),
+                    random.range(0.0..100.0),
+                ),
+            });
+        }
+    }
 }
 
 fn spawn_player(mut commands: Commands) {

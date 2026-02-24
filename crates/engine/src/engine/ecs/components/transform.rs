@@ -1,8 +1,8 @@
-use bevy_ecs::{component::Component, entity::Entity};
+use bevy_ecs::{component::Component, name::Name};
 use math::{EulerRot, Mat4, Quat, Vec3};
 
 #[derive(Clone, Copy, Component, Debug)]
-#[require(GlobalTransform)]
+#[require(GlobalTransform, Name)]
 pub struct Transform {
     pub local_position: Vec3,
     pub local_rotation: Quat,
@@ -101,7 +101,7 @@ impl Default for Transform {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 pub struct GlobalTransform(pub Mat4);
 
 impl Default for GlobalTransform {
@@ -114,11 +114,3 @@ impl Default for GlobalTransform {
         ))
     }
 }
-
-#[derive(Clone, Copy, Component)]
-#[relationship(relationship_target = Children)]
-pub struct Parent(pub Entity);
-
-#[derive(Default, Component)]
-#[relationship_target(relationship = Parent)]
-pub struct Children(Vec<Entity>);

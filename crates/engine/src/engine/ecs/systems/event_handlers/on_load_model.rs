@@ -492,6 +492,7 @@ pub fn create_and_copy_to_buffer(
         size,
         BufferUsageFlags::TransferDst,
         BufferVisibility::DeviceOnly,
+        None,
         Some(name),
     );
 

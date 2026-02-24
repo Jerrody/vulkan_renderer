@@ -109,6 +109,7 @@ impl<'a> DescriptorSetBuilder<'a> {
             descriptor_buffer_size as _,
             BufferUsageFlags::ShaderDeviceAddress | BufferUsageFlags::ResourceDescriptorBufferEXT,
             BufferVisibility::HostVisible,
+            None,
             Some("Descriptor Set".to_string()),
         );
 

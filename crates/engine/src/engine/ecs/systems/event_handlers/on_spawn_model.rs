@@ -1,10 +1,10 @@
-use bevy_ecs::{name::Name, observer::On, system::Commands};
+use bevy_ecs::{hierarchy::ChildOf, name::Name, observer::On, system::Commands};
 use math::{Quat, Vec3};
 
 use crate::engine::{
     components::{
         mesh::Mesh,
-        transform::{GlobalTransform, Parent, Transform},
+        transform::{GlobalTransform, Transform},
     },
     events::SpawnEvent,
 };
@@ -17,18 +17,15 @@ pub fn on_spawn_mesh_system(spawn_event: On<SpawnEvent>, mut commands: Commands)
     };
     let scene_global_transform = GlobalTransform(scene_transform.local_to_world_matrix());
 
-    // 1. Spawn the root Scene entity
     let mut scene_entity_cmds =
         commands.spawn((Name::new("Scene"), scene_global_transform, scene_transform));
 
-    // Attach it to the main entity (like the Planet or Asteroid root)
     if let Some(parent_entity_id) = spawn_event.parent_entity {
-        scene_entity_cmds.insert(Parent(parent_entity_id));
+        scene_entity_cmds.insert(ChildOf(parent_entity_id));
     };
 
     let scene_entity_id = scene_entity_cmds.id();
 
-    // 2. Spawn all meshes
     let mut spawned_entities = Vec::with_capacity(spawn_event.spawn_records.len());
 
     for spawn_event_record in spawn_event.spawn_records.iter() {
@@ -47,7 +44,6 @@ pub fn on_spawn_mesh_system(spawn_event: On<SpawnEvent>, mut commands: Commands)
 
         if let Some(mesh_buffer_reference) = spawn_event_record.mesh_buffer_reference {
             let mesh = Mesh {
-                instance_object_index: None,
                 mesh_buffer_reference,
                 material_reference: unsafe {
                     spawn_event_record.material_reference.unwrap_unchecked()
@@ -62,9 +58,9 @@ pub fn on_spawn_mesh_system(spawn_event: On<SpawnEvent>, mut commands: Commands)
         }
 
         let parent = if let Some(parent_index) = spawn_event_record.parent_index {
-            Parent(spawned_entities[parent_index])
+            ChildOf(spawned_entities[parent_index])
         } else {
-            Parent(scene_entity_id)
+            ChildOf(scene_entity_id)
         };
 
         spawned_entity_cmds.insert((name, parent));

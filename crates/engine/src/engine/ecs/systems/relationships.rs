@@ -1,6 +1,7 @@
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
+    hierarchy::{ChildOf, Children},
     query::{With, Without},
     relationship::RelationshipTarget,
     system::{Local, Query},
@@ -8,7 +9,7 @@ use bevy_ecs::{
 };
 use math::Mat4;
 
-use crate::engine::components::transform::{Children, GlobalTransform, Parent, Transform};
+use crate::engine::components::transform::{GlobalTransform, Transform};
 
 pub struct TransformsStack {
     pub stack: Vec<(Entity, Mat4, bool)>,
@@ -25,9 +26,12 @@ impl Default for TransformsStack {
 pub fn propogate_transforms_system(
     mut root_query: Query<
         (Ref<Transform>, &mut GlobalTransform, Option<&Children>),
-        Without<Parent>,
+        Without<ChildOf>,
     >,
-    mut child_query: Query<(Ref<Transform>, &mut GlobalTransform, Option<&Children>), With<Parent>>,
+    mut child_query: Query<
+        (Ref<Transform>, &mut GlobalTransform, Option<&Children>),
+        With<ChildOf>,
+    >,
     mut transforms_stack: Local<TransformsStack>,
 ) {
     transforms_stack.stack.clear();

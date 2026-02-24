@@ -1,12 +1,13 @@
 use bevy_ecs::{
     entity::Entity,
+    hierarchy::ChildOf,
     name::Name,
     system::{Query, Res, ResMut},
 };
 use vulkanite::vk::{Bool32, ColorBlendEquationEXT, ShaderStageFlags};
 
 use crate::engine::{
-    components::{material::MaterialType, mesh::Mesh, transform::Parent},
+    components::{material::MaterialType, mesh::Mesh},
     general::renderer::DescriptorSetHandle,
     resources::{FrameContext, GraphicsPushConstant, RendererResources},
 };
@@ -14,7 +15,7 @@ use crate::engine::{
 pub fn render_meshes_system(
     graphics_entities: Query<&Mesh>,
     entities: Query<(Entity, &Name)>,
-    entities_with_parent: Query<&Parent>,
+    entities_with_parent: Query<&ChildOf>,
     mut renderer_resources: ResMut<RendererResources>,
     descriptor_set_handle: Res<DescriptorSetHandle>,
     frame_context: Res<FrameContext>,

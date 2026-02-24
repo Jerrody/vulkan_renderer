@@ -1,15 +1,14 @@
 use bevy_ecs::{
     entity::Entity,
     entity_disabling::Disabled,
+    hierarchy::ChildOf,
     query::{With, Without},
     system::{Commands, Query},
 };
 
-use crate::engine::Parent;
-
 pub fn propagate_disabled_to_new_children_system(
     mut commands: Commands,
-    active_children: Query<(Entity, &Parent), Without<Disabled>>,
+    active_children: Query<(Entity, &ChildOf), Without<Disabled>>,
     disabled_parents: Query<(), With<Disabled>>,
 ) {
     active_children.iter().for_each(|(child_entity, parent)| {

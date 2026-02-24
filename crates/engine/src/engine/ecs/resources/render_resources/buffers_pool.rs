@@ -127,10 +127,16 @@ impl<'w> BuffersMut<'w> {
         allocation_size: usize,
         usage: BufferUsageFlags,
         buffer_visibility: BufferVisibility,
+        memory_property_flags: Option<MemoryPropertyFlags>,
         name: Option<String>,
     ) -> BufferReference {
-        self.buffers_pool
-            .create_buffer(allocation_size, usage, buffer_visibility, name)
+        self.buffers_pool.create_buffer(
+            allocation_size,
+            usage,
+            buffer_visibility,
+            memory_property_flags,
+            name,
+        )
     }
 
     #[inline(always)]
@@ -215,6 +221,7 @@ impl BuffersPool {
             1024 * 1024 * 64,
             BufferUsageFlags::TransferSrc,
             BufferVisibility::HostVisible,
+            None,
             Some("Staging Buffer".to_string()),
         );
         memory_bucket.staging_buffer_reference = staging_buffer_reference;
@@ -227,6 +234,7 @@ impl BuffersPool {
         allocation_size: usize,
         usage: BufferUsageFlags,
         buffer_visibility: BufferVisibility,
+        memory_property_flags: Option<MemoryPropertyFlags>,
         name: Option<String>,
     ) -> BufferReference {
         let mut buffer_kind_usage = if allocation_size < 1024 * 64 {
@@ -266,10 +274,28 @@ impl BuffersPool {
             BufferVisibility::Unspecified => unreachable!(),
         };
 
+        let additional_memory_property_flags = if buffer_visibility == BufferVisibility::HostVisible
+        {
+            MemoryPropertyFlags::empty()
+        } else {
+            match memory_property_flags {
+                Some(memory_property_flags) => memory_property_flags,
+                None => MemoryPropertyFlags::empty(),
+            }
+        };
+
+        let base_required_flags = match buffer_visibility {
+            BufferVisibility::HostVisible => MemoryPropertyFlags::empty(),
+            BufferVisibility::DeviceOnly => MemoryPropertyFlags::DeviceLocal,
+            BufferVisibility::Unspecified => unreachable!(),
+        };
+
+        let required_flags = base_required_flags | additional_memory_property_flags;
+
         let allocation_create_info = AllocationCreateInfo {
             flags: allocation_flags,
             usage: MemoryUsage::Auto,
-            required_flags: MemoryPropertyFlags::DeviceLocal,
+            required_flags: required_flags,
             preferred_flags,
             ..Default::default()
         };

@@ -73,14 +73,16 @@ pub fn prepare_shaders_system(
         1024 * 1024 * 64,
         BufferUsageFlags::ShaderDeviceAddress | BufferUsageFlags::TransferDst,
         BufferVisibility::HostVisible,
+        None,
         Some("Materials Data Buffer".to_string()),
     );
     let mut instance_objects_buffers = Vec::with_capacity(render_context.frame_overlap);
     for instances_objects_buffer_index in 0..instance_objects_buffers.capacity() {
         let instance_objects_buffer_reference = buffers_mut.create(
-            std::mem::size_of::<InstanceObject>() * 4096,
+            std::mem::size_of::<InstanceObject>() * 1_000_000,
             BufferUsageFlags::ShaderDeviceAddress | BufferUsageFlags::TransferDst,
             BufferVisibility::HostVisible,
+            Some(MemoryPropertyFlags::LazilyAllocated),
             Some(std::format!(
                 "Instances Objects Buffer {}",
                 instances_objects_buffer_index
@@ -96,6 +98,7 @@ pub fn prepare_shaders_system(
             std::mem::size_of::<SceneData>(),
             BufferUsageFlags::ShaderDeviceAddress | BufferUsageFlags::TransferDst,
             BufferVisibility::HostVisible,
+            None,
             Some(std::format!(
                 "Scene Data Buffer {}",
                 scene_data_buffer_index
@@ -109,6 +112,7 @@ pub fn prepare_shaders_system(
         std::mem::size_of::<MeshObject>() * 8192,
         BufferUsageFlags::ShaderDeviceAddress | BufferUsageFlags::TransferDst,
         BufferVisibility::DeviceOnly,
+        None,
         Some("Mesh Objects Buffer".to_string()),
     );
 

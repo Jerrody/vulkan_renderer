@@ -33,8 +33,9 @@ use crate::{
 };
 
 pub use components::camera::{Camera, ClippingPlanes};
+pub use components::mesh::Mesh;
 pub use components::time::Time;
-pub use components::transform::{Children, Parent, Transform};
+pub use components::transform::Transform;
 pub use events::LoadModelEvent;
 pub use math;
 pub use resources::Input;
