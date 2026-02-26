@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
@@ -45,7 +46,7 @@ impl Random {
     }
 
     #[inline(always)]
-    pub fn inside_unit_circle_fast(&mut self) -> Vec2 {
+    pub fn inside_unit_circle(&mut self) -> Vec2 {
         let result: Vec2;
 
         loop {

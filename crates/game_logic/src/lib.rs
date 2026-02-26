@@ -1,3 +1,4 @@
+use core::panic;
 use std::path::PathBuf;
 
 use bevy_ecs::{
@@ -5,7 +6,7 @@ use bevy_ecs::{
     entity::{Entity, EntityCloner},
     entity_disabling::Disabled,
     hierarchy::Children,
-    query::{Has, With},
+    query::{self, Has, With},
     relationship::RelationshipTarget,
     system::{Command, Commands, Local, Query, Res, ResMut},
     world::World,
@@ -30,7 +31,13 @@ impl GamePlugin for Game {
     }
 
     fn add_systems_update(&self, schedule: &mut bevy_ecs::schedule::Schedule) {
-        schedule.add_systems((move_player, spawn_asteroids, rotate_player, jump_player));
+        schedule.add_systems((
+            move_player,
+            spawn_asteroids,
+            rotate_asteroids,
+            rotate_player,
+            jump_player,
+        ));
     }
 }
 
@@ -58,7 +65,9 @@ pub struct PlanetTag;
 
 #[derive(Component)]
 #[require(Transform)]
-pub struct AsteroidTag;
+pub struct AsteroidInstance {
+    rotation_axis: AsteroidRotationAxis,
+}
 
 pub trait Prefab {
     fn instantiate(&self, commands: Commands) -> Entity;
@@ -68,9 +77,19 @@ pub trait Prefab {
 #[require(Transform)]
 pub struct AsteroidPrefab;
 
-pub struct CloneHierarchyCommand {
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum AsteroidRotationAxis {
+    X,
+    Y,
+    Z,
+}
+
+struct CloneHierarchyCommand {
     pub source: Entity,
     pub position: Vec3,
+    pub scale: Vec3,
+    pub rotation: Vec3,
+    pub asteroid_rotation_axis: AsteroidRotationAxis,
 }
 
 impl Command for CloneHierarchyCommand {
@@ -83,8 +102,12 @@ impl Command for CloneHierarchyCommand {
         let mut entity = world.entity_mut(entity);
         let mut entity_transform = entity.get_mut::<Transform>().unwrap();
         entity_transform.local_position = self.position;
+        entity_transform.local_scale = self.scale;
+        entity_transform.set_local_euler_angles(self.rotation);
 
-        entity.insert(AsteroidTag);
+        entity.insert(AsteroidInstance {
+            rotation_axis: self.asteroid_rotation_axis,
+        });
         entity.remove_recursive::<Children, Disabled>();
         entity.remove::<AsteroidPrefab>();
     }
@@ -131,28 +154,88 @@ fn spawn_planet(mut commands: Commands) {
 
 fn spawn_asteroids(
     mut commands: Commands,
-    query: Query<(Entity, Option<&Children>, Has<Disabled>), With<AsteroidPrefab>>,
+    planet_query: Query<&Transform, With<PlanetTag>>,
+    asteroid_prefab_query: Query<(Entity, Option<&Children>, Has<Disabled>), With<AsteroidPrefab>>,
     mut random: ResMut<Random>,
     mut has_spawned: Local<bool>,
 ) {
     if !*has_spawned
-        && let Ok((asteroid_prefab_entity, children, _)) = query.single()
+        && let Ok((asteroid_prefab_entity, children, _)) = asteroid_prefab_query.single()
         && children.is_some()
         && !children.unwrap().is_empty()
     {
         *has_spawned = true;
 
-        for _ in 0..10_000 {
+        let mut inner_radius = 50.0;
+        let mut outer_radius = inner_radius * 10.0;
+        let belt_radius = outer_radius - inner_radius;
+        let belt_thicness = 4.5;
+
+        let planet_transform = planet_query.single().unwrap();
+        let planet_radius = planet_transform.local_scale.x * 2.0;
+        if inner_radius <= planet_radius {
+            inner_radius = planet_radius + 1.0;
+            outer_radius = inner_radius + belt_radius;
+        }
+
+        for _ in 0..50_000 {
+            let random_direction = random.inside_unit_circle().normalize();
+            let random_distance = random
+                .range(inner_radius.powi(2)..outer_radius.powi(2))
+                .sqrt();
+
+            let mut position = vec3(random_direction.x, 0.0, random_direction.y) * random_distance;
+            position.y = random.range(-belt_thicness..belt_thicness);
+            let scale = random.range(0.25..1.0);
+
+            let asteroid_rotation_axis = match random.range(0..3) {
+                0 => AsteroidRotationAxis::X,
+                1 => AsteroidRotationAxis::Y,
+                2 => AsteroidRotationAxis::Z,
+                _ => panic!("Only X, Y, Z axis supported"),
+            };
+
             commands.queue(CloneHierarchyCommand {
                 source: asteroid_prefab_entity,
-                position: Vec3::new(
-                    random.range(0.0..100.0),
-                    random.range(0.0..100.0),
-                    random.range(0.0..100.0),
+                position: planet_transform.local_position + position,
+                scale: vec3(scale, scale, scale),
+                rotation: vec3(
+                    random.range(-360.0..360.0),
+                    random.range(-360.0..360.0),
+                    random.range(-360.0..360.0),
                 ),
+                asteroid_rotation_axis,
             });
         }
     }
+}
+
+fn rotate_asteroids(
+    time: Res<Time>,
+    mut asteroids_query: Query<(&mut Transform, &AsteroidInstance)>,
+) {
+    let asteroid_speed = 1.0;
+    let delta_time = time.get_delta_time();
+
+    asteroids_query
+        .par_iter_mut()
+        .for_each(|(mut asteroid_transform, asteroid_instance)| {
+            let mut euler_angles = asteroid_transform.get_local_euler_angles();
+
+            match asteroid_instance.rotation_axis {
+                AsteroidRotationAxis::X => {
+                    euler_angles.x += asteroid_speed * delta_time;
+                }
+                AsteroidRotationAxis::Y => {
+                    euler_angles.y += asteroid_speed * delta_time;
+                }
+                AsteroidRotationAxis::Z => {
+                    euler_angles.z += asteroid_speed * delta_time;
+                }
+            }
+
+            asteroid_transform.set_local_euler_angles(euler_angles);
+        });
 }
 
 fn spawn_player(mut commands: Commands) {
@@ -192,7 +275,6 @@ fn move_player(
     mut player_query: Query<(&mut Transform, &PlayerStats, &PlayerJump)>,
     time: Res<Time>,
     input: Res<Input>,
-    mut random: ResMut<Random>,
 ) {
     let delta_time = time.get_delta_time();
 

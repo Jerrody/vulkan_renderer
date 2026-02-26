@@ -20,7 +20,7 @@ game_logic = { path = "crates/game_logic" }
 math = { path = "crates/engine/crates/math" }
 
 [profile.dev]
-opt-level = 2
+opt-level = 0
 debug = 2
 
 [profile.dev.build-override]
