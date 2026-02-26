@@ -142,7 +142,7 @@ fn spawn_asteroids(
     {
         *has_spawned = true;
 
-        for _ in 0..999_900 {
+        for _ in 0..10_000 {
             commands.queue(CloneHierarchyCommand {
                 source: asteroid_prefab_entity,
                 position: Vec3::new(
