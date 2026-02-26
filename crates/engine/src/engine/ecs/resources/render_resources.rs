@@ -115,18 +115,20 @@ pub struct SceneData {
     pub directional_light: DirectionalLight,
 }
 
-pub struct SwappableBuffer {
+pub struct SwappableBuffer<T: NoUninit + Pod + Sized> {
     current_buffer_index: usize,
     buffers: Vec<BufferReference>,
-    data_to_write: Vec<u8>,
+    objects: Vec<T>,
+    objects_to_write: Vec<u8>,
 }
 
-impl<'a> SwappableBuffer {
+impl<'a, T: bytemuck::Pod> SwappableBuffer<T> {
     pub fn new(buffers: Vec<BufferReference>) -> Self {
         Self {
             current_buffer_index: Default::default(),
             buffers,
-            data_to_write: Default::default(),
+            objects: Default::default(),
+            objects_to_write: Default::default(),
         }
     }
 
@@ -136,7 +138,7 @@ impl<'a> SwappableBuffer {
         if self.current_buffer_index >= self.buffers.len() {
             self.current_buffer_index = Default::default();
         }
-        self.data_to_write.clear();
+        self.objects.clear();
     }
 
     #[inline(always)]
@@ -146,21 +148,30 @@ impl<'a> SwappableBuffer {
 
     #[inline(always)]
     pub fn get_objects_to_write_as_slice(&'a self) -> &'a [u8] {
-        self.data_to_write.as_slice()
+        &self.objects_to_write
     }
 
     #[inline(always)]
-    pub fn write_data_to_current_buffer<T: NoUninit>(&mut self, object_to_write: &T) -> usize {
-        let object_to_write = bytemuck::bytes_of(object_to_write);
-        self.data_to_write.extend_from_slice(object_to_write);
+    pub fn prepare_objects_for_writing(&mut self) {
+        let object_to_write = bytemuck::cast_slice(&self.objects);
+        self.objects_to_write.extend_from_slice(object_to_write);
+    }
 
-        self.data_to_write.len() - 1
+    #[inline(always)]
+    pub fn add_instance_object(&mut self, object_to_write: T) {
+        self.objects.push(object_to_write);
+    }
+
+    #[inline(always)]
+    pub fn clear(&mut self) {
+        self.objects.clear();
+        self.objects_to_write.clear();
     }
 }
 
 pub struct ResourcesPool {
-    pub instances_buffer: Option<SwappableBuffer>,
-    pub scene_data_buffer: Option<SwappableBuffer>,
+    pub instances_buffer: Option<SwappableBuffer<InstanceObject>>,
+    pub scene_data_buffer: Option<SwappableBuffer<SceneData>>,
 }
 
 impl ResourcesPool {
@@ -187,33 +198,4 @@ pub struct RendererResources {
     pub model_loader: ModelLoader,
     pub resources_pool: ResourcesPool,
     pub is_printed_scene_hierarchy: bool,
-}
-
-impl<'a> RendererResources {
-    #[inline(always)]
-    pub fn write_instance_object(
-        &mut self,
-        model_matrix: Mat4,
-        device_address_mesh_object: DeviceAddress,
-        meshlet_count: usize,
-        device_address_material_data: DeviceAddress,
-        material_type: u8,
-    ) -> usize {
-        let instance_object = InstanceObject {
-            model_matrix: model_matrix.to_cols_array(),
-            device_address_mesh_object,
-            meshlet_count: meshlet_count as _,
-            device_address_material_data,
-            material_type,
-            ..Default::default()
-        };
-
-        unsafe {
-            self.resources_pool
-                .instances_buffer
-                .as_mut()
-                .unwrap_unchecked()
-                .write_data_to_current_buffer(&instance_object)
-        }
-    }
 }

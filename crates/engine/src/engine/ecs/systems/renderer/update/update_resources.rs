@@ -1,4 +1,5 @@
 use bevy_ecs::system::{Query, Res, ResMut};
+use bytemuck::Pod;
 use math::{Mat4, Vec3, Vec4};
 
 use crate::engine::{
@@ -70,7 +71,9 @@ pub fn update_resources_system(
             },
             ..Default::default()
         };
-        scene_data_buffer.write_data_to_current_buffer(&scene_data);
+        scene_data_buffer.clear();
+        scene_data_buffer.add_instance_object(scene_data);
+        scene_data_buffer.prepare_objects_for_writing();
 
         let scene_data_buffer = unsafe {
             renderer_resources
@@ -85,7 +88,7 @@ pub fn update_resources_system(
 }
 
 #[inline(always)]
-fn update_buffer_data(buffer_to_update: &SwappableBuffer, buffers: &BuffersPool) {
+fn update_buffer_data<T: Pod>(buffer_to_update: &SwappableBuffer<T>, buffers: &BuffersPool) {
     let data_to_write = buffer_to_update.get_objects_to_write_as_slice();
 
     let buffer_to_update_reference = buffer_to_update.get_current_buffer();
