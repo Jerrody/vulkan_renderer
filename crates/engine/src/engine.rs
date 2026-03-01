@@ -19,7 +19,7 @@ use crate::{
     engine::{
         ecs::{
             buffers_pool::BuffersPool,
-            general::{propogate_disabled_to_new_children, update_time},
+            general::{check_audio_state, propogate_disabled_to_new_children, update_time},
             samplers_pool::SamplersPool,
             setup::{
                 prepare_default_samplers::prepare_default_samplers_system,
@@ -32,6 +32,7 @@ use crate::{
     },
 };
 
+pub use audio::*;
 pub use components::camera::{Camera, ClippingPlanes};
 pub use components::mesh::Mesh;
 pub use components::time::Time;
@@ -103,6 +104,7 @@ impl Engine {
         let scheduler_renderer_update = schedulers.entry(SchedulerRendererUpdate);
         scheduler_renderer_update.add_systems(
             (
+                check_audio_state::check_audio_state_system,
                 prepare_frame::prepare_frame_system,
                 collect_instance_objects::collect_instance_objects_system,
                 update_resources::update_resources_system,

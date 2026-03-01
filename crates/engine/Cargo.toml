@@ -47,3 +47,4 @@ num_cpus = "1.17.0"
 padding-struct = "0.2.0"
 slotmap = { git = "https://github.com/Jerrody/slotmap" }
 math = { workspace = true }
+kira = "0.12.0"

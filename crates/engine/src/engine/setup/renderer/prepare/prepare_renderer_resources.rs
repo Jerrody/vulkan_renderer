@@ -3,7 +3,7 @@ use vulkanite::vk::{rs::Device, *};
 
 use crate::engine::{
     Engine,
-    ecs::mesh_buffers_pool::MeshBuffersPool,
+    ecs::{audio::Audio, mesh_buffers_pool::MeshBuffersPool},
     general::renderer::{DescriptorSetBuilder, DescriptorSetHandle},
     resources::{
         buffers_pool::BuffersPool, model_loader::ModelLoader, samplers_pool::SamplersPool,
@@ -69,12 +69,15 @@ impl Engine {
             &push_constant_ranges,
         );
 
+        let audio = Audio::new();
+
         world.insert_resource(renderer_resources);
         world.insert_resource(descriptor_set_handle);
         world.insert_resource(buffers_pool);
         world.insert_resource(samplers_pool);
         world.insert_resource(textures_pool);
         world.insert_resource(mesh_buffers_pool);
+        world.insert_resource(audio);
     }
 
     fn create_descriptor_set_handle(

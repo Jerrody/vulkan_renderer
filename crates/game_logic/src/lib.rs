@@ -6,16 +6,16 @@ use bevy_ecs::{
     entity::{Entity, EntityCloner},
     entity_disabling::Disabled,
     hierarchy::Children,
-    query::{self, Has, With},
+    query::{Has, With},
     relationship::RelationshipTarget,
     system::{Command, Commands, Local, Query, Res, ResMut},
     world::World,
 };
-use engine::math::*;
 use engine::{
     GamePlugin,
-    engine::{Camera, ClippingPlanes, Input, LoadModelEvent, Time, Transform},
+    engine::{AudioReference, Camera, ClippingPlanes, Input, LoadModelEvent, Time, Transform},
 };
+use engine::{engine::Audio, math::*};
 use winit::keyboard::KeyCode;
 
 #[unsafe(no_mangle)]
@@ -27,18 +27,24 @@ struct Game;
 
 impl GamePlugin for Game {
     fn add_systems_init(&self, schedule: &mut bevy_ecs::schedule::Schedule) {
-        schedule.add_systems((spawn_planet, spawn_player));
+        schedule.add_systems((spawn_planet, play_audio, spawn_player));
     }
 
     fn add_systems_update(&self, schedule: &mut bevy_ecs::schedule::Schedule) {
         schedule.add_systems((
             move_player,
+            fire_from_gun,
             spawn_asteroids,
             rotate_asteroids,
             rotate_player,
             jump_player,
         ));
     }
+}
+
+#[derive(Component)]
+pub struct FireAudioHandle {
+    pub audio_reference: AudioReference,
 }
 
 #[derive(Component)]
@@ -113,6 +119,43 @@ impl Command for CloneHierarchyCommand {
     }
 }
 
+fn play_audio(mut commands: Commands, mut audio: ResMut<Audio>) {
+    // TODO: Deduplicate and simplify.
+    let mut exe_path = std::env::current_exe().unwrap();
+
+    exe_path.pop();
+    exe_path.pop();
+    exe_path.pop();
+
+    let sound = audio.load_audio(&PathBuf::from(std::format!(
+        "{}/assets/audio/sound.mp3",
+        exe_path.as_os_str().display()
+    )));
+    //audio.play_audio(sound, true);
+
+    let fire_sound = audio.load_audio(&PathBuf::from(std::format!(
+        "{}/assets/audio/fire.mp3",
+        exe_path.as_os_str().display()
+    )));
+
+    let mut fire_audio_handle_entity = commands.spawn_empty();
+    fire_audio_handle_entity.insert(FireAudioHandle {
+        audio_reference: fire_sound,
+    });
+}
+
+fn fire_from_gun(
+    input: Res<Input>,
+    fire_audio_handle_query: Query<&FireAudioHandle>,
+    mut audio: ResMut<Audio>,
+) {
+    if input.just_pressed(KeyCode::ArrowLeft)
+        && let Ok(fire_audio_handle) = fire_audio_handle_query.single()
+    {
+        audio.play_audio(fire_audio_handle.audio_reference, false);
+    }
+}
+
 fn spawn_planet(mut commands: Commands) {
     // TODO: Deduplicate and simplify.
     let mut exe_path = std::env::current_exe().unwrap();
@@ -178,7 +221,7 @@ fn spawn_asteroids(
             outer_radius = inner_radius + belt_radius;
         }
 
-        for _ in 0..50_000 {
+        for _ in 0..5_000 {
             let random_direction = random.inside_unit_circle().normalize();
             let random_distance = random
                 .range(inner_radius.powi(2)..outer_radius.powi(2))

@@ -1,3 +1,4 @@
+pub mod audio;
 pub mod buffers_pool;
 pub mod materials_pool;
 pub mod mesh_buffers_pool;
@@ -23,6 +24,7 @@ new_key_type! {
     pub struct SamplerKey;
     pub struct MeshBufferKey;
     pub struct MaterialKey;
+    pub struct AudioKey;
 }
 
 #[repr(C)]
