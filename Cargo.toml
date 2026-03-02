@@ -5,7 +5,7 @@ members = [
     "crates/game_logic",
     "crates/game_runner",
     "crates/engine/crates/math",
-    "crates/engine/crates/physics",
+    # "crates/engine/crates/physics",
 ]
 
 [workspace.dependencies]
@@ -16,10 +16,11 @@ bevy_ecs = { version = "0.18.0", default-features = false, features = [
     "multi_threaded",
 ] }
 winit = { version = "=0.31.0-beta.2", default-features = false }
+rapier3d = { version = "0.32.0", features = ["simd-stable"] }
 engine = { path = "crates/engine" }
 game_logic = { path = "crates/game_logic" }
 math = { path = "crates/engine/crates/math" }
-physics = { path = "crates/engine/crates/physics" }
+# physics = { path = "crates/engine/crates/physics" }
 
 [profile.dev]
 opt-level = 0

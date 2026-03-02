@@ -6,6 +6,7 @@ use bevy_ecs::{
     entity::{Entity, EntityCloner},
     entity_disabling::Disabled,
     hierarchy::Children,
+    name::Name,
     query::{Has, With},
     relationship::RelationshipTarget,
     system::{Command, Commands, Local, Query, Res, ResMut},
@@ -13,7 +14,10 @@ use bevy_ecs::{
 };
 use engine::{
     GamePlugin,
-    engine::{AudioReference, Camera, ClippingPlanes, Input, LoadModelEvent, Time, Transform},
+    engine::{
+        AudioReference, Camera, ClippingPlanes, Input, LoadModelEvent, Mesh, Physics, RigidBody,
+        Time, Transform,
+    },
 };
 use engine::{engine::Audio, math::*};
 use winit::keyboard::KeyCode;
@@ -35,6 +39,8 @@ impl GamePlugin for Game {
             move_player,
             fire_from_gun,
             spawn_asteroids,
+            create_rigidbody_for_planet,
+            print_planet_rigid_body_info,
             rotate_asteroids,
             rotate_player,
             jump_player,
@@ -250,6 +256,80 @@ fn spawn_asteroids(
                 asteroid_rotation_axis,
             });
         }
+    }
+}
+
+fn create_rigidbody_for_planet(
+    planet_query: Query<(Entity, &Transform), With<PlanetTag>>,
+    children_query: Query<&Children>,
+    child_name_query: Query<&Name>,
+    mesh_query: Query<&Mesh>,
+    rigid_body_query: Query<&RigidBody>,
+    mut physics: Physics,
+    mut is_created_rigidbody: Local<bool>,
+) {
+    if !*is_created_rigidbody && let Ok((planet_entity, transform)) = planet_query.single() {
+        if let Ok(children) = children_query.get(planet_entity) {
+            for child_entity in children {
+                /*                if let Ok(child_name) = child_name_query.get(*child_entity) {
+                    println!("Name: {child_name}");
+                } */
+
+                let mut stack: Vec<Entity> = Vec::new();
+
+                if let Ok(children) = children_query.get(planet_entity) {
+                    stack.extend(children.into_iter().copied().rev());
+                } else {
+                    println!("Parent entity has no children to search.");
+                    return;
+                }
+
+                while let Some(current_entity) = stack.pop() {
+                    if let Ok(&mesh_component) = mesh_query.get(current_entity) {
+                        *is_created_rigidbody = true;
+
+                        let rigid_body = physics.create_rigid_body(planet_entity, transform);
+                        physics.create_mesh_collider_from_mesh(
+                            planet_entity,
+                            mesh_component,
+                            rigid_body,
+                        );
+
+                        return;
+                    }
+
+                    if let Ok(children) = children_query.get(current_entity) {
+                        stack.extend(children.into_iter().copied().rev());
+                    }
+                }
+
+                /*               if let Ok(mesh_component) = mesh_query.get(*child_entity) {
+                    *is_created_rigidbody = true;
+
+                    physics.create_rigid_body(planet_entity, transform);
+                    let rigid_body_component = rigid_body_query.get(planet_entity).unwrap();
+                    physics.create_mesh_collider_from_mesh(
+                        planet_entity,
+                        mesh_component,
+                        rigid_body_component,
+                    );
+
+                    break;
+                } */
+            }
+        }
+    }
+}
+
+fn print_planet_rigid_body_info(
+    planet_rigid_body_query: Query<&RigidBody, With<PlanetTag>>,
+    physics: Physics,
+) {
+    if let Ok(planet_rigid_body) = planet_rigid_body_query.single() {
+        println!(
+            "Planet Rigidbody World Position: {}",
+            planet_rigid_body.get_world_position(&physics)
+        );
     }
 }
 

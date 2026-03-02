@@ -5,9 +5,10 @@ use bevy_ecs::{
 use slotmap::{Key, SlotMap};
 use vulkanite::vk::DeviceAddress;
 
-use crate::engine::ecs::{MeshBufferKey, buffers_pool::BufferReference};
+use crate::engine::ecs::{
+    MeshBufferKey, buffers_pool::BufferReference, components::mesh::MeshData,
+};
 
-#[derive(Default)]
 pub struct MeshBuffer {
     pub mesh_object_device_address: DeviceAddress,
     pub vertex_buffer_reference: BufferReference,
@@ -15,6 +16,7 @@ pub struct MeshBuffer {
     pub meshlets_buffer_reference: BufferReference,
     pub local_indices_buffer_reference: BufferReference,
     pub meshlets_count: usize,
+    pub mesh_data: MeshData,
 }
 
 #[derive(Clone, Copy)]
@@ -88,11 +90,14 @@ impl MeshBuffersPool {
         }
     }
 
-    fn get_mesh_buffer(&self, mesh_buffer_reference: MeshBufferReference) -> Option<&MeshBuffer> {
+    pub fn get_mesh_buffer(
+        &self,
+        mesh_buffer_reference: MeshBufferReference,
+    ) -> Option<&MeshBuffer> {
         self.slots.get(mesh_buffer_reference.key)
     }
 
-    fn get_mut_mesh_buffer(
+    pub fn get_mut_mesh_buffer(
         &mut self,
         mesh_buffer_reference: MeshBufferReference,
     ) -> Option<&mut MeshBuffer> {

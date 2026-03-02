@@ -1099,7 +1099,7 @@ dependencies = [
  "nameof",
  "num_cpus",
  "padding-struct",
- "physics",
+ "rapier3d",
  "raw-window-handle",
  "rayon",
  "slotmap 1.1.1 (git+https://github.com/Jerrody/slotmap)",
@@ -2824,14 +2824,6 @@ name = "percent-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
-
-[[package]]
-name = "physics"
-version = "0.1.0"
-dependencies = [
- "bevy_ecs",
- "rapier3d",
-]
 
 [[package]]
 name = "pin-project"

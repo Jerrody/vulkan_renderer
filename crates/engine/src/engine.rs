@@ -41,7 +41,9 @@ pub use components::time::Time;
 pub use components::transform::Transform;
 pub use events::LoadModelEvent;
 pub use math;
+pub use physics::{Collider, RigidBody};
 pub use resources::Input;
+pub use system_params::physics::*;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
 struct SchedulerWorldUpdate;
@@ -128,7 +130,7 @@ impl Engine {
         world.insert_resource(Time::new());
         world.insert_resource(Input::new());
         world.insert_resource(Random::new());
-        world.insert_resource(physics::Physics::new());
+        world.insert_resource(physics::PhysicsManager::new());
 
         world.run_schedule(SchedulerRendererSetup);
         world.flush();

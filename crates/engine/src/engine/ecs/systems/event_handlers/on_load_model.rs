@@ -26,6 +26,7 @@ use crate::engine::{
     },
     ecs::{
         buffers_pool::BuffersMut,
+        components::mesh::MeshData,
         materials_pool::{MaterialReference, MaterialsPool},
         mesh_buffers_pool::{MeshBuffer, MeshBufferReference, MeshBuffersMut},
         textures_pool::TexturesMut,
@@ -351,6 +352,8 @@ pub fn on_load_model_system(
                         std::format!("{}_{}", mesh_name, name_of!(triangles)),
                     );
 
+                    let mesh_data = MeshData { vertices, indices };
+
                     let mesh_buffer = MeshBuffer {
                         mesh_object_device_address: Default::default(),
                         vertex_buffer_reference,
@@ -358,6 +361,7 @@ pub fn on_load_model_system(
                         meshlets_buffer_reference,
                         local_indices_buffer_reference,
                         meshlets_count: meshlets.len(),
+                        mesh_data,
                     };
 
                     mesh_buffer_reference = mesh_buffers_mut.insert_mesh_buffer(mesh_buffer);

@@ -1,5 +1,7 @@
 use bevy_ecs::system::ResMut;
 
-pub fn physics_tick_system(mut physics: ResMut<physics::Physics>) {
+use crate::engine::ecs::physics::PhysicsManager;
+
+pub fn physics_tick_system(mut physics: ResMut<PhysicsManager>) {
     physics.step();
 }
