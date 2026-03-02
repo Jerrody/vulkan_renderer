@@ -16,7 +16,7 @@ bevy_ecs = { version = "0.18.0", default-features = false, features = [
     "multi_threaded",
 ] }
 winit = { version = "=0.31.0-beta.2", default-features = false }
-rapier3d = { version = "0.32.0", features = ["simd-stable"] }
+rapier3d = { version = "0.32.0", features = ["simd-stable", "parallel"] }
 engine = { path = "crates/engine" }
 game_logic = { path = "crates/game_logic" }
 math = { path = "crates/engine/crates/math" }
@@ -25,6 +25,10 @@ math = { path = "crates/engine/crates/math" }
 [profile.dev]
 opt-level = 0
 debug = 2
+
+[profile.dev.package.rapier3d]
+opt-level = 3
+codegen-units = 1
 
 [profile.dev.build-override]
 opt-level = 2
@@ -37,7 +41,8 @@ opt-level = 3
 opt-level = 3
 
 [profile.dev.package."*"]
-opt-level = 2
+opt-level = 3
+codegen-units = 1
 debug = 0
 
 [profile.release]

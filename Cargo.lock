@@ -3075,6 +3075,7 @@ dependencies = [
  "ordered-float",
  "parry3d",
  "profiling",
+ "rayon",
  "rustc-hash",
  "simba",
  "static_assertions",
