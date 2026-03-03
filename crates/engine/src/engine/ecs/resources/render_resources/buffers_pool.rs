@@ -3,10 +3,7 @@ use std::{
     str::FromStr as _,
 };
 
-use bevy_ecs::{
-    resource::Resource,
-    system::{Res, ResMut, SystemParam},
-};
+use bevy_ecs::resource::Resource;
 use slotmap::SlotMap;
 use vma::{
     Alloc as _, Allocation, AllocationCreateFlags, AllocationCreateInfo, Allocator, MemoryUsage,
@@ -90,92 +87,6 @@ impl BufferInfo {
             size,
             buffer_visibility,
         }
-    }
-}
-
-#[derive(SystemParam)]
-pub struct Buffers<'w> {
-    buffers_pool: Res<'w, BuffersPool>,
-}
-
-impl<'w> Buffers<'w> {
-    #[inline(always)]
-    pub fn get(&'w self, buffer_reference: BufferReference) -> Option<&'w AllocatedBuffer> {
-        self.buffers_pool.get_buffer(buffer_reference)
-    }
-
-    #[inline(always)]
-    pub fn map_allocation(&self, buffer_reference: BufferReference) -> MapppedAllocationHandler {
-        self.buffers_pool.map_allocation(buffer_reference)
-    }
-}
-
-#[derive(SystemParam)]
-pub struct BuffersMut<'w> {
-    buffers_pool: ResMut<'w, BuffersPool>,
-}
-
-impl<'w> BuffersMut<'w> {
-    #[inline(always)]
-    pub fn get(&'w self, buffer_reference: BufferReference) -> Option<&'w AllocatedBuffer> {
-        self.buffers_pool.get_buffer(buffer_reference)
-    }
-
-    #[inline(always)]
-    pub fn create(
-        &mut self,
-        allocation_size: usize,
-        usage: BufferUsageFlags,
-        buffer_visibility: BufferVisibility,
-        memory_property_flags: Option<MemoryPropertyFlags>,
-        name: Option<String>,
-    ) -> BufferReference {
-        self.buffers_pool.create_buffer(
-            allocation_size,
-            usage,
-            buffer_visibility,
-            memory_property_flags,
-            name,
-        )
-    }
-
-    #[inline(always)]
-    pub fn get_staging_buffer_reference(&self) -> BufferReference {
-        self.buffers_pool.get_staging_buffer_reference()
-    }
-
-    #[inline(always)]
-    pub unsafe fn transfer_data_to_buffer_raw(
-        &mut self,
-        buffer_reference: BufferReference,
-        src: *const c_void,
-        size: usize,
-    ) {
-        unsafe {
-            self.buffers_pool
-                .transfer_data_to_buffer_raw(buffer_reference, src, size);
-        }
-    }
-
-    #[inline(always)]
-    pub unsafe fn transfer_data_to_buffer_with_offset(
-        &self,
-        buffer_reference: BufferReference,
-        src: *const c_void,
-        regions_to_copy: &[BufferCopy],
-    ) {
-        unsafe {
-            self.buffers_pool.transfer_data_to_buffer_with_offset(
-                buffer_reference,
-                src,
-                regions_to_copy,
-            );
-        }
-    }
-
-    #[inline(always)]
-    pub fn map_allocation(&self, buffer_reference: BufferReference) -> MapppedAllocationHandler {
-        self.buffers_pool.map_allocation(buffer_reference)
     }
 }
 

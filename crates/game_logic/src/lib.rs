@@ -15,7 +15,7 @@ use engine::{
     GamePlugin,
     engine::{
         AudioReference, Camera, ClippingPlanes, Input, LoadModelEvent, LocalTransform, Mesh,
-        Physics, RigidBody, Time, Transform,
+        Physics, Time, Transform,
     },
 };
 use engine::{engine::Audio, math::*};
@@ -302,7 +302,7 @@ fn rotate_asteroids(
     time: Res<Time>,
     mut asteroids_query: Query<(&mut LocalTransform, &AsteroidInstance)>,
 ) {
-    let asteroid_speed = 1.0;
+    let asteroid_speed = 10.0;
     let delta_time = time.get_delta_time();
 
     asteroids_query

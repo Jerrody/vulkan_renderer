@@ -1,21 +1,24 @@
-use bevy_ecs::system::Res;
+use bevy_ecs::system::{Res, ResMut};
 
 use crate::engine::{
-    resources::{FrameContext, RendererContext, textures_pool::Textures},
+    ecs::textures_pool::TexturesPool,
+    resources::{FrameContext, RendererContext},
     utils::{copy_image_to_image, transition_image},
 };
 use vulkanite::vk::*;
 
 pub fn end_rendering_system(
     renderer_context: Res<RendererContext>,
-    textures: Textures,
+    textures_pool: ResMut<TexturesPool>,
     frame_context: Res<FrameContext>,
 ) {
     let command_buffer = frame_context.command_buffer.unwrap();
 
     let swapchain_image = renderer_context.images[frame_context.swapchain_image_index as usize];
 
-    let draw_image = textures.get(frame_context.draw_texture_reference).unwrap();
+    let draw_image = textures_pool
+        .get_image(frame_context.draw_texture_reference)
+        .unwrap();
 
     let draw_image_extent3d = draw_image.extent;
     let draw_image_extent2d = Extent2D {

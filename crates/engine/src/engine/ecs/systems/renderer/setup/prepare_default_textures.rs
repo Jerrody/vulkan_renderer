@@ -5,8 +5,8 @@ use vulkanite::vk::*;
 
 use crate::engine::{
     ecs::{
-        RendererContext, RendererResources, VulkanContextResource, buffers_pool::BuffersMut,
-        textures_pool::TexturesMut,
+        RendererContext, RendererResources, VulkanContextResource, buffers_pool::BuffersPool,
+        textures_pool::TexturesPool,
     },
     general::renderer::{
         DescriptorKind, DescriptorSampledImage, DescriptorSetHandle, DescriptorStorageImage,
@@ -18,8 +18,8 @@ pub fn prepare_default_textures_system(
     mut renderer_context: ResMut<RendererContext>,
     mut renderer_resources: ResMut<RendererResources>,
     mut descriptor_set_handle: ResMut<DescriptorSetHandle>,
-    mut textures_mut: TexturesMut,
-    mut buffers_mut: BuffersMut,
+    mut textures_pool: ResMut<TexturesPool>,
+    mut buffers_pool: ResMut<BuffersPool>,
 ) {
     let magenta = &pack_unorm_4x8(Vec4::new(1.0, 0.0, 1.0, 1.0));
     let black = &pack_unorm_4x8(Vec4::new(0.0, 0.0, 0.0, 0.0));
@@ -39,7 +39,7 @@ pub fn prepare_default_textures_system(
         height: 16,
         depth: 1,
     };
-    let (checkerboard_texture_reference, _) = textures_mut.create_texture(
+    let (checkerboard_texture_reference, _) = textures_pool.create_texture(
         None,
         false,
         Format::R8G8B8A8Unorm,
@@ -50,17 +50,19 @@ pub fn prepare_default_textures_system(
 
     renderer_resources.default_texture_reference = checkerboard_texture_reference;
     let descriptor_checkerboard_image = DescriptorKind::SampledImage(DescriptorSampledImage {
-        image_view: textures_mut
-            .get(checkerboard_texture_reference)
+        image_view: textures_pool
+            .get_image(checkerboard_texture_reference)
             .unwrap()
             .image_view,
         index: checkerboard_texture_reference.get_index(),
     });
-    descriptor_set_handle.update_binding(&buffers_mut, descriptor_checkerboard_image);
+    descriptor_set_handle.update_binding(&buffers_pool, descriptor_checkerboard_image);
 
     vulkan_ctx_resource.transfer_data_to_image(
-        textures_mut.get(checkerboard_texture_reference).unwrap(),
-        &mut buffers_mut,
+        textures_pool
+            .get_image(checkerboard_texture_reference)
+            .unwrap(),
+        &mut buffers_pool,
         pixels.as_ptr() as *const _,
         &renderer_context.upload_context,
         None,
@@ -71,7 +73,7 @@ pub fn prepare_default_textures_system(
         height: 1,
         depth: 1,
     };
-    let (white_texture_reference, _) = textures_mut.create_texture(
+    let (white_texture_reference, _) = textures_pool.create_texture(
         None,
         false,
         Format::R8G8B8A8Srgb,
@@ -83,21 +85,21 @@ pub fn prepare_default_textures_system(
 
     let white_image_pixels = [pack_unorm_4x8(Vec4::new(1.0, 1.0, 1.0, 1.0))];
     vulkan_ctx_resource.transfer_data_to_image(
-        textures_mut.get(white_texture_reference).unwrap(),
-        &mut buffers_mut,
+        textures_pool.get_image(white_texture_reference).unwrap(),
+        &mut buffers_pool,
         white_image_pixels.as_ptr() as *const _,
         &renderer_context.upload_context,
         None,
     );
 
     let descriptor_white_image = DescriptorKind::SampledImage(DescriptorSampledImage {
-        image_view: textures_mut
-            .get(white_texture_reference)
+        image_view: textures_pool
+            .get_image(white_texture_reference)
             .unwrap()
             .image_view,
         index: white_texture_reference.get_index(),
     });
-    descriptor_set_handle.update_binding(&buffers_mut, descriptor_white_image);
+    descriptor_set_handle.update_binding(&buffers_pool, descriptor_white_image);
 
     let draw_extent = renderer_context.draw_extent;
     renderer_context
@@ -110,7 +112,7 @@ pub fn prepare_default_textures_system(
                 depth: 1,
             };
 
-            let (draw_texture_reference, _) = textures_mut.create_texture(
+            let (draw_texture_reference, _) = textures_pool.create_texture(
                 None,
                 false,
                 Format::R16G16B16A16Sfloat,
@@ -121,7 +123,7 @@ pub fn prepare_default_textures_system(
                 false,
             );
 
-            let (depth_texture_reference, _) = textures_mut.create_texture(
+            let (depth_texture_reference, _) = textures_pool.create_texture(
                 None,
                 false,
                 Format::D32Sfloat,
@@ -131,10 +133,13 @@ pub fn prepare_default_textures_system(
             );
 
             let descriptor_draw_image = DescriptorKind::StorageImage(DescriptorStorageImage {
-                image_view: textures_mut.get(draw_texture_reference).unwrap().image_view,
+                image_view: textures_pool
+                    .get_image(draw_texture_reference)
+                    .unwrap()
+                    .image_view,
                 index: draw_texture_reference.get_index(),
             });
-            descriptor_set_handle.update_binding(&buffers_mut, descriptor_draw_image);
+            descriptor_set_handle.update_binding(&buffers_pool, descriptor_draw_image);
 
             frame_data.draw_texture_reference = draw_texture_reference;
             frame_data.depth_texture_reference = depth_texture_reference;

@@ -84,8 +84,6 @@ impl Audio {
             }
         };
 
-        
-
         AudioReference {
             key: audio_key,
             hash: path_hash,

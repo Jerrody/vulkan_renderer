@@ -2,7 +2,7 @@ use bevy_ecs::system::{Query, Res, ResMut};
 
 use crate::engine::{
     components::{local_transform::GlobalTransform, mesh::Mesh},
-    ecs::{InstanceObject, materials_pool::MaterialsPool, mesh_buffers_pool::MeshBuffers},
+    ecs::{InstanceObject, materials_pool::MaterialsPool, mesh_buffers_pool::MeshBuffersPool},
     resources::RendererResources,
 };
 
@@ -11,7 +11,7 @@ pub fn collect_instance_objects_system(
     materials_pool: Res<MaterialsPool>,
     mut renderer_resources: ResMut<RendererResources>,
     mesh_query: Query<(&GlobalTransform, &Mesh)>,
-    mesh_buffers: MeshBuffers,
+    mesh_buffers: ResMut<MeshBuffersPool>,
 ) {
     let instance_objects_buffer = unsafe {
         renderer_resources
@@ -28,7 +28,7 @@ pub fn collect_instance_objects_system(
 
         let mesh_buffer = unsafe {
             mesh_buffers
-                .get(mesh.mesh_buffer_reference)
+                .get_mesh_buffer(mesh.mesh_buffer_reference)
                 .unwrap_unchecked()
         };
 

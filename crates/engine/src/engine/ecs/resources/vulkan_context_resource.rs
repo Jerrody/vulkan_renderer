@@ -10,7 +10,10 @@ use vulkanite::vk::{
 };
 
 use crate::engine::{
-    ecs::{buffers_pool::BuffersMut, textures_pool::AllocatedImage},
+    ecs::{
+        buffers_pool::BuffersPool,
+        textures_pool::AllocatedImage,
+    },
     resources::UploadContext,
     utils::transition_image,
 };
@@ -34,7 +37,7 @@ impl VulkanContextResource {
     pub fn transfer_data_to_image(
         &self,
         allocated_image: &AllocatedImage,
-        buffers_mut: &mut BuffersMut,
+        buffers_pool: &mut BuffersPool,
         data_to_copy: *const std::ffi::c_void,
         upload_context: &UploadContext,
         size: Option<usize>,
@@ -55,9 +58,9 @@ impl VulkanContextResource {
         };
 
         let staging_buffer_reference =
-            unsafe { &*(&buffers_mut.get_staging_buffer_reference() as *const _) };
+            unsafe { &*(&buffers_pool.get_staging_buffer_reference() as *const _) };
         unsafe {
-            buffers_mut.transfer_data_to_buffer_raw(
+            buffers_pool.transfer_data_to_buffer_raw(
                 *staging_buffer_reference,
                 data_to_copy,
                 size as _,
@@ -121,7 +124,10 @@ impl VulkanContextResource {
             .command_group
             .command_buffer
             .copy_buffer_to_image(
-                buffers_mut.get(*staging_buffer_reference).unwrap().buffer,
+                buffers_pool
+                    .get_buffer(*staging_buffer_reference)
+                    .unwrap()
+                    .buffer,
                 allocated_image.image,
                 ImageLayout::General,
                 &buffer_image_copies,

@@ -5,7 +5,7 @@ use crate::engine::{
     ecs::{
         InstanceObject, MeshObject, RendererContext, RendererResources, SceneData, ShaderObject,
         SwappableBuffer, VulkanContextResource,
-        buffers_pool::{BufferVisibility, BuffersMut},
+        buffers_pool::{BufferVisibility, BuffersPool},
         materials_pool::MaterialsPool,
     },
     general::renderer::DescriptorSetHandle,
@@ -18,7 +18,7 @@ pub fn prepare_shaders_system(
     render_context: ResMut<RendererContext>,
     mut renderer_resources: ResMut<RendererResources>,
     descriptor_set_handle: Res<DescriptorSetHandle>,
-    mut buffers_mut: BuffersMut,
+    mut buffers_pool: ResMut<BuffersPool>,
 ) {
     let device = vulkan_ctx_resource.device;
 
@@ -69,7 +69,7 @@ pub fn prepare_shaders_system(
     renderer_resources.fragment_shader_object = created_shaders[3];
 
     // TODO: Move to the other place.
-    let materials_data_buffer_reference = buffers_mut.create(
+    let materials_data_buffer_reference = buffers_pool.create_buffer(
         1024 * 1024 * 64,
         BufferUsageFlags::ShaderDeviceAddress | BufferUsageFlags::TransferDst,
         BufferVisibility::HostVisible,
@@ -78,7 +78,7 @@ pub fn prepare_shaders_system(
     );
     let mut instance_objects_buffers = Vec::with_capacity(render_context.frame_overlap);
     for instances_objects_buffer_index in 0..instance_objects_buffers.capacity() {
-        let instance_objects_buffer_reference = buffers_mut.create(
+        let instance_objects_buffer_reference = buffers_pool.create_buffer(
             std::mem::size_of::<InstanceObject>() * 1_000_000,
             BufferUsageFlags::ShaderDeviceAddress | BufferUsageFlags::TransferDst,
             BufferVisibility::HostVisible,
@@ -94,7 +94,7 @@ pub fn prepare_shaders_system(
 
     let mut scene_data_buffers = Vec::with_capacity(render_context.frame_overlap);
     for scene_data_buffer_index in 0..scene_data_buffers.capacity() {
-        let scene_data_buffer_reference = buffers_mut.create(
+        let scene_data_buffer_reference = buffers_pool.create_buffer(
             std::mem::size_of::<SceneData>(),
             BufferUsageFlags::ShaderDeviceAddress | BufferUsageFlags::TransferDst,
             BufferVisibility::HostVisible,
@@ -108,7 +108,7 @@ pub fn prepare_shaders_system(
         scene_data_buffers.push(scene_data_buffer_reference);
     }
 
-    let mesh_objects_buffer_reference = buffers_mut.create(
+    let mesh_objects_buffer_reference = buffers_pool.create_buffer(
         std::mem::size_of::<MeshObject>() * 8192,
         BufferUsageFlags::ShaderDeviceAddress | BufferUsageFlags::TransferDst,
         BufferVisibility::DeviceOnly,

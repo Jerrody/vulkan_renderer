@@ -1,7 +1,4 @@
-use bevy_ecs::{
-    resource::Resource,
-    system::{Res, ResMut, SystemParam},
-};
+use bevy_ecs::resource::Resource;
 use slotmap::SlotMap;
 use vulkanite::vk::{
     CompareOp, Filter, LOD_CLAMP_NONE, SamplerAddressMode, SamplerCreateInfo, SamplerMipmapMode,
@@ -9,41 +6,6 @@ use vulkanite::vk::{
 };
 
 use crate::engine::ecs::SamplerKey;
-
-#[derive(SystemParam)]
-pub struct Samplers<'w> {
-    samplers_pool: Res<'w, SamplersPool>,
-}
-
-impl<'w> Samplers<'w> {
-    #[inline(always)]
-    pub fn get(&self, sampler_reference: SamplerReference) -> Option<&Sampler> {
-        self.samplers_pool.get_sampler(sampler_reference)
-    }
-}
-
-#[derive(SystemParam)]
-pub struct SamplersMut<'w> {
-    samplers_pool: ResMut<'w, SamplersPool>,
-}
-
-impl<'w> SamplersMut<'w> {
-    #[inline(always)]
-    pub fn get(&self, sampler_reference: SamplerReference) -> Option<&Sampler> {
-        self.samplers_pool.get_sampler(sampler_reference)
-    }
-
-    #[inline(always)]
-    pub fn create_sampler(
-        &mut self,
-        filter: Filter,
-        wrap: SamplerAddressMode,
-        mip_map_enabled: bool,
-    ) -> SamplerReference {
-        self.samplers_pool
-            .create_sampler(filter, wrap, mip_map_enabled)
-    }
-}
 
 #[derive(Default, Clone, Copy)]
 pub struct SamplerReference {
@@ -120,7 +82,7 @@ impl SamplersPool {
         SamplerReference { key: sampler_key }
     }
 
-    fn get_sampler(&self, sampler_reference: SamplerReference) -> Option<&Sampler> {
+    pub fn get_sampler(&self, sampler_reference: SamplerReference) -> Option<&Sampler> {
         self.slots.get(sampler_reference.key)
     }
 

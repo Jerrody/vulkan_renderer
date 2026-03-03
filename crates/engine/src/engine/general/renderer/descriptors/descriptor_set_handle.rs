@@ -9,7 +9,7 @@ use vulkanite::{
 };
 
 use crate::engine::{
-    ecs::buffers_pool::{BufferInfo, BufferReference, BuffersMut},
+    ecs::buffers_pool::{BufferInfo, BufferReference, BuffersPool},
     general::renderer::DescriptorKind,
 };
 
@@ -55,7 +55,7 @@ impl DescriptorSetHandle {
         }
     }
 
-    pub fn update_binding(&mut self, buffers_mut: &BuffersMut, descriptor_kind: DescriptorKind) {
+    pub fn update_binding(&mut self, buffers_pool: &BuffersPool, descriptor_kind: DescriptorKind) {
         let descriptor_type = descriptor_kind.get_descriptor_type();
 
         let descriptors_sizes = self.descriptors_sizes;
@@ -87,7 +87,7 @@ impl DescriptorSetHandle {
         let binding_offset =
             base_binding_offset + (descriptor_slot_index as u64 * descriptor_size as u64);
 
-        let mapped_allocation = buffers_mut.map_allocation(self.descriptor_buffer_reference);
+        let mapped_allocation = buffers_pool.map_allocation(self.descriptor_buffer_reference);
 
         let target_descriptor_buffer_address =
             unsafe { mapped_allocation.get_ptr().add(binding_offset as usize) };

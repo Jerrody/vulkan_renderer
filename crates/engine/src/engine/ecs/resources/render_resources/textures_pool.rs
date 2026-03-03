@@ -1,7 +1,4 @@
-use bevy_ecs::{
-    resource::Resource,
-    system::{Res, ResMut, SystemParam},
-};
+use bevy_ecs::resource::Resource;
 use bytemuck::{Pod, Zeroable};
 use fast_image_resize::{PixelType, images::Image};
 use ktx2_rw::{BasisCompressionParams, Ktx2Texture};
@@ -45,50 +42,6 @@ pub struct TextureReference {
 impl TextureReference {
     pub fn get_index(&self) -> u32 {
         self.key.data().get_key() - 1
-    }
-}
-
-#[derive(SystemParam)]
-pub struct Textures<'w> {
-    textures_pool: Res<'w, TexturesPool>,
-}
-
-impl<'w> Textures<'w> {
-    #[inline(always)]
-    pub fn get(&'w self, texture_reference: TextureReference) -> Option<&'w AllocatedImage> {
-        self.textures_pool.get_image(texture_reference)
-    }
-}
-
-#[derive(SystemParam)]
-pub struct TexturesMut<'w> {
-    textures_pool: ResMut<'w, TexturesPool>,
-}
-
-impl<'w> TexturesMut<'w> {
-    #[inline(always)]
-    pub fn get(&'w self, texture_reference: TextureReference) -> Option<&'w AllocatedImage> {
-        self.textures_pool.get_image(texture_reference)
-    }
-
-    #[inline(always)]
-    pub fn create_texture(
-        &mut self,
-        data: Option<&mut [u8]>,
-        is_cached: bool,
-        format: Format,
-        extent: Extent3D,
-        usage_flags: ImageUsageFlags,
-        mip_map_enabled: bool,
-    ) -> (TextureReference, Option<Ktx2Texture>) {
-        self.textures_pool.create_texture(
-            data,
-            is_cached,
-            format,
-            extent,
-            usage_flags,
-            mip_map_enabled,
-        )
     }
 }
 
