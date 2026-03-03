@@ -109,23 +109,24 @@ impl PhysicsManager {
     }
 
     // TODO: Later accept Option RigidBody as parameter, for unified and easy to use API.
-    pub fn create_mesh_collider(
+    pub fn create_convex_mesh_collider(
         &mut self,
         mesh_data: &MeshData,
         rigid_body_handle: RigidBodyHandle,
     ) -> Collider {
-        let vertices = mesh_data
+        let vertices: Vec<rapier3d::math::Vec3> = mesh_data
             .vertices
             .iter()
             .map(|vertex| rapier3d::math::Vec3::from_array(vertex.position))
             .collect();
-        let indices = mesh_data
+        let indices: Vec<[u32; 3]> = mesh_data
             .indices
             .chunks_exact(3)
             .map(|chunk| [chunk[0] as u32, chunk[1] as u32, chunk[2] as u32])
             .collect();
 
-        let collider = ColliderBuilder::trimesh(vertices, indices).unwrap().build();
+        let collider =
+            ColliderBuilder::convex_decomposition(vertices.as_slice(), indices.as_slice()).build();
         let collider_handle = self.collider_set.insert_with_parent(
             collider,
             rigid_body_handle,

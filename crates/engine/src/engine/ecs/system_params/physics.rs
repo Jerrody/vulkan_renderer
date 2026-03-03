@@ -20,7 +20,7 @@ pub struct Physics<'w, 's> {
 }
 
 impl<'w, 's> Physics<'w, 's> {
-    pub fn create_mesh_collider_from_mesh(
+    pub fn create_convex_mesh_collider_from_mesh(
         &mut self,
         target_entity: Entity,
         mesh: Mesh,
@@ -34,7 +34,7 @@ impl<'w, 's> Physics<'w, 's> {
 
         let collider = self
             .physics_manager
-            .create_mesh_collider(&mesh_buffer.mesh_data, rigid_body.rigid_body_handle);
+            .create_convex_mesh_collider(&mesh_buffer.mesh_data, rigid_body.rigid_body_handle);
 
         let mut entity_commands = self.commands.entity(target_entity);
         entity_commands.insert(collider);

@@ -283,7 +283,11 @@ fn create_rigidbody_for_planet(
                 *is_created_rigidbody = true;
 
                 let mut rigid_body = physics.create_rigid_body(planet_entity, transform.position());
-                physics.create_mesh_collider_from_mesh(planet_entity, mesh_component, rigid_body);
+                physics.create_convex_mesh_collider_from_mesh(
+                    planet_entity,
+                    mesh_component,
+                    rigid_body,
+                );
                 rigid_body.apply_impulse(Vec3::new(100000.0 * 2.0, 0.0, 0.0), &mut physics);
 
                 return;
