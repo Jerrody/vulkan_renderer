@@ -18,6 +18,16 @@ bevy_ecs = { version = "0.18.0", default-features = false, features = [
 ] }
 winit = { version = "=0.31.0-beta.2", default-features = false }
 rapier3d = { version = "0.32.0", features = ["simd-stable", "parallel"] }
+asset-importer = { version = "0.7.0", default-features = false, features = [
+    "bytemuck",
+    "glam",
+    "build-assimp",
+] }
+walkdir = "2.5"
+serde = { version = "1.0.228", features = ["derive"] }
+ron = "0.12.0"
+rkyv = "0.8.15"
+
 engine = { path = "crates/engine" }
 game_logic = { path = "crates/game_logic" }
 math = { path = "crates/engine/crates/math" }

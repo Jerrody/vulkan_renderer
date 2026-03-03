@@ -1115,6 +1115,7 @@ dependencies = [
  "dolly",
  "fast_image_resize",
  "image",
+ "importer",
  "kira",
  "ktx2-rw",
  "math",
@@ -1955,8 +1956,12 @@ checksum = "e7c5cedc30da3a610cac6b4ba17597bdf7152cf974e8aab3afb3d54455e371c8"
 name = "importer"
 version = "0.1.0"
 dependencies = [
+ "asset-importer",
+ "bevy_ecs",
  "rkyv",
  "ron",
+ "serde",
+ "walkdir",
 ]
 
 [[package]]

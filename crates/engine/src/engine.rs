@@ -11,6 +11,7 @@ use bevy_ecs::{
     schedule::{IntoScheduleConfigs, ScheduleLabel, Schedules},
     world::World,
 };
+use importer::Importer;
 use math::Random;
 use winit::{event::ElementState, keyboard::KeyCode, window::Window};
 
@@ -48,8 +49,12 @@ pub use system_params::physics::*;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
 struct SchedulerWorldUpdate;
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
 struct SchedulerRendererSetup;
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
+struct SchedulerEngineStartup;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel, Debug)]
 struct SchedulerRendererUpdate;
@@ -84,8 +89,12 @@ impl Engine {
         world.insert_resource(frame_context);
 
         world.init_resource::<Schedules>();
+        world.insert_resource(Importer::new());
 
         let mut schedulers = world.resource_mut::<Schedules>();
+
+        let scheduler_engine_startup = schedulers.entry(SchedulerEngineStartup);
+        scheduler_engine_startup.add_systems(importer::collect_assets_to_serialize);
 
         let scheduler_world_update = schedulers.entry(SchedulerWorldUpdate);
         scheduler_world_update.add_systems(
@@ -137,6 +146,7 @@ impl Engine {
         world.insert_resource(Random::new());
         world.insert_resource(physics::PhysicsManager::new());
 
+        world.run_schedule(SchedulerEngineStartup);
         world.run_schedule(SchedulerRendererSetup);
         world.flush();
 

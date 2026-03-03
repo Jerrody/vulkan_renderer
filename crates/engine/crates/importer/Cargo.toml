@@ -5,5 +5,9 @@ edition = "2024"
 publish = false
 
 [dependencies]
-ron = "0.12.0"
-rkyv = "0.8.15"
+ron = { workspace = true }
+rkyv = { workspace = true }
+serde = { workspace = true }
+walkdir = { workspace = true }
+bevy_ecs = { workspace = true }
+asset-importer = { workspace = true }

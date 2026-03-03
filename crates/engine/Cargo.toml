@@ -12,6 +12,7 @@ rayon = { workspace = true }
 bevy_ecs = { workspace = true }
 winit = { workspace = true }
 math = { workspace = true }
+importer = { workspace = true }
 rapier3d = { workspace = true }
 
 raw-window-handle = "0.6.2"
@@ -28,11 +29,7 @@ vulkanite = { git = "https://github.com/Jerrody/vulkanite", features = [
     "ext_validation_features",
 ] }
 vma = { package = "vk-mem", git = "https://github.com/Jerrody/vulkanite-mem-rs", branch = "vulkanite" }
-asset-importer = { version = "0.7.0", default-features = false, features = [
-    "bytemuck",
-    "glam",
-    "build-assimp",
-] }
+asset-importer = { workspace = true }
 bytemuck = "1.25.0"
 meshopt = "0.6.2"
 ahash = "0.8.12"
