@@ -1,6 +1,7 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
+use uuid::{Uuid, Version};
 
-use asset_importer::{Matrix4x4, node::Node, postprocess::PostProcessSteps};
+use asset_importer::{Matrix4x4, node::Node, postprocess::PostProcessSteps, raw};
 use bevy_ecs::{resource::Resource, system::ResMut};
 use bytemuck::{Pod, Zeroable};
 use math::*;
@@ -9,24 +10,57 @@ use padding_struct::padding_struct;
 use walkdir::WalkDir;
 
 type ModelLoader = asset_importer::Importer;
-type Uuid = String;
 
-struct NodeData {
+#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+pub struct SerializedMesh {
+    // NOTE: Vertices and Inddices baked by meshopt, can be issues with creating colliders, but need to check.
+    pub vertices: Vec<Vertex>,
+    pub indices: Vec<u32>,
+    pub meshlets: Vec<Meshlet>,
+    pub triangles: Vec<u8>,
+}
+
+#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+pub struct SerializedHierarchy {
+    pub serialized_nodes: Vec<SerializedNode>,
+}
+
+#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+pub struct SerializedNode {
     pub name: String,
-    pub index: usize,
     pub parent_index: Option<usize>,
-    pub matrix: Mat4,
-    pub mesh_indices: Vec<usize>,
+    pub matrix: [f32; 16],
+    pub mesh_index: Option<usize>,
+}
+
+#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+pub struct SerializedModel {
+    pub meshes: Vec<SerializedMesh>,
+    pub hierarchy: SerializedHierarchy,
 }
 
 #[repr(C)]
 #[padding_struct]
-#[derive(Default, Clone, Copy, Pod, Zeroable)]
+#[derive(
+    Default, Clone, Copy, Pod, Zeroable, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
 pub struct Meshlet {
     pub vertex_offset: u32,
     pub triangle_offset: u32,
     pub vertex_count: u32,
     pub triangle_count: u32,
+}
+
+#[repr(C)]
+#[padding_struct]
+#[derive(
+    Default, Clone, Copy, Pod, Zeroable, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
+pub struct Vertex {
+    pub position: [f32; 3],
+    pub normal: [f32; 3],
+    pub uv: [f32; 2],
+    pub color: [f32; 3],
 }
 
 #[derive(Default, Clone, Copy)]
@@ -91,18 +125,16 @@ pub struct MaterialData {
 }
 
 pub struct Material {
-    pub ptr_data: DeviceAddress,
+    //pub ptr_data: DeviceAddress,
     pub state: MaterialState,
 }
 
-#[repr(C)]
-#[padding_struct]
-#[derive(Default, Clone, Copy, Pod, Zeroable)]
-pub struct Vertex {
-    pub position: [f32; 3],
-    pub normal: [f32; 3],
-    pub uv: [f32; 2],
-    pub color: [f32; 3],
+struct NodeData {
+    pub name: String,
+    pub index: usize,
+    pub parent_index: Option<usize>,
+    pub matrix: Mat4,
+    pub mesh_indices: Vec<usize>,
 }
 
 impl NodeData {
@@ -156,9 +188,11 @@ impl NodeData {
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub struct ModelAssetMetadata {
+    uuid: Uuid,
     name: String,
     path_buf: PathBuf,
-    textures: Vec<Uuid>,
+    // TODO: Temp commenting.
+    //textures: Vec<Uuid>,
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
@@ -197,6 +231,7 @@ impl Serializers {
 #[derive(Clone)]
 pub struct BaseAssetEntry {
     pub name: String,
+    pub extension: String,
     pub path_buf: PathBuf,
 }
 
@@ -211,10 +246,18 @@ pub enum AssetEntry {
     Model(ModelEntry),
 }
 
+pub struct SerializedAssetsPathBuffers {
+    pub model_path: PathBuf,
+    pub textures_path: PathBuf,
+    pub materials_path: PathBuf,
+}
+
 #[derive(Resource)]
 pub struct Importer {
     model_importer: ModelLoader,
     asset_folder_path_buffer: PathBuf,
+    serialized_assets_folder_path_buffer: PathBuf,
+    serialized_assets_path_buffers: SerializedAssetsPathBuffers,
     assets_to_serialize: Vec<PathBuf>,
     serializers: Serializers,
     meta_files: Vec<AssetMetadata>,
@@ -223,9 +266,21 @@ pub struct Importer {
 
 impl Importer {
     pub fn new() -> Self {
+        let serialized_assets_folder_path_buffer = Self::get_serialized_assets_folder_path_buffer();
+
         Self {
             model_importer: ModelLoader::new(),
             asset_folder_path_buffer: Self::get_assets_folder_path_buffer(),
+            serialized_assets_folder_path_buffer: serialized_assets_folder_path_buffer.clone(),
+            serialized_assets_path_buffers: SerializedAssetsPathBuffers {
+                model_path: serialized_assets_folder_path_buffer.join("models").clone(),
+                textures_path: serialized_assets_folder_path_buffer
+                    .join("textures")
+                    .clone(),
+                materials_path: serialized_assets_folder_path_buffer
+                    .join("materials")
+                    .clone(),
+            },
             assets_to_serialize: Default::default(),
             serializers: Serializers::new(),
             meta_files: Vec::new(),
@@ -240,6 +295,17 @@ impl Importer {
         exe_path.pop();
         exe_path.pop();
         exe_path.push("assets");
+
+        exe_path
+    }
+
+    fn get_serialized_assets_folder_path_buffer() -> PathBuf {
+        let mut exe_path = std::env::current_exe().unwrap();
+
+        exe_path.pop();
+        exe_path.pop();
+        exe_path.pop();
+        exe_path.push("intermediate");
 
         exe_path
     }
@@ -303,6 +369,12 @@ pub fn resolve_assets_entries_system(mut importer: ResMut<Importer>) {
                     asset_entries.push(AssetEntry::Model(ModelEntry {
                         entry: BaseAssetEntry {
                             name: file_name,
+                            extension: asset_to_resolve
+                                .extension()
+                                .unwrap()
+                                .to_str()
+                                .unwrap()
+                                .to_owned(),
                             path_buf: asset_to_resolve.clone(),
                         },
                     }));
@@ -347,13 +419,51 @@ pub fn serialize_unserialized_assets_system(mut importer: ResMut<Importer>) {
     assets_entries
         .drain(..)
         .for_each(|asset_entry| match asset_entry {
-            AssetEntry::Model(model_entry) => serialize_model_asset(&mut importer, &model_entry),
+            AssetEntry::Model(model_entry) => {
+                let model_name = model_entry.entry.name.clone();
+                let serialized_model = serialize_model_asset(&mut importer, &model_entry);
+
+                let uuid = Uuid::new_v4();
+                let serialized_model_path_buffer = importer
+                    .serialized_assets_path_buffers
+                    .model_path
+                    .join(std::format!("{}_{}", model_name, uuid))
+                    .clone();
+                let bytes = rkyv::to_bytes::<rkyv::rancor::Error>(&serialized_model)
+                    .expect("Failed to serialize model");
+
+                std::fs::write(serialized_model_path_buffer, bytes).unwrap();
+
+                let model_asset_metadata = ModelAssetMetadata {
+                    uuid,
+                    name: model_name,
+                    path_buf: model_entry.entry.path_buf.clone(),
+                    // TODO: Temp commenting.
+                    // textures,
+                };
+                let serialized_model_asset_metadata = ron::ser::to_string_pretty(
+                    &model_asset_metadata,
+                    importer.serializers.ron_pretty_config.clone(),
+                )
+                .unwrap();
+
+                let model_asset_metadata_path = importer
+                    .serialized_assets_path_buffers
+                    .model_path
+                    .join(std::format!(
+                        "{}.{}.meta",
+                        model_entry.entry.name,
+                        model_entry.entry.extension
+                    ))
+                    .clone();
+
+                std::fs::write(model_asset_metadata_path, serialized_model_asset_metadata).unwrap();
+            }
         });
 }
 
 // TODO: Currently, we serialize and model, and textures, and materials in the same pass, later, need to separate them.
-fn serialize_model_asset(importer: &mut Importer, model_entry: &ModelEntry) {
-    let model_name = model_entry.entry.name.as_str();
+fn serialize_model_asset(importer: &mut Importer, model_entry: &ModelEntry) -> SerializedModel {
     let model_path = model_entry.entry.path_buf.as_path();
 
     let scene = importer
@@ -402,87 +512,46 @@ fn serialize_model_asset(importer: &mut Importer, model_entry: &ModelEntry) {
         }
     }
 
+    let mut serialized_model = SerializedModel {
+        meshes: Vec::new(),
+        hierarchy: SerializedHierarchy {
+            serialized_nodes: Vec::new(),
+        },
+    };
+
+    nodes.iter().for_each(|node_data| {
+        let local_matrix = node_data.matrix;
+
+        let serialized_node = SerializedNode {
+            name: node_data.name.clone(),
+            parent_index: node_data.parent_index,
+            matrix: local_matrix.to_cols_array(),
+            mesh_index: None,
+        };
+
+        serialized_model
+            .hierarchy
+            .serialized_nodes
+            .push(serialized_node);
+    });
+
+    let mut serialized_meshes = HashMap::with_capacity(scene.num_meshes());
+    // TODO: Temp.
+    /* let mut uploaded_textures = HashMap::with_capacity(serialized_meshes.capacity());
+    let mut uploaded_materials = HashMap::with_capacity(scene.num_materials()) */
+
     for node_data in nodes.into_iter() {
         if node_data.mesh_indices.len() > Default::default() {
             let mut mesh_name: String;
-            for &mesh_index in node_data.mesh_indices.iter() {
-                texture_reference = renderer_resources.fallback_texture_reference;
-                let mesh = scene.mesh(mesh_index).unwrap();
 
-                let material_index = mesh.material_index();
-                let material_reference: MaterialReference;
-                if let std::collections::hash_map::Entry::Vacant(e) =
-                    uploaded_materials.entry(material_index)
+            let mut texture_index: Option<u32>;
+            let mut mesh_index: usize;
+
+            for &current_mesh_index in node_data.mesh_indices.iter() {
+                if let std::collections::hash_map::Entry::Vacant(entry) =
+                    serialized_meshes.entry(current_mesh_index)
                 {
-                    let material = scene.material(material_index).unwrap();
-
-                    let alpha_mode = std::str::from_utf8(
-                        material
-                            .get_property_raw_ref(c"$mat.gltf.alphaMode", None, 0)
-                            .unwrap(),
-                    )
-                    .unwrap();
-                    let mut material_type = MaterialType::Opaque;
-                    if alpha_mode.contains("BLEND") {
-                        material_type = MaterialType::Transparent;
-                    }
-
-                    try_upload_texture(
-                        &vulkan_context,
-                        &renderer_context_resource,
-                        &mut textures_pool,
-                        &mut buffers_pool,
-                        &mut descriptor_set_handle,
-                        &scene,
-                        &mut uploaded_textures,
-                        material.clone(),
-                        &mut texture_reference,
-                        load_model_event.path.file_stem().unwrap().to_str().unwrap(),
-                    );
-
-                    let base_color_raw = material.base_color().unwrap();
-                    let base_color = Vec4::new(
-                        base_color_raw.x,
-                        base_color_raw.y,
-                        base_color_raw.z,
-                        base_color_raw.w,
-                    );
-
-                    let metallic_value = material.metallic_factor().unwrap_or(0.0);
-                    let roughness_value = material.roughness_factor().unwrap_or(0.0);
-                    let albedo_texture_index = texture_reference.get_index();
-                    let metallic_texture_index =
-                        renderer_resources.fallback_texture_reference.get_index();
-                    let roughness_texture_index =
-                        renderer_resources.fallback_texture_reference.get_index();
-
-                    let material_data = MaterialData {
-                        material_properties: MaterialProperties::new(
-                            base_color,
-                            metallic_value,
-                            roughness_value,
-                        ),
-                        material_textures: MaterialTextures::new(
-                            albedo_texture_index,
-                            metallic_texture_index,
-                            roughness_texture_index,
-                        ),
-                        sampler_index: Default::default(),
-                    };
-
-                    material_reference = materials_pool.write_material(
-                        bytemuck::bytes_of(&material_data),
-                        MaterialState { material_type },
-                    );
-                    e.insert(material_reference);
-                } else {
-                    material_reference = *uploaded_materials.get(&material_index).unwrap();
-                }
-
-                if let std::collections::hash_map::Entry::Vacant(e) =
-                    uploaded_mesh_buffers.entry(mesh_index)
-                {
-                    let mesh = scene.mesh(mesh_index).unwrap();
+                    let mesh = scene.mesh(current_mesh_index).unwrap();
                     mesh_name = mesh.name();
 
                     let mut indices = Vec::with_capacity(mesh.faces().len() * 3);
@@ -536,6 +605,8 @@ fn serialize_model_asset(importer: &mut Importer, model_entry: &ModelEntry) {
 
                     let position_offset = std::mem::offset_of!(Vertex, position);
                     let vertex_stride = std::mem::size_of::<Vertex>();
+
+                    // TODO: Use bytemuck instead.
                     let vertex_data = typed_to_bytes(&vertices);
 
                     let vertex_data_adapter =
@@ -548,66 +619,111 @@ fn serialize_model_asset(importer: &mut Importer, model_entry: &ModelEntry) {
                     let (meshlets, vertex_indices, triangles) =
                         generate_meshlets(&indices, &vertex_data_adapter);
 
-                    let vertex_buffer_reference = create_and_copy_to_buffer(
-                        &mut buffers_pool,
-                        vertices.as_ptr() as *const _,
-                        vertices.len() * std::mem::size_of::<Vertex>(),
-                        std::format!("{}_{}", mesh_name, name_of!(vertices)),
-                    );
-                    let vertex_indices_buffer_reference = create_and_copy_to_buffer(
-                        &mut buffers_pool,
-                        vertex_indices.as_ptr() as _,
-                        vertex_indices.len() * std::mem::size_of::<u32>(),
-                        std::format!("{}_{}", mesh_name, name_of!(vertex_indices)),
-                    );
-                    let meshlets_buffer_reference = create_and_copy_to_buffer(
-                        &mut buffers_pool,
-                        meshlets.as_ptr() as _,
-                        meshlets.len() * std::mem::size_of::<Meshlet>(),
-                        std::format!("{}_{}", mesh_name, name_of!(meshlets)),
-                    );
-
-                    let local_indices_buffer_reference = create_and_copy_to_buffer(
-                        &mut buffers_pool,
-                        triangles.as_ptr() as _,
-                        triangles.len() * std::mem::size_of::<u8>(),
-                        std::format!("{}_{}", mesh_name, name_of!(triangles)),
-                    );
-
-                    let mesh_data = MeshData { vertices, indices };
-
-                    let mesh_buffer = MeshBuffer {
-                        mesh_object_device_address: Default::default(),
-                        vertex_buffer_reference,
-                        vertex_indices_buffer_reference,
-                        meshlets_buffer_reference,
-                        local_indices_buffer_reference,
-                        meshlets_count: meshlets.len(),
-                        mesh_data,
+                    let serialized_mesh = SerializedMesh {
+                        vertices,
+                        indices: vertex_indices,
+                        meshlets,
+                        triangles,
                     };
 
-                    mesh_buffer_reference = mesh_buffers_pool.insert_mesh_buffer(mesh_buffer);
-                    mesh_buffers_to_upload.push(mesh_buffer_reference);
+                    mesh_index = serialized_model.meshes.len();
 
-                    e.insert((mesh, mesh_buffer_reference));
+                    entry.insert((mesh, mesh_index));
+                    serialized_model.meshes.push(serialized_mesh);
                 } else {
-                    let already_uploaded_mesh = uploaded_mesh_buffers.get(&mesh_index).unwrap();
+                    let already_uploaded_mesh = serialized_meshes.get(&current_mesh_index).unwrap();
                     mesh_name = already_uploaded_mesh.0.name();
-                    mesh_buffer_reference = already_uploaded_mesh.1;
+                    mesh_index = already_uploaded_mesh.1;
                 }
 
-                spawn_event_record.name = mesh_name;
-                spawn_event_record.parent_index = Some(node_data.index);
-                spawn_event_record.material_reference = Some(material_reference);
-                spawn_event_record.mesh_buffer_reference = Some(mesh_buffer_reference);
-                spawn_event_record.transform = LocalTransform::IDENTITY;
+                let serialized_node = SerializedNode {
+                    name: mesh_name,
+                    parent_index: Some(node_data.index),
+                    matrix: node_data.matrix.to_cols_array(),
+                    mesh_index: Some(mesh_index),
+                };
 
-                spawn_event.spawn_records.push(spawn_event_record.clone());
+                serialized_model
+                    .hierarchy
+                    .serialized_nodes
+                    .push(serialized_node);
+
+                /*                let material_index = mesh.material_index();
+                               let material: Option<u32>;
+                               if let std::collections::hash_map::Entry::Vacant(e) =
+                                   uploaded_materials.entry(material_index)
+                               {
+                                   let material = scene.material(material_index).unwrap();
+
+                                   let alpha_mode = std::str::from_utf8(
+                                       material
+                                           .get_property_raw_ref(c"$mat.gltf.alphaMode", None, 0)
+                                           .unwrap(),
+                                   )
+                                   .unwrap();
+                                   let mut material_type = MaterialType::Opaque;
+                                   if alpha_mode.contains("BLEND") {
+                                       material_type = MaterialType::Transparent;
+                                   }
+
+                                   try_upload_texture(
+                                       &vulkan_context,
+                                       &renderer_context_resource,
+                                       &mut textures_pool,
+                                       &mut buffers_pool,
+                                       &mut descriptor_set_handle,
+                                       &scene,
+                                       &mut uploaded_textures,
+                                       material.clone(),
+                                       &mut texture_reference,
+                                       load_model_event.path.file_stem().unwrap().to_str().unwrap(),
+                                   );
+
+                                   let base_color_raw = material.base_color().unwrap();
+                                   let base_color = Vec4::new(
+                                       base_color_raw.x,
+                                       base_color_raw.y,
+                                       base_color_raw.z,
+                                       base_color_raw.w,
+                                   );
+
+                                   let metallic_value = material.metallic_factor().unwrap_or(0.0);
+                                   let roughness_value = material.roughness_factor().unwrap_or(0.0);
+                                   let albedo_texture_index = texture_reference.get_index();
+                                   let metallic_texture_index = None;
+                                   let roughness_texture_index = None;
+
+                                   let material_data = MaterialData {
+                                       material_properties: MaterialProperties::new(
+                                           base_color,
+                                           metallic_value,
+                                           roughness_value,
+                                       ),
+                                       material_textures: MaterialTextures::new(
+                                           albedo_texture_index,
+                                           metallic_texture_index,
+                                           roughness_texture_index,
+                                       ),
+                                       sampler_index: Default::default(),
+                                   };
+
+                                   material_reference = materials_pool.write_material(
+                                       bytemuck::bytes_of(&material_data),
+                                       MaterialState { material_type },
+                                   );
+                                   e.insert(material_reference);
+                               } else {
+                                   material_reference = *uploaded_materials.get(&material_index).unwrap();
+                               }
+                */
             }
         }
     }
+
+    serialized_model
 }
 
+#[inline(always)]
 fn get_mesh_indices(node: &Node, num_meshes: usize) -> Vec<usize> {
     let mut mesh_indices = Vec::with_capacity(num_meshes);
     if num_meshes > Default::default() {
@@ -619,6 +735,7 @@ fn get_mesh_indices(node: &Node, num_meshes: usize) -> Vec<usize> {
     mesh_indices
 }
 
+#[inline(always)]
 fn generate_meshlets(
     indices: &[u32],
     vertices: &VertexDataAdapter,
@@ -629,7 +746,7 @@ fn generate_meshlets(
 
     let raw_meshlets = build_meshlets(indices, vertices, max_vertices, max_triangles, cone_weight);
 
-    let mut meshlets = Vec::new();
+    let mut meshlets = Vec::with_capacity(raw_meshlets.len());
 
     for raw_meshlet in raw_meshlets.meshlets.iter() {
         meshlets.push(Meshlet {
