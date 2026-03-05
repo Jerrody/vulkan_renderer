@@ -94,7 +94,15 @@ impl Engine {
         let mut schedulers = world.resource_mut::<Schedules>();
 
         let scheduler_engine_startup = schedulers.entry(SchedulerEngineStartup);
-        scheduler_engine_startup.add_systems(importer::collect_assets_to_serialize_system);
+        scheduler_engine_startup.add_systems(
+            (
+                importer::collect_assets_to_serialize_system,
+                importer::resolve_assets_entries_system,
+                importer::check_if_asset_is_serialized_system,
+                importer::serialize_unserialized_assets_system,
+            )
+                .chain(),
+        );
 
         let scheduler_world_update = schedulers.entry(SchedulerWorldUpdate);
         scheduler_world_update.add_systems(

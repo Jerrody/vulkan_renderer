@@ -268,18 +268,25 @@ impl Importer {
     pub fn new() -> Self {
         let serialized_assets_folder_path_buffer = Self::get_serialized_assets_folder_path_buffer();
 
+        let model_path = serialized_assets_folder_path_buffer.join("models").clone();
+        std::fs::create_dir_all(model_path.as_path()).unwrap();
+        let textures_path = serialized_assets_folder_path_buffer
+            .join("textures")
+            .clone();
+        std::fs::create_dir_all(textures_path.as_path()).unwrap();
+        let materials_path = serialized_assets_folder_path_buffer
+            .join("materials")
+            .clone();
+        std::fs::create_dir_all(materials_path.as_path()).unwrap();
+
         Self {
             model_importer: ModelLoader::new(),
             asset_folder_path_buffer: Self::get_assets_folder_path_buffer(),
             serialized_assets_folder_path_buffer: serialized_assets_folder_path_buffer.clone(),
             serialized_assets_path_buffers: SerializedAssetsPathBuffers {
-                model_path: serialized_assets_folder_path_buffer.join("models").clone(),
-                textures_path: serialized_assets_folder_path_buffer
-                    .join("textures")
-                    .clone(),
-                materials_path: serialized_assets_folder_path_buffer
-                    .join("materials")
-                    .clone(),
+                model_path,
+                textures_path,
+                materials_path,
             },
             assets_to_serialize: Default::default(),
             serializers: Serializers::new(),
@@ -322,14 +329,7 @@ pub fn collect_assets_to_serialize_system(mut importer: ResMut<Importer>) {
         .filter_map(|e| e.ok())
     {
         if entry.file_type().is_file() {
-            if entry
-                .path()
-                .extension()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .ends_with(".meta")
-            {
+            if entry.path().extension().unwrap().to_str().eq(&Some("meta")) {
                 let meta_file = ron::de::from_reader::<std::fs::File, AssetMetadata>(
                     std::fs::File::open(entry.path()).unwrap(),
                 )
@@ -351,31 +351,33 @@ pub fn resolve_assets_entries_system(mut importer: ResMut<Importer>) {
     importer
         .assets_to_serialize
         .drain(..)
-        .for_each(|asset_to_resolve| {
-            let file_name = asset_to_resolve
+        .for_each(|asset_to_serialize| {
+            let file_name = asset_to_serialize
                 .file_name()
                 .unwrap()
                 .to_str()
                 .unwrap()
                 .to_owned();
 
-            match asset_to_resolve
+            match asset_to_serialize
                 .extension()
                 .unwrap()
                 .to_str()
                 .unwrap_or_default()
             {
-                "glb" | "gltf" | "obj" | "fbx" => {
+                // TODO: Currently, we support only "glb" format of models.
+                //"glb" | "gltf" | "obj" | "fbx" => {
+                "glb" => {
                     asset_entries.push(AssetEntry::Model(ModelEntry {
                         entry: BaseAssetEntry {
                             name: file_name,
-                            extension: asset_to_resolve
+                            extension: asset_to_serialize
                                 .extension()
                                 .unwrap()
                                 .to_str()
                                 .unwrap()
                                 .to_owned(),
-                            path_buf: asset_to_resolve.clone(),
+                            path_buf: asset_to_serialize.clone(),
                         },
                     }));
                 }
@@ -389,6 +391,16 @@ pub fn resolve_assets_entries_system(mut importer: ResMut<Importer>) {
 
 pub fn check_if_asset_is_serialized_system(mut importer: ResMut<Importer>) {
     let meta_files = importer.meta_files.to_vec();
+    meta_files.iter().for_each(|meta_file| match meta_file {
+        AssetMetadata::Model(model_asset_metadata) => {
+            println!(
+                "{} {}",
+                model_asset_metadata.name,
+                model_asset_metadata.path_buf.display()
+            );
+        }
+        AssetMetadata::Texture(texture_asset_metadata) => todo!(),
+    });
 
     importer.assets_entries.retain(|asset_entry| {
         let name = match asset_entry {
@@ -434,30 +446,26 @@ pub fn serialize_unserialized_assets_system(mut importer: ResMut<Importer>) {
 
                 std::fs::write(serialized_model_path_buffer, bytes).unwrap();
 
-                let model_asset_metadata = ModelAssetMetadata {
+                let model_asset_metadata = AssetMetadata::Model(ModelAssetMetadata {
                     uuid,
                     name: model_name,
                     path_buf: model_entry.entry.path_buf.clone(),
                     // TODO: Temp commenting.
                     // textures,
-                };
+                });
                 let serialized_model_asset_metadata = ron::ser::to_string_pretty(
                     &model_asset_metadata,
                     importer.serializers.ron_pretty_config.clone(),
                 )
                 .unwrap();
 
-                let model_asset_metadata_path = importer
-                    .serialized_assets_path_buffers
-                    .model_path
-                    .join(std::format!(
-                        "{}.{}.meta",
-                        model_entry.entry.name,
-                        model_entry.entry.extension
-                    ))
-                    .clone();
+                let model_asset_metadata_path = model_entry.entry.path_buf.clone();
 
-                std::fs::write(model_asset_metadata_path, serialized_model_asset_metadata).unwrap();
+                std::fs::write(
+                    std::format!("{}.meta", model_asset_metadata_path.display()),
+                    serialized_model_asset_metadata,
+                )
+                .unwrap();
             }
         });
 }
