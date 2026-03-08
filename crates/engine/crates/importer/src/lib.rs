@@ -1,4 +1,10 @@
-use std::{collections::HashMap, io::Read, path::PathBuf, str::FromStr};
+use image::ImageReader;
+use std::{
+    collections::{HashMap, HashSet},
+    io::{Read, Write},
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 use uuid::{Uuid, Version, uuid};
 
 use asset_importer::{Matrix4x4, node::Node, postprocess::PostProcessSteps, raw};
@@ -230,6 +236,7 @@ pub struct ModelEntry {
 #[derive(Clone)]
 pub enum AssetEntry {
     Model(ModelEntry),
+    Texture(ModelEntry),
 }
 
 pub struct SerializedAssetsPathBuffers {
@@ -384,9 +391,11 @@ pub fn check_if_asset_is_serialized_system(mut importer: ResMut<Importer>) {
     importer.assets_entries.retain(|asset_entry| {
         let name = match asset_entry {
             AssetEntry::Model(model_entry) => model_entry.entry.name.as_str(),
+            AssetEntry::Texture(model_entry) => todo!(),
         };
         let path = match asset_entry {
             AssetEntry::Model(model_entry) => model_entry.entry.path_buf.as_path(),
+            AssetEntry::Texture(model_entry) => todo!(),
         };
 
         !meta_files.iter().any(|meta_file| {
@@ -396,7 +405,9 @@ pub fn check_if_asset_is_serialized_system(mut importer: ResMut<Importer>) {
             };
             let meta_path = match meta_file {
                 AssetMetadata::Model(model_asset) => model_asset.path_buf.as_path(),
-                AssetMetadata::Texture(texture_asset_metadata) => todo!(),
+                AssetMetadata::Texture(texture_asset_metadata) => {
+                    todo!()
+                }
             };
 
             name.eq(meta_name) && path.eq(meta_path)
@@ -461,12 +472,14 @@ pub fn serialize_unserialized_assets_system(mut importer: ResMut<Importer>) {
                 )
                 .unwrap();
             }
+            AssetEntry::Texture(model_entry) => {}
         });
 }
 
 // TODO: Currently, we serialize and model, and textures, and materials in the same pass, later, need to separate them.
 fn serialize_model_asset(importer: &mut Importer, model_entry: &ModelEntry) -> SerializedModel {
     let model_path = model_entry.entry.path_buf.as_path();
+    let model_name = model_entry.entry.name.split('.').next().unwrap();
 
     let scene = importer
         .model_importer
@@ -539,8 +552,9 @@ fn serialize_model_asset(importer: &mut Importer, model_entry: &ModelEntry) -> S
 
     let mut serialized_meshes = HashMap::with_capacity(scene.num_meshes());
     // TODO: Temp.
-    /* let mut uploaded_textures = HashMap::with_capacity(serialized_meshes.capacity());
-    let mut uploaded_materials = HashMap::with_capacity(scene.num_materials()) */
+    let mut extracted_textures = HashSet::with_capacity(scene.textures().count());
+    //let mut serialized_textures = HashMap::with_capacity(serialized_meshes.capacity());
+    /*let mut uploaded_materials = HashMap::with_capacity(scene.num_materials()) */
 
     for node_data in nodes.into_iter() {
         if node_data.mesh_indices.len() > Default::default() {
@@ -630,6 +644,17 @@ fn serialize_model_asset(importer: &mut Importer, model_entry: &ModelEntry) -> S
 
                     mesh_index = serialized_model.meshes.len();
 
+                    let material_index = mesh.material_index();
+                    let material = scene.material(material_index).unwrap();
+
+                    extract_texture(
+                        &scene,
+                        &model_name,
+                        PathBuf::from(model_path),
+                        &mut extracted_textures,
+                        material,
+                    );
+
                     entry.insert((mesh, mesh_index));
                     serialized_model.meshes.push(serialized_mesh);
                 } else {
@@ -649,7 +674,6 @@ fn serialize_model_asset(importer: &mut Importer, model_entry: &ModelEntry) -> S
                     .hierarchy
                     .serialized_nodes
                     .push(serialized_node);
-
                 /*                let material_index = mesh.material_index();
                                let material: Option<u32>;
                                if let std::collections::hash_map::Entry::Vacant(e) =
@@ -724,6 +748,135 @@ fn serialize_model_asset(importer: &mut Importer, model_entry: &ModelEntry) -> S
 
     serialized_model
 }
+
+fn extract_textures_from_model() {}
+
+// TODO: Handle, when texture is not part of model binary.
+fn extract_texture(
+    scene: &asset_importer::Scene,
+    model_name: &str,
+    mut model_path: PathBuf,
+    extracted_textures: &mut HashSet<usize>,
+    material: asset_importer::Material,
+) {
+    if material.texture_count(asset_importer::TextureType::BaseColor) > Default::default() {
+        let texture_info = material
+            .texture(asset_importer::TextureType::BaseColor, Default::default())
+            .unwrap();
+        let texture_index = texture_info.path[1..].parse::<usize>().unwrap();
+
+        if !extracted_textures.contains(&texture_index) {
+            let texture = scene.texture(texture_index).unwrap();
+            let format = texture.format_hint();
+            let texture_name = texture
+                .filename()
+                .unwrap_or(std::format!("{model_name}_texture_{texture_index}"));
+
+            model_path.pop();
+            let target_path = PathBuf::from(model_path)
+                .join(std::format!("{}_media", model_name))
+                .join("textures");
+            println!("{}", target_path.display());
+            std::fs::create_dir_all(&target_path).unwrap();
+
+            // TODO: Currently, we upload only base maps, so, we're hardcoding prefix of texture.
+            let texture_path = target_path.clone().join(std::format!(
+                "base_{}_{}.{}",
+                model_name,
+                texture_name,
+                format
+            ));
+
+            let mut texture_file: std::fs::File = std::fs::File::create(texture_path).unwrap();
+            let mut data = texture.data_bytes_ref().unwrap();
+            texture_file.write(&data).unwrap();
+
+            /*           let cursor = std::io::Cursor::new(&mut data);
+
+                       let image = ImageReader::new(cursor)
+                           .with_guessed_format()
+                           .unwrap()
+                           .decode()
+                           .unwrap();
+
+                       let rgba_image = image.to_rgba8();
+                       rgba_image.write_to(writer, format)
+                       let mut image_bytes = rgba_image.as_bytes().to_vec();
+            */
+            /*  if does_exist {
+                    let texture = Ktx2Texture::from_file(&path).unwrap();
+                    let texture_metadata_raw: Vec<u8> =
+                        texture.get_metadata(stringify!(TextureMetadata)).unwrap();
+                    let texture_metadata =
+                        *bytemuck::from_bytes::<TextureMetadata>(&texture_metadata_raw);
+
+                    for mip_level_index in 0..texture_metadata.mip_levels_count {
+                        texture_data
+                            .extend_from_slice(texture.get_image_data(mip_level_index, 0, 0).unwrap());
+                    }
+
+                    let extent = Extent3D {
+                        width: texture_metadata.width,
+                        height: texture_metadata.height,
+                        depth: 1,
+                    };
+
+                    let (created_texture_reference, _) = textures_pool.create_texture(
+                        Some(&mut texture_data),
+                        true,
+                        Format::Bc1RgbSrgbBlock,
+                        extent,
+                        ImageUsageFlags::Sampled | ImageUsageFlags::TransferDst,
+                        true,
+                    );
+
+                    texture_reference = created_texture_reference;
+                } else {
+                    let mut data = texture.data_bytes_ref().unwrap();
+
+                    let cursor = Cursor::new(&mut data);
+
+                    let image = ImageReader::new(cursor)
+                        .with_guessed_format()
+                        .unwrap()
+                        .decode()
+                        .unwrap();
+
+                    let extent = Extent3D {
+                        width: image.width(),
+                        height: image.height(),
+                        depth: 1,
+                    };
+                    let rgba_image = image.to_rgba8();
+                    let mut image_bytes = rgba_image.as_bytes().to_vec();
+
+                    let (created_texture_reference, ktx_texture) = textures_pool.create_texture(
+                        Some(&mut image_bytes),
+                        false,
+                        Format::Bc1RgbSrgbBlock,
+                        extent,
+                        ImageUsageFlags::Sampled | ImageUsageFlags::TransferDst,
+                        true,
+                    );
+                    texture_reference = created_texture_reference;
+
+                    let ktx_texture = ktx_texture.unwrap();
+                    for mip_level_index in
+                        0..created_texture_reference.texture_metadata.mip_levels_count
+                    {
+                        texture_data.extend_from_slice(
+                            ktx_texture.get_image_data(mip_level_index, 0, 0).unwrap(),
+                        );
+                    }
+
+                    extracted_textures.insert(texture_index);
+                }
+            } */
+        }
+    }
+}
+
+fn serialize_texture_asset(importer: &mut Importer) {}
 
 #[inline(always)]
 fn get_mesh_indices(node: &Node, num_meshes: usize) -> Vec<usize> {
