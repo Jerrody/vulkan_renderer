@@ -164,7 +164,7 @@ impl Engine {
         exe_path.pop();
         exe_path.pop();
         exe_path.pop();
-        std::process::exit(0);
+
         Self { world }
     }
 

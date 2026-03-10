@@ -490,14 +490,18 @@ pub fn check_if_asset_is_serialized_system(mut importer: ResMut<Importer>) {
                 AssetMetadata::Texture(texture_asset_metadata) => {
                     texture_asset_metadata.name.as_str()
                 }
-                AssetMetadata::Material(material_asset_metadata) => todo!(),
+                AssetMetadata::Material(material_asset_metadata) => {
+                    material_asset_metadata.name.as_str()
+                }
             };
             let meta_path = match meta_file {
                 AssetMetadata::Model(model_asset) => model_asset.path_buf.as_path(),
                 AssetMetadata::Texture(texture_asset_metadata) => {
                     texture_asset_metadata.path_buf.as_path()
                 }
-                AssetMetadata::Material(material_asset_metadata) => todo!(),
+                AssetMetadata::Material(material_asset_metadata) => {
+                    material_asset_metadata.path_buf.as_path()
+                }
             };
 
             name.eq(meta_name) && path.eq(meta_path)
