@@ -19,16 +19,6 @@ use crate::engine::resources::{
     samplers_pool::SamplerReference, textures_pool::TextureReference,
 };
 
-new_key_type! {
-    pub struct BufferKey;
-    pub struct TextureKey;
-    pub struct SamplerKey;
-    pub struct MeshBufferKey;
-    pub struct MeshDataKey;
-    pub struct MaterialKey;
-    pub struct AudioKey;
-}
-
 #[repr(C)]
 #[padding_struct]
 #[derive(Default, Clone, Copy, Pod, Zeroable)]

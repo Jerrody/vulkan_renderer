@@ -1,12 +1,10 @@
 use ahash::AHashMap;
 use bevy_ecs::resource::Resource;
+use shared::MaterialKey;
 use slotmap::SlotMap;
 use vulkanite::vk::DeviceAddress;
 
-use crate::engine::ecs::{
-    MaterialKey,
-    components::material::{MaterialState, MaterialType},
-};
+use crate::engine::ecs::components::material::{MaterialState, MaterialType};
 
 #[derive(Clone, Copy)]
 pub struct OffsetElement {

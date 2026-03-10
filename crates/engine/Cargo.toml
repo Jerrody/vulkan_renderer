@@ -13,6 +13,8 @@ bevy_ecs = { workspace = true }
 winit = { workspace = true }
 math = { workspace = true }
 importer = { workspace = true }
+loader = { workspace = true }
+shared = { workspace = true }
 rapier3d = { workspace = true }
 asset-importer = { workspace = true }
 image = { workspace = true }
@@ -22,6 +24,7 @@ meshopt = { workspace = true }
 padding-struct = { workspace = true }
 bytemuck = { workspace = true }
 num_cpus = { workspace = true }
+slotmap = { workspace = true }
 
 raw-window-handle = "0.6.2"
 vulkanite = { git = "https://github.com/Jerrody/vulkanite", features = [
@@ -40,5 +43,4 @@ vma = { package = "vk-mem", git = "https://github.com/Jerrody/vulkanite-mem-rs",
 ahash = "0.8.12"
 nameof = "1.3.0"
 dolly = "0.6.0"
-slotmap = { git = "https://github.com/Jerrody/slotmap" }
 kira = "0.12.0"

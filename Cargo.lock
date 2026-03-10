@@ -199,6 +199,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "asset_database"
+version = "0.1.0"
+dependencies = [
+ "asset-importer",
+ "bevy_ecs",
+ "bytemuck",
+ "fast_image_resize",
+ "image",
+ "ktx2-rw",
+ "math",
+ "meshopt",
+ "num_cpus",
+ "padding-struct",
+ "rkyv",
+ "serde",
+ "toml",
+ "uuid",
+ "uuid-simd",
+ "walkdir",
+]
+
+[[package]]
 name = "async-channel"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1119,6 +1141,7 @@ dependencies = [
  "importer",
  "kira",
  "ktx2-rw",
+ "loader",
  "math",
  "meshopt",
  "nameof",
@@ -1127,6 +1150,7 @@ dependencies = [
  "rapier3d",
  "raw-window-handle",
  "rayon",
+ "shared",
  "slotmap 1.1.1 (git+https://github.com/Jerrody/slotmap)",
  "vk-mem",
  "vulkanite",
@@ -1969,6 +1993,7 @@ dependencies = [
  "padding-struct",
  "rkyv",
  "serde",
+ "shared",
  "toml",
  "uuid",
  "uuid-simd",
@@ -2230,6 +2255,26 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 [[package]]
 name = "loader"
 version = "0.1.0"
+dependencies = [
+ "asset-importer",
+ "asset_database",
+ "bevy_ecs",
+ "bytemuck",
+ "fast_image_resize",
+ "image",
+ "ktx2-rw",
+ "math",
+ "meshopt",
+ "num_cpus",
+ "padding-struct",
+ "rkyv",
+ "serde",
+ "shared",
+ "toml",
+ "uuid",
+ "uuid-simd",
+ "walkdir",
+]
 
 [[package]]
 name = "log"
@@ -3678,6 +3723,29 @@ dependencies = [
  "cfg-if",
  "cpufeatures 0.2.17",
  "digest",
+]
+
+[[package]]
+name = "shared"
+version = "0.1.0"
+dependencies = [
+ "asset-importer",
+ "bevy_ecs",
+ "bytemuck",
+ "fast_image_resize",
+ "image",
+ "ktx2-rw",
+ "math",
+ "meshopt",
+ "num_cpus",
+ "padding-struct",
+ "rkyv",
+ "serde",
+ "slotmap 1.1.1 (git+https://github.com/Jerrody/slotmap)",
+ "toml",
+ "uuid",
+ "uuid-simd",
+ "walkdir",
 ]
 
 [[package]]

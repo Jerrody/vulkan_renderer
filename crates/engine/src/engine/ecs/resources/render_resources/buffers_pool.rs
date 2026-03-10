@@ -4,6 +4,7 @@ use std::{
 };
 
 use bevy_ecs::resource::Resource;
+use shared::BufferKey;
 use slotmap::SlotMap;
 use vma::{
     Alloc as _, Allocation, AllocationCreateFlags, AllocationCreateInfo, Allocator, MemoryUsage,
@@ -17,8 +18,6 @@ use vulkanite::{
         SubmitInfo, rs::*,
     },
 };
-
-use crate::engine::{ecs::BufferKey, resources::CommandGroup};
 
 pub struct MapppedAllocationHandler {
     allocator: Allocator,

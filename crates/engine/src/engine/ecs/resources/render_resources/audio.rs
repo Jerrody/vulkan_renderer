@@ -12,9 +12,8 @@ use kira::{
         static_sound::{StaticSoundData, StaticSoundHandle},
     },
 };
+use shared::AudioKey;
 use slotmap::SlotMap;
-
-use crate::engine::ecs::AudioKey;
 
 #[derive(Default, Clone, Copy)]
 pub struct AudioReference {

@@ -1,11 +1,10 @@
 use bevy_ecs::resource::Resource;
+use shared::SamplerKey;
 use slotmap::SlotMap;
 use vulkanite::vk::{
     CompareOp, Filter, LOD_CLAMP_NONE, SamplerAddressMode, SamplerCreateInfo, SamplerMipmapMode,
     rs::{Device, Sampler},
 };
-
-use crate::engine::ecs::SamplerKey;
 
 #[derive(Default, Clone, Copy)]
 pub struct SamplerReference {

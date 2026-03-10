@@ -1,12 +1,11 @@
 [package]
-name = "importer"
+name = "shared"
 version = "0.1.0"
 edition = "2024"
 publish = false
 
 [dependencies]
 math = { workspace = true }
-shared = { workspace = true }
 bytemuck = { workspace = true }
 num_cpus = { workspace = true }
 toml = { workspace = true }
@@ -20,6 +19,7 @@ ktx2-rw = { workspace = true }
 fast_image_resize = { workspace = true }
 meshopt = { workspace = true }
 padding-struct = { workspace = true }
+slotmap = { workspace = true }
 
 uuid = { workspace = true }
 uuid-simd = { workspace = true }

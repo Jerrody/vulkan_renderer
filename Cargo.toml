@@ -7,6 +7,8 @@ members = [
     "crates/engine/crates/math",
     "crates/engine/crates/importer",
     "crates/engine/crates/loader",
+    "crates/engine/crates/asset_database",
+    "crates/engine/crates/shared",
     # "crates/engine/crates/physics",
 ]
 
@@ -48,12 +50,15 @@ fast_image_resize = { version = "6.0.0", features = ["rayon", "image"] }
 padding-struct = "0.2.0"
 bytemuck = "1.25.0"
 num_cpus = "1.17.0"
+slotmap = { git = "https://github.com/Jerrody/slotmap" }
 
 engine = { path = "crates/engine" }
 game_logic = { path = "crates/game_logic" }
 math = { path = "crates/engine/crates/math" }
 importer = { path = "crates/engine/crates/importer" }
 loader = { path = "crates/engine/crates/loader" }
+shared = { path = "crates/engine/crates/shared" }
+asset_database = { path = "crates/engine/crates/asset_database" }
 # physics = { path = "crates/engine/crates/physics" }
 
 [profile.dev]

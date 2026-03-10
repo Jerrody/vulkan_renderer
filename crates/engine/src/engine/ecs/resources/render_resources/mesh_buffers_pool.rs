@@ -1,10 +1,9 @@
 use bevy_ecs::resource::Resource;
+use shared::MeshBufferKey;
 use slotmap::{Key, SlotMap};
 use vulkanite::vk::DeviceAddress;
 
-use crate::engine::ecs::{
-    MeshBufferKey, buffers_pool::BufferReference, components::mesh::MeshData,
-};
+use crate::engine::ecs::{buffers_pool::BufferReference, components::mesh::MeshData};
 
 pub struct MeshBuffer {
     pub mesh_object_device_address: DeviceAddress,

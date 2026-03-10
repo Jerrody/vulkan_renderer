@@ -2,6 +2,7 @@ use bevy_ecs::resource::Resource;
 use bytemuck::{Pod, Zeroable};
 use fast_image_resize::{PixelType, images::Image};
 use ktx2_rw::{BasisCompressionParams, Ktx2Texture};
+use shared::TextureKey;
 use slotmap::{Key, SlotMap};
 use vma::{Alloc, Allocation, AllocationCreateInfo, Allocator, MemoryUsage};
 use vulkanite::vk::{
@@ -10,8 +11,6 @@ use vulkanite::vk::{
     ImageViewCreateInfo, ImageViewType, MemoryPropertyFlags, SampleCountFlags, SharingMode,
     rs::Device,
 };
-
-use crate::engine::ecs::TextureKey;
 
 #[repr(C)]
 #[derive(Default, Clone, Copy, Pod, Zeroable)]
