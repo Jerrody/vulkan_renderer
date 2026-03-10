@@ -6,6 +6,7 @@ members = [
     "crates/game_runner",
     "crates/engine/crates/math",
     "crates/engine/crates/importer",
+    "crates/engine/crates/loader",
     # "crates/engine/crates/physics",
 ]
 
@@ -52,6 +53,7 @@ engine = { path = "crates/engine" }
 game_logic = { path = "crates/game_logic" }
 math = { path = "crates/engine/crates/math" }
 importer = { path = "crates/engine/crates/importer" }
+loader = { path = "crates/engine/crates/loader" }
 # physics = { path = "crates/engine/crates/physics" }
 
 [profile.dev]
