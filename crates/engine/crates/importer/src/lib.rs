@@ -473,6 +473,7 @@ pub fn resolve_assets_entries_system(mut importer: ResMut<Importer>) {
 
 pub fn check_if_asset_is_serialized_system(mut importer: ResMut<Importer>) {
     let meta_files = importer.meta_files.to_vec();
+    let asset_folder_path_buffer = importer.asset_folder_path_buffer.clone();
 
     importer.assets_entries.retain(|asset_entry| {
         let name = match asset_entry {
@@ -504,12 +505,17 @@ pub fn check_if_asset_is_serialized_system(mut importer: ResMut<Importer>) {
                 }
             };
 
+            let path = path
+                .strip_prefix(asset_folder_path_buffer.as_path())
+                .unwrap();
+
             name.eq(meta_name) && path.eq(meta_path)
         })
     });
 }
 
 pub fn serialize_unserialized_assets_system(mut importer: ResMut<Importer>) {
+    // TODO: Handle properly textures assets and materials, for now, we leave it as it is.
     let mut assets_entries = importer.assets_entries.to_vec();
 
     assets_entries
