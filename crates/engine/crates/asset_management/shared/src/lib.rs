@@ -234,3 +234,17 @@ slotmap::new_key_type! {
     pub struct MaterialKey;
     pub struct AudioKey;
 }
+
+pub struct AssetsExtensions;
+
+impl AssetsExtensions {
+    pub const META_FILE_EXTENSION: &'static str = "meta";
+}
+
+pub struct ArtifactsFoldersNames;
+
+impl ArtifactsFoldersNames {
+    pub const MODELS_FOLDER_NAME: &'static str = "models";
+    pub const TEXTURES_FOLDER_NAME: &'static str = "textures";
+    pub const MATERIALS_FOLDER_NAME: &'static str = "materials";
+}

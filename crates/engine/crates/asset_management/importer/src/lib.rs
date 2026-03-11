@@ -1,18 +1,21 @@
 use fast_image_resize::{PixelType, images::Image};
 use image::{EncodableLayout, ImageReader};
+use information::Information;
 use ktx2_rw::BasisCompressionParams;
 use shared::*;
 use std::{
     collections::{HashMap, HashSet},
-    default,
     io::{Cursor, Read, Write},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 use uuid::{Uuid, uuid};
 use walkdir::WalkDir;
 
 use asset_importer::{Matrix4x4, node::Node, postprocess::PostProcessSteps};
-use bevy_ecs::{resource::Resource, system::ResMut};
+use bevy_ecs::{
+    resource::Resource,
+    system::{Res, ResMut},
+};
 use math::*;
 use meshopt::*;
 
@@ -152,7 +155,10 @@ impl Importer {
     }
 }
 
-pub fn collect_assets_to_serialize_system(mut importer: ResMut<Importer>) {
+pub fn collect_assets_to_serialize_system(
+    mut importer: ResMut<Importer>,
+    information: Res<Information>,
+) {
     importer.assets_to_serialize.clear();
     importer.meta_files.clear();
 
@@ -163,7 +169,14 @@ pub fn collect_assets_to_serialize_system(mut importer: ResMut<Importer>) {
         .filter_map(|e| e.ok())
     {
         if entry.file_type().is_file() {
-            if entry.path().extension().unwrap().to_str().eq(&Some("meta")) {
+            if entry
+                .path()
+                .extension()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .eq(AssetsExtensions::META_FILE_EXTENSION)
+            {
                 let mut metadata_content = String::new();
                 std::fs::File::open(entry.path())
                     .unwrap()

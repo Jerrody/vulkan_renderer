@@ -3,12 +3,13 @@ resolver = "3"
 members = [
     "crates/engine",
     "crates/game_logic",
-    "crates/game_runner",
+    "crates/runner",
     "crates/engine/crates/math",
     "crates/engine/crates/asset_management/importer",
     "crates/engine/crates/asset_management/loader",
     "crates/engine/crates/asset_management/asset_database",
     "crates/engine/crates/asset_management/shared",
+    "crates/engine/crates/information",
     # "crates/engine/crates/physics",
 ]
 
@@ -59,6 +60,7 @@ importer = { path = "crates/engine/crates/asset_management/importer" }
 loader = { path = "crates/engine/crates/asset_management/loader" }
 shared = { path = "crates/engine/crates/asset_management/shared" }
 asset_database = { path = "crates/engine/crates/asset_management/asset_database" }
+information = { path = "crates/engine/crates/information" }
 # physics = { path = "crates/engine/crates/physics" }
 
 [profile.dev]

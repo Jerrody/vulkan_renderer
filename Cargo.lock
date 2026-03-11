@@ -1435,17 +1435,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "game_runner"
-version = "0.1.0"
-dependencies = [
- "cargo_metadata",
- "engine",
- "game_logic",
- "libloading 0.9.0",
- "winit",
-]
-
-[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1988,6 +1977,7 @@ dependencies = [
  "bytemuck",
  "fast_image_resize",
  "image",
+ "information",
  "ktx2-rw",
  "math",
  "meshopt",
@@ -2012,6 +2002,13 @@ dependencies = [
  "hashbrown 0.16.1",
  "serde",
  "serde_core",
+]
+
+[[package]]
+name = "information"
+version = "0.1.0"
+dependencies = [
+ "bevy_ecs",
 ]
 
 [[package]]
@@ -2264,6 +2261,7 @@ dependencies = [
  "bytemuck",
  "fast_image_resize",
  "image",
+ "information",
  "ktx2-rw",
  "math",
  "meshopt",
@@ -3495,6 +3493,17 @@ name = "rtrb"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7204ed6420f698836b76d4d5c2ec5dec7585fd5c3a788fd1cde855d1de598239"
+
+[[package]]
+name = "runner"
+version = "0.1.0"
+dependencies = [
+ "cargo_metadata",
+ "engine",
+ "game_logic",
+ "libloading 0.9.0",
+ "winit",
+]
 
 [[package]]
 name = "rustc-hash"
